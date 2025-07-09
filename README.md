@@ -250,19 +250,6 @@ PUT    /api/admin/cases/:caseId/close
 
 ---
 
-### 6. Fashion Show (Admin Side)
-
-```http
-GET    /api/admin/fashion/sessions
-POST   /api/admin/fashion/sessions
-GET    /api/admin/fashion/sessions/:showId
-PUT    /api/admin/fashion/sessions/:showId
-DELETE /api/admin/fashion/sessions/:showId
-
-GET    /api/admin/fashion/sessions/:showId/participants
-GET    /api/admin/fashion/sessions/:showId/votes
-```
-
 ---
 
 ## 🎯 Limits
