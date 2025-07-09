@@ -2,8 +2,9 @@
 # CatWalk Backend API
 
 All endpoints live under `/api`.  
-Requests and responses are JSON.  
-Protected routes require:
+Requests and responses are in JSON.  
+Protected routes require this header:
+
 ```
 
 Authorization: Bearer <your-jwt-token>
@@ -18,214 +19,191 @@ Authorization: Bearer <your-jwt-token>
 ```http
 POST   /api/auth/signup  
 Body:  
-{ "email":"you@example.com", "password":"StrongPass123!" }  
+{ "email": "you@example.com", "password": "StrongPass123!" }  
 → 201 “User created!”
 
 POST   /api/auth/signin  
 Body:  
-{ "email":"you@example.com", "password":"StrongPass123!" }  
-→ 200 { "token":"<your-jwt>" }
+{ "email": "you@example.com", "password": "StrongPass123!" }  
+→ 200 { "token": "your-token" }
 
 POST   /api/auth/signout  
 → 204
 ````
 
-> • Create your account, get your token, or sign out.
-
 ---
 
-### 2. New-Cat “Adoption” Flow
+### 2. Adopt a New Cat
 
-#### a) Upload & Classify Photo
+#### a) Upload Photo → Get Classification
 
 ```http
 POST   /api/cats/upload
-Body: { "image":"<base64-or-URL>" }
+Body: { "image": "<base64-or-url>" }
 → 200 {
-    "classificationId":"cls123",
-    "templateId":"siamese-default-seal",
-    "spriteURL":"https://…/siamese-seal.png",
-    "autoName":"Luna",
-    "autoDesc":"Seal-point Siamese"
-  }
+  "templateId": "siamese-default-seal",       // classificationId = templateId
+  "spriteURL": "https://…/siamese.png",
+  "autoName": "Luna",
+  "autoDesc": "Seal-point Siamese"
+}
 ```
 
-> • Counts toward your **5 daily uploads/edits**.
-> • Server runs LLM classification up to 3 tries and picks a sprite.
+> • Counts toward **5 uploads/edits per day**.
 
 #### b) Confirm Adoption
 
 ```http
 POST   /api/cats/adopt
 Body: {
-  "classificationId":"cls123",
-  "name":"My Luna?",      // optional override
-  "description":"Fluffy and curious"
+  "templateId": "siamese-default-seal",   // from upload step
+  "name": "My Luna",                      // optional
+  "description": "Fluffy and sweet"       // optional
 }
-→ 201 { "catId":"cat456" }
+→ 201 { "catId": "cat456" }
 ```
 
-> • Saves the new cat in your album (max **25 cats**).
+> • Adds a cat to your collection (max 25 cats).
 
 ---
 
 ### 3. Manage Your Cats
 
-#### List Cats
+#### View All Your Cats
 
 ```http
 GET    /api/cats
-→ 200 [
-  { "id":"cat456","name":"My Luna","imageURL":"…","createdAt":"…" },
-  …
-]
+→ 200 [ { id, name, spriteURL, templateId, createdAt }, … ]
 ```
 
-#### Update Name/Description
+#### Edit Name/Description
 
 ```http
 PUT    /api/cats/:catId
-Body: { "name":"New Name","description":"…" }
-→ 200 { updated cat object }
+Body: { "name": "Mimi", "description": "Cozy couch cat" }
+→ 200 { updatedCat }
 ```
 
-#### Replace Photo
+#### Upload New Photo
 
 ```http
 POST   /api/cats/:catId/photo
-Body: { "image":"<new-base64-or-URL>" }
+Body: { "image": "<new image>" }
 → 200 {
-    "classificationId":"cls789",
-    "templateId":"…",
-    "spriteURL":"…",
-    "autoName":"…",
-    "autoDesc":"…"
-  }
+  "templateId": "new-template-id",
+  "spriteURL": "…",
+  "autoName": "NewName",
+  "autoDesc": "NewDesc"
+}
 ```
-
-> • Counts toward daily limit; preview only.
 
 #### Re-process Same Photo
 
 ```http
 POST   /api/cats/:catId/refresh
-→ 200 { new classification preview… }
+→ 200 { templateId, spriteURL, autoName, autoDesc }
 ```
 
-> • Also counts against your 5 uploads/day.
-
-#### Delete a Cat
+#### Delete Cat
 
 ```http
 DELETE /api/cats/:catId
-→ 200 { "message":"Cat deleted." }
+→ 200 { "message": "Cat deleted." }
 ```
 
 ---
 
-### 4. Fashion Show (Player)
+### 4. Fashion Show (Player Side)
 
-#### Submit Outfit
+#### Submit Entry
 
 ```http
 POST   /api/fashion/entries
 Body: {
-  "catId":"cat456",
-  "outfit":{ "hat":"flower-crown","shoes":"pink-paws",… }
+  "catId": "cat456",
+  "outfit": { "hat": "crown", "accessory": "scarf" }
 }
-→ 201 { "entryId":"e789" }
+→ 201 { "entryId": "e789" }
 ```
 
 #### View All Entries
 
 ```http
 GET    /api/fashion/entries
-→ 200 [
-  { entryId, cat:{name,imageURL}, outfit, votes },
-  …
-]
+→ 200 [ { entryId, cat: { name, spriteURL }, outfit, votes }, … ]
 ```
 
-#### Vote on an Entry
+#### Vote
 
 ```http
 POST   /api/fashion/entries/:entryId/vote
-→ 200 { "message":"Vote submitted!" }
+→ 200 { "message": "Vote submitted!" }
 ```
 
-> • One vote per entry; you can’t vote your own.
-
-#### Get Final Results
+#### View Results
 
 ```http
 GET    /api/fashion/results/:sessionId
 → 200 {
-    standings:[ { entryId, votes, coinsAwarded }, … ],
-    totalPool:125
-  }
+  standings: [ { entryId, votes, coinsAwarded }, … ],
+  totalPool: 125
+}
 ```
 
 ---
 
 ### 5. Shop & Inventory
 
-#### Browse Store
+#### Browse Items
 
 ```http
 GET    /api/shop/items?category=hat
-→ 200 [ { itemId,name,category,price,spriteURL }, … ]
+→ 200 [ { itemId, name, category, price, spriteURL }, … ]
 ```
 
-#### Purchase Item
+#### Buy Item
 
 ```http
 POST   /api/shop/purchase
-Body: { "itemId":"hat01" }
-→ 200 { "balance":800, "ownedItemId":"hat01" }
+Body: { "itemId": "hat01" }
+→ 200 { "balance": 800, "ownedItemId": "hat01" }
 ```
 
-#### Equip / Unequip
+#### Equip/Unequip Item
 
 ```http
 POST   /api/inventory/cats/:catId/equip
-Body: { "itemId":"hat01" }
-→ 200 { catId, equipped:[…] }
+Body: { "itemId": "hat01" }
 
 DELETE /api/inventory/cats/:catId/unequip
-Body: { "itemId":"hat01" }
-→ 200 { catId, equipped:[…] }
+Body: { "itemId": "hat01" }
 
 GET    /api/inventory
-→ 200 { cats:[…], items:[…], coins:<int> }
+→ 200 { cats: […], items: […], coins: 100 }
 ```
 
 ---
 
-### 6. Mailbox (Player-Admin Chat)
+### 6. Mailbox (Support Chat)
 
 ```http
-GET    /api/mailbox?filter=unread|all        # list threads
-GET    /api/mailbox/:caseId/messages         # read thread
-POST   /api/mailbox                          # open new case
-POST   /api/mailbox/:caseId/messages         # reply in case
-POST   /api/mailbox/:caseId/mark-read        # mark read
+GET    /api/mailbox?filter=unread|all
+GET    /api/mailbox/:caseId/messages
+POST   /api/mailbox                        // new case
+POST   /api/mailbox/:caseId/messages      // send message
+POST   /api/mailbox/:caseId/mark-read
 ```
 
 ---
 
 ## 🛠️ Admin API Flow
 
-All admin routes live under `/api/admin` and require an **Admin**-level JWT.
+All admin routes start with `/api/admin` and require an **admin token**.
 
-### 1. Admin Auth
+### 1. Auth
 
 ```http
-POST   /api/admin/auth/signin  
-Body: { "email":"admin@example.com","password":"AdminPass!" }  
-→ 200 { "token":"<admin-jwt>" }
-
-POST   /api/admin/auth/signout  
-→ 204
+POST   /api/admin/auth/signin
+POST   /api/admin/auth/signout
 ```
 
 ---
@@ -234,50 +212,29 @@ POST   /api/admin/auth/signout
 
 ```http
 GET    /api/admin/cats
-→ 200 [ { templateId, breed, variant, palette, spriteURL, description, createdAt }, … ]
-
 POST   /api/admin/cats
-Body: { breed, variant, palette, spriteURL, description }
-→ 201 { templateId }
-
 PUT    /api/admin/cats/:templateId
-Body: { …updates… }
-→ 200 { updated template }
-
 DELETE /api/admin/cats/:templateId
-→ 200 { "message":"Template deleted; notify affected players manually." }
 ```
 
 ---
 
-### 3. Global Item Management
+### 3. Item Management
 
 ```http
 GET    /api/admin/items
-→ 200 [ { itemId,name,category,price,spriteURL }, … ]
-
 POST   /api/admin/items
-Body: { name, category, price, spriteURL }
-→ 201 { itemId }
-
 PUT    /api/admin/items/:itemId
-Body: { …updates… }
-→ 200 { updated item }
-
 DELETE /api/admin/items/:itemId
-→ 200 { "message":"Item removed; refunds issued." }
 ```
 
 ---
 
-### 4. Player Accounts
+### 4. Players
 
 ```http
 GET    /api/admin/players
-→ 200 [ { playerId,email,createdAt,lastLogin,catCount,coinBalance,uploadUsage }, … ]
-
 GET    /api/admin/players/:playerId
-→ 200 { profile, cats, items, mailboxOverview, uploadQuota:{used,remaining} }
 ```
 
 ---
@@ -286,55 +243,35 @@ GET    /api/admin/players/:playerId
 
 ```http
 GET    /api/admin/broadcasts
-→ 200 [ { id,title,body,sentAt }, … ]
-
 POST   /api/admin/broadcasts
-Body: { title, body }
-→ 201
-
 GET    /api/admin/cases
-→ 200 [ { caseId,playerId,title,status }, … ]
-
 PUT    /api/admin/cases/:caseId/close
-→ 200 { "message":"Case closed." }
 ```
 
 ---
 
-### 6. Fashion Show Management (Admin)
+### 6. Fashion Show (Admin Side)
 
 ```http
 GET    /api/admin/fashion/sessions
-→ 200 [ …sessions… ]
-
 POST   /api/admin/fashion/sessions
-Body: { requiredParticipants, votingDurationSec }
-→ 201 { showId, status:"waiting", … }
-
 GET    /api/admin/fashion/sessions/:showId
-→ 200 { show details }
-
 PUT    /api/admin/fashion/sessions/:showId
-Body: { status:"display"|"voting"|"results"|"completed" }
-→ 200 { updated session }
-
 DELETE /api/admin/fashion/sessions/:showId
-→ 200 { "message":"Session removed." }
 
 GET    /api/admin/fashion/sessions/:showId/participants
-→ 200 [ …participants with votes & payouts… ]
-
 GET    /api/admin/fashion/sessions/:showId/votes
-→ 200 [ …individual vote records… ]
 ```
 
 ---
 
-## 🕒 Quotas & Limits
+## 🎯 Limits
 
-* **Max cats per player:** 25
-* **Daily uploads/edits:** 5 (resets at 00:00 server time)
-* **Starting coins:** 100
+* **Max Cats per Player:** 25
+* **Daily Uploads/Edits:** 5
+* **Starting Coins:** 100
+* **Each Classification Result:** Uses LLM (up to 3 attempts)
+* **classificationId = templateId**
 
 ```
 ```
