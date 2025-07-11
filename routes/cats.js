@@ -44,17 +44,17 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, breed, variant, palette, description } = req.body;
 
-  if (!name || !breed || !variant || !palette || description) {
+  if (!name || !description) {
     return res.status(400).json({ error: 'Missing updated cat fields' });
   }
 
   try {
     const result = await DB.query(
       `UPDATE cats
-       SET name = $1, breed = $2, variant = $3, palette = $4, description = $5
-       WHERE id = $6
+       SET name = $1, description = $2
+       WHERE id = $3
        RETURNING *`,
-      [name, breed, variant, palette, description, id]
+      [name, description, id]
     );
 
     if (result.rows.length === 0) {
