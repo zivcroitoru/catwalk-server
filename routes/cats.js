@@ -16,20 +16,19 @@ router.get('/', async (req, res) => {
 
 // POST a new cat ≽^•⩊•^≼
 router.post('/', async (req, res) => {
-  const { id, player_id, name, breed, variant, palette, description, created_at } = req.body; //correct
+  const { player_id, name, breed, variant, palette, description} = req.body; //correct
 
- if (!id|| !player_id || !name || !breed || !variant || !palette) {
+ if (!player_id || !name || !breed || !variant || !palette) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
-
   try {
     const result = await DB.query(
-      `INSERT INTO cats 
-       (id, player_id, name, breed, variant, palette, description, created_at) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+      `INSERT INTO cats
+       (player_id, name, breed, variant, palette, description)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [id, player_id, name, breed, variant, palette, description, created_at]
+      [player_id, name, breed, variant, palette, description]
     );
 
     res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
@@ -44,17 +43,17 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, breed, variant, palette, description } = req.body;
 
-  if (!name || !description) {
+  if (!name || !breed || !variant || !palette) {
     return res.status(400).json({ error: 'Missing updated cat fields' });
   }
 
   try {
     const result = await DB.query(
       `UPDATE cats
-       SET name = $1, description = $2
-       WHERE id = $3
+       SET name = $1, breed = $2, variant = $3, palette = $4, description = $5
+       WHERE id = $6
        RETURNING *`,
-      [name, description, id]
+      [name, breed, variant, palette, description, id]
     );
 
     if (result.rows.length === 0) {
@@ -62,12 +61,12 @@ router.put('/:id', async (req, res) => {
     }
 
     res.status(200).json({ message: 'Cat updated', cat: result.rows[0] });
-
   } catch (error) {
     console.error('Error updating cat:', error);
     res.status(500).json({ error: 'Server error while updating cat' });
   }
 });
+
 
 // DELETE a cat ^. .^₎Ⳋ
 router.delete('/:id', async (req, res) => {
