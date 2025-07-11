@@ -44,10 +44,6 @@ app.get('/api/test', (req, res) => {
   res.json({ message: 'Hello from server' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-
 app.get('/api/wow', (req, res) => {
   query = 'select * from users';
   DB.query(query)
@@ -63,3 +59,6 @@ app.get('/api/wow', (req, res) => {
     })
 });
 
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
