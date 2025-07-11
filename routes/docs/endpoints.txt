@@ -1,0 +1,22 @@
+AUTH ROUTES
+POST /auth/signup - Register a new user
+POST /auth/login - Log in user
+POST /auth/logout - Log out user
+
+CATS ROUTES
+GET /cats - Get all cats
+POST /cats - Create a new cat
+PUT /cats/:id - Update a cat by ID
+DELETE /cats/:id - Delete a cat by ID
+
+PLAYERS ROUTES
+GET /players - Get all players
+POST /players - Create a new player
+PUT /players/:id - Update a player by ID
+DELETE /players/:id - Delete a player by ID
+
+SHOP ROUTES
+GET /shop - Get all shop items
+POST /shop - Create a new shop item
+PUT /shop/:id - Update a shop item by ID
+DELETE /shop/:id - Delete a shop item by ID
