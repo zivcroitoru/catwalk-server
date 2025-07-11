@@ -8,6 +8,9 @@ const app = express();
 const PORT = 3000;
 
 const authRoutes = require('./routes/auth');
+const catsRoutes = require('./routes/cats');
+const playersRoutes = require('./routes/players');
+const shopRoutes = require('./routes/shop');
 
 app.use(cors({
   origin: 'http://localhost:3000',
@@ -28,7 +31,12 @@ app.use(session({
 }));
 
 
+// Plug in all routes
 app.use('/auth', authRoutes);
+app.use('/cats', catsRoutes);
+app.use('/players', playersRoutes);
+app.use('/shop', shopRoutes);
+
 
 app.get('/api/test', (req, res) => {
   DB.query("select * from users")
