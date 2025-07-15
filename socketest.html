@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Socket.io Test</title>
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>Socket.io Client Test</h1>
+  <div id="messages"></div>
+
+  <script>
+    // Connect to your Socket.io server
+    const socket = io('http://localhost:3000', {
+      withCredentials: true,
+    });
+
+    // Listen for 'welcome' message from server
+    socket.on('welcome', (message) => {
+      const messagesDiv = document.getElementById('messages');
+      messagesDiv.innerHTML += `<p><strong>Server:</strong> ${message}</p>`;
+      console.log('Received from server:', message);
+    });
+
+    // Log connection and disconnection events
+    socket.on('connect', () => {
+      console.log('Connected to socket server:', socket.id);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('Disconnected from socket server');
+    });
+  </script>
+</body>
+</html>
