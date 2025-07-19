@@ -10,7 +10,7 @@ const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.io
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5500'],
+    origin: ['http://localhost:3000'],
     credentials: true
   }
 });
@@ -24,12 +24,15 @@ const catsRoutes = require('./routes/cats');
 const playersRoutes = require('./routes/players');
 const shopRoutes = require('./routes/shop');
 
-// Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ["http://localhost:3000", "http://127.0.0.1:5501"],
   credentials: true,
 }));
+
+
+
 app.use(express.json());
+
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',

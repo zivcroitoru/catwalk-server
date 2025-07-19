@@ -6,7 +6,7 @@ const DB = require('../db');
 //list all the cats ^.,.^
 router.get('/', async (req, res) => {
   try {
-    const result = await DB.query('SELECT * FROM cats');
+    const result = await DB.query('SELECT * FROM player_cats');
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching cats:', error);
@@ -24,7 +24,7 @@ router.post('/', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `INSERT INTO cats
+      `INSERT INTO player_cats
        (player_id, name, breed, variant, palette, description)
        VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
@@ -49,7 +49,7 @@ router.put('/:id', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `UPDATE cats
+      `UPDATE player_cats
        SET name = $1, breed = $2, variant = $3, palette = $4, description = $5
        WHERE id = $6
        RETURNING *`,
@@ -74,7 +74,7 @@ router.delete('/:id', async (req, res) => {
 
   try {
     const result = await DB.query(
-      'DELETE FROM cats WHERE id = $1 RETURNING *',
+      'DELETE FROM player_cats WHERE id = $1 RETURNING *',
       [id]
     );
 

@@ -11,32 +11,43 @@ function requireLogin(req, res, next) {
     next();
 }
 
-//SIGNUP ROUTE
+// SIGNUP ROUTE
 router.post('/signup', async (req, res) => {
     const { username, password } = req.body;
-
+    console.log("here");
     try {
         if (!username || !password) {
             return res.status(400).json({ error: 'Username and password are required' });
         }
 
+        // Check if username already exists
         const existingUser = await DB.query(
-            'SELECT * FROM users WHERE username = $1',
+            'SELECT * FROM players WHERE username = $1',
             [username]
         );
-
         if (existingUser.rows.length > 0) {
-            return res.status(409).json({ error: 'Username already exists' });
+            return res.status(409).json({ error: 'Username already taken' });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Hash the password
+        const saltRounds = 10;
+        const password_hash = await bcrypt.hash(password, saltRounds);
 
-        await DB.query(
-            'INSERT INTO users (username, password) VALUES ($1, $2)',
-            [username, hashedPassword]
+        // Insert new user into players table
+        const insertResult = await DB.query(
+            `INSERT INTO players (username, password_hash)
+             VALUES ($1, $2)
+             RETURNING id, username`,
+            [username, password_hash]
         );
 
-        res.status(201).json({ message: 'User registered successfully' });
+        // Set session
+        req.session.user = {
+            id: insertResult.rows[0].id,
+            username: insertResult.rows[0].username
+        };
+
+        res.status(201).json({ message: 'Signup successful', user: req.session.user });
 
     } catch (error) {
         console.error('Signup error:', error);
@@ -44,42 +55,33 @@ router.post('/signup', async (req, res) => {
     }
 });
 
+
 //LOGIN ROUTE
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
     try {
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
-        }
-
+        console.log("Received login request:", req.body)
         const userResult = await DB.query(
-            'SELECT * FROM users WHERE username = $1',
+            "SELECT * FROM players WHERE username = $1",
             [username]
         );
 
         if (userResult.rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid username or password!' });
+            return res.status(400).json({ error: "User not found" });
         }
 
         const user = userResult.rows[0];
 
-        const passwordMatch = await bcrypt.compare(password, user.password);
-        if (!passwordMatch) {
-            return res.status(401).json({ error: 'Invalid username or password' });
+        const isMatch = await bcrypt.compare(password, user.password_hash);
+        if (!isMatch) {
+            return res.status(400).json({ error: "Incorrect password" });
         }
 
-        //Store user in session
-        req.session.user = {
-            id: user.id,
-            username: user.username
-        };
-
-        res.status(200).json({ message: 'Login successful', user: req.session.user });
-
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Server error' });
+        res.status(200).json({ message: "Login successful", username: user.username });
+    } catch (err) {
+        console.error("Login error:", err);
+        res.status(500).json({ error: "Internal server error" });
     }
 });
 
