@@ -25,7 +25,7 @@ const playersRoutes = require('./routes/players');
 const shopRoutes = require('./routes/shop');
 
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:5501"],
+  origin: ["http://localhost:3000", "http://127.0.0.1:5500"],
   credentials: true,
 }));
 
