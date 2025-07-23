@@ -1,0 +1,169 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@200&display=swap');
+
+
+/* html, body {
+  margin: 0;
+  padding: 0;
+  width: 1920px;
+  height: 1080px;
+  background-color: #838e84;
+  font-family: 'Nunito', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+} */
+
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #838e84;
+  font-family: 'Nunito', sans-serif;
+}
+
+.title {
+  font-size: 150px;
+  font-weight: 200;
+  color: #ffffff;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+
+.rectangle {
+  width: 1813px;
+  height: 820px;
+  background-color: #F1EEEE;
+  border-radius: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.login-title {
+  font-size: 64px;
+  font-weight: 600;
+  color: #838e84;
+  margin-bottom: 60px;
+  align-self: center;
+  /* keep title centered */
+  margin-bottom: 100px;
+}
+
+.form-container {
+  padding: 0px 0 0 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.form-row label {
+  font-size: 48px;
+  color: #838e84;
+  font-weight: 200;
+  width: 250px;
+  text-align: right;
+}
+
+.input-field {
+  font-size: 48px;
+  padding: 16px;
+  width: 1349px;
+  border: 2px solid #C0C0C0;
+  border-radius: 100px;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.login-button {
+  font-size: 48px;
+  background-color: #4E5C4F;
+  color: white;
+  border: none;
+  border-radius: 100px;
+  cursor: pointer;
+  width: 538px;
+  height: 121px;
+  align-self: center;
+  margin-top: 50px;
+}
+
+.login-button:hover {
+  background-color: #2a372b;
+}
+
+
+
+
+
+/* .rectangle {
+  width: 1813px;
+  height: 820px;
+  background-color: #F1EEEE;
+  border-radius: 30px;
+  margin-top: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-title {
+  font-size: 64px;
+  font-weight: 600;
+  color: #838e84;
+}
+
+.input-label {
+  font-size: 48px;
+  color: #838E84;
+  align-items: flex-start;
+  width: 500px;
+}
+
+.input-field {
+  font-size: 22px;
+  padding: 16px;
+  width: 100%;
+  border: 2px solid #C0C0C0;
+  border-radius: 100px;
+  background-color: white;
+  box-sizing: border-box;
+}
+
+.login-button {
+  margin-top: 20px;
+  font-size: 48px;
+  padding: 16px 60px;
+  background-color: #4E5C4F;
+  color: white;
+  border: none;
+  border-radius: 100px;
+  width: 538px;
+  height: 112px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.login-button:hover {
+  background-color: #555;
+} */
