@@ -24,6 +24,10 @@ const catsRoutes = require('./routes/cats');
 const playersRoutes = require('./routes/players');
 const shopRoutes = require('./routes/shop');
 
+const adminRoutes = require('./routes/admins');
+
+
+
 app.use(cors({
   origin: ["http://localhost:3000", "http://127.0.0.1:5500"],
   credentials: true,
@@ -32,6 +36,10 @@ app.use(cors({
 
 
 app.use(express.json());
+
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 
 app.use(session({
@@ -50,6 +58,7 @@ app.use('/auth', authRoutes);
 app.use('/cats', catsRoutes);
 app.use('/players', playersRoutes);
 app.use('/shop', shopRoutes);
+app.use('/api/admins', adminRoutes);
 
 // Test API endpoints
 app.get('/api/test', (req, res) => {
