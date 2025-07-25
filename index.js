@@ -8,12 +8,14 @@ const DB = require('./db');
 
 const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.io
+
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000'],
+    origin: ['http://localhost:3000', 'http://127.0.0.1:5501'],
     credentials: true
   }
 });
+
 
 
 const PORT = 3000;
@@ -28,10 +30,13 @@ const adminRoutes = require('./routes/admins');
 
 
 
+const allowedOrigins = ['http://127.0.0.1:5501', 'http://localhost:3000'];
+
 app.use(cors({
-  origin: ["http://localhost:3000", "http://127.0.0.1:5500"],
+  origin: allowedOrigins,
   credentials: true,
 }));
+
 
 
 
