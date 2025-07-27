@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@200&display=swap');
+
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    flex-direction: row;
+    margin: 0;
+    height: 100%;
+    background-color: #F1EEEE;
+    font-family: 'Nunito', sans-serif;
+    padding-top: 111px; /* Push content below the fixed header */
+}
+
+
+
+
+/* HEADER */
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 111px;
+    background-color: #838e84;
+    display: flex;
+    align-items: center;
+    padding-left: 20px;
+    justify-content: center;
+    /* centers horizontally */
+    align-items: center
+}
+
+.back {
+    position: absolute;
+    left: 20px;
+    text-decoration: none;
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 200;
+}
+
+
+.back:hover {
+    color: rgb(29, 44, 36);
+}
+
+.title {
+    font-size: 64px;
+    font-weight: 200;
+    color: #ffffff;
+}
+
+/*-------------------------------------------------------------------------------------------*/
+
+
+.menu {
+    width: 317px;
+    /* margin-top: 111px; */
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+
+
+
+
+/*---------------------------------------------------------------------------------------------*/
+
+.content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* ⬅️ aligns children to the right */
+    position: relative;
+    flex-grow: 1;
+    padding: 20px;
+    margin-bottom: 170px;
+    box-sizing: border-box;
+    font-family: 'Nunito', sans-serif;
+
+    
+}
+
+
+.player-message {
+    width: 1465px;
+    height: 210px;
+    background-color: #ffffff;
+    border-radius: 30px;
+    transform: scale(0.8);
+    position: relative;
+    top: 100px;
+    margin-left: auto;
+    margin-right: auto;
+    right: 0;
+}
+
+.player-message p{
+    margin-left: 20px;
+    font-size: 36px;
+}
+
+.response {
+    width: 1465px;
+    height: 392px;
+    background-color: #ffffff;
+    border-radius: 30px;
+    transform: scale(0.8);
+    position: relative;
+    top: 100px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.response p{
+    margin-left: 20px;
+    font-size: 36px;
+}
+
+.send-button {
+    width: 538px;
+    height: 121px;
+    background-color: #4E5C4F;
+    border-radius: 100px;
+    transform: scale(0.8);
+    position: relative;
+    top: 100px;
+
+    margin-left: auto;
+    margin-right: auto;
+    left: 10px;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    font-size: 48px;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.send-button:hover {
+  background-color: #2a372b;
+}
+
+
+.player-message,
+.response {
+    margin-right: 40px;
+}

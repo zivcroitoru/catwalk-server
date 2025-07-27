@@ -1,7 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@200&display=swap');
-
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@200;400;700;900&display=swap');
-
 
 *,
 *::before,
@@ -13,49 +10,46 @@ html,
 body {
     height: 100%;
     margin: 0;
-}
-
-body {
-
-    display: flex;
-    /* align-items: center; */
-    /* justify-content: center; */
-    background-color: rgb(255, 255, 255);
     font-family: 'Nunito', sans-serif;
+    overflow: hidden;
 }
 
+/* LAYOUT */
+body {
+    display: flex;
+    flex-direction: row;
+    background-color: #ffffff;
+    min-height: 100vh;
+}
 
-
+/* MENU */
 .menu {
-    width: 369px;
-    height: 100%;
+    width: 18vw;
+    min-width: 200px;
+    max-width: 320px;
+    height: 100vh;
     background-color: #838E84;
     border-radius: 0 30px 30px 0;
-    /* rounded on right side only */
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 20px;
-    gap: 30px;
-
+    padding-top: 2vh;
+    gap: 3vh;
 }
 
 .title {
-    font-size: 80px;
+    font-size: clamp(1.6rem, 3vw, 2.8rem);
     font-weight: 500;
     color: #ffffff;
-    letter-spacing: 0;
-    display: center;
+    text-align: center;
 }
 
 .menu a {
-    font-size: 24px;
+    font-size: 1.1rem;
     text-decoration: none;
     color: #ffffff;
-    font-size: 24px;
-    font-weight: 100;
-    margin-top: 10px;
-
+    font-weight: 300;
+    margin-top: 8px;
 }
 
 .menu a:hover {
@@ -69,61 +63,112 @@ body {
     margin: 5px 0;
 }
 
-
+/* CONTENT */
 .content {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
-    padding: 20px;
-    box-sizing: border-box;
-    font-family: 'Nunito', sans-serif;
+    padding: 1.5vh 2vw;
+    overflow-y: auto;
 
 }
 
-
-
 .table {
-    width: 1469px;
-    height: 971px;
+    width: 100%;
+    height: calc(100vh - 120px);
     background-color: #F1EEEE;
     border-radius: 30px;
-    margin-left: 0px;
-    margin-top: 0px;
-    align-items: flex-start;
-    /* Stretch horizontally */
-    transform: scaleX(1) scaley(1);
-    /* transform-origin: left; */
+    padding: 1vw;
+    position: relative;
+    top: -20px;
+    left: -15px;
+    overflow: auto;
+    box-sizing: border-box;
+
 }
 
 .search-bar {
-    width: 676px;
-    height: 69px;
-    margin-bottom: 10px;
-    padding-top: 0;
+    width: 100%;
+    max-width: 40vw;
+    margin-bottom: 1vh;
+
+    margin-bottom: 40px;
+    margin-left: -15px;
+}
+
+.search-bar input[type="text"] {
+    width: 100%;
+    padding: 0.6em 1em;
+    font-size: 1rem;
+    border-radius: 100px;
+    border: 1px solid #D9D9D9;
+    outline: none;
+    color: #909398;
+    font-weight: 300;
 }
 
 .search-bar ::placeholder {
     color: #C0C1C2;
-    font-size: 32px;
-    font-weight: lighter;
-    font-family: 'Nunito', sans-serif;
+    font-size: 1rem;
+    font-weight: 200;
 }
 
-.search-bar input[type="text"] {
-    padding: 8px 12px;
-    margin-left: 0px;
-    font-size: 32px;
-    border-radius: 100px;
-    border: 1px solid #D9D9D9;
-    outline: none;
-    width: 676px;
-    color: #97bde2;
-}
-
+/* FILTER BUTTON */
 .filter-button {
-    /* margin-bottom: 10px; */
-    /* margin-right: 10px; */
+    margin-left: auto;
+    font-size: 1.2rem;
     color: #909398;
-    font-size: 32px;
-    margin-left:auto;
+    transform: scale(0.85);
+
+    margin-bottom: 40px;
+    /* move up */
+}
+
+
+/* RESPONSIVE MEDIA QUERIES */
+@media (max-width: 1024px) {
+    .menu {
+        width: 22vw;
+    }
+
+    .title {
+        font-size: clamp(1.5rem, 4.5vw, 2.5rem);
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        flex-direction: column;
+    }
+
+    .menu {
+        flex-direction: row;
+        width: 100%;
+        height: auto;
+        border-radius: 0;
+        justify-content: space-around;
+        padding: 1vh;
+    }
+
+    .title {
+        font-size: 5vw;
+    }
+
+    .filter-button {
+        font-size: 1.1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .menu a {
+        font-size: 0.95rem;
+    }
+
+    .search-bar input[type="text"] {
+        font-size: 0.95rem;
+    }
+
+    .filter-button {
+        font-size: 1rem;
+    }
 }
