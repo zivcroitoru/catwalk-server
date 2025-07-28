@@ -1,9 +1,9 @@
-const express = require('express');
-const cors = require('cors');
-const session = require('express-session');
-const http = require('http');
-const { Server } = require('socket.io');
-// require("dotenv").config();
+
+import express from express;
+import cors from cors;
+import session  from 'express-session';
+import http from http;
+import { Server } from 'socket.io';
 import dotenv from 'dotenv'
 dotenv.config();
 const DB = require('./db');
@@ -22,21 +22,8 @@ const shopRoutes = require('./routes/shop');
 const adminRoutes = require('./routes/admins');
 
 
-
-const allowedOrigins = [
-  'http://127.0.0.1:5501',
-  'http://localhost:3000',
-  'http://127.0.0.1:5500',
-  'https://catwalk-server.onrender.com'
-];
-
-const corsOptions = {
-  origin: allowedOrigins,
-  credentials: true,
-};
-
 app.use(cors({
-  origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'http://localhost:3000',
+  origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'*',
   credentials: true,
 }));
 
@@ -50,9 +37,6 @@ const io = new Server(server, {
 });
 
 app.use(express.json());
-
-const path = require('path');
-app.use(express.static(path.join(__dirname, 'public')));
 
 
 
