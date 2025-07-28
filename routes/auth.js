@@ -1,7 +1,10 @@
-const express = require('express');
+import express from 'express';
+import bcrypt from 'bcrypt';
+import DB from '../db.js';
+
 const router = express.Router();
-const bcrypt = require('bcrypt');
-const DB = require('../db');
+
+
 
 //Middleware: Require login for protected routes
 function requireLogin(req, res, next) {
@@ -107,4 +110,4 @@ router.get('/me', requireLogin, (req, res) => {
 });
 
 
-module.exports = router;
+export default router;

@@ -1,6 +1,8 @@
-const express = require('express');
+import express from 'express';
+import DB from '../db.js';
+
 const router = express.Router();
-const DB = require('../db');
+
 
 // GET player info
 router.get('/', async (req, res) => {
@@ -99,4 +101,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

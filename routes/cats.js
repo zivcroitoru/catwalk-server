@@ -1,7 +1,7 @@
-const express = require('express'); //import express framework
-const router = express.Router(); //create a new router
-const DB = require('../db');
+import express from 'express'; // import express framework
+import DB from '../db.js';// import your DB connection/module
 
+const router = express.Router(); // create a new router
 
 //list all the cats ^.,.^
 router.get('/', async (req, res) => {
@@ -90,4 +90,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
