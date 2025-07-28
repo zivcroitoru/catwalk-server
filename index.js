@@ -7,18 +7,20 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv'
 dotenv.config();
 import DB from './db.js';
-
-const app = express();
-const server = http.createServer(app); // Create HTTP server for Socket.io
-
-const PORT = 3000;
-
 // Import routes
 import authRoutes from './routes/auth.js';
 import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
+
+
+const app = express();
+const server = http.createServer(app); // Create HTTP server for Socket.io
+
+const PORT = 3000;
+
+
 
 
 app.use(cors({
