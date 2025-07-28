@@ -3,7 +3,9 @@ const cors = require('cors');
 const session = require('express-session');
 const http = require('http');
 const { Server } = require('socket.io');
-require("dotenv").config();
+// require("dotenv").config();
+import dotenv from 'dotenv'
+dotenv.config();
 const DB = require('./db');
 
 const app = express();
