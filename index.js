@@ -9,17 +9,6 @@ const DB = require('./db');
 const app = express();
 const server = http.createServer(app); // Create HTTP server for Socket.io
 
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
-  }
-});
-
-
-
-
-
 const PORT = 3000;
 
 // Import routes
@@ -39,7 +28,10 @@ const allowedOrigins = [
   'https://catwalk-server.onrender.com'
 ];
 
-
+const corsOptions = {
+  origin: allowedOrigins,
+  credentials: true,
+};
 
 app.use(cors({
   origin: allowedOrigins,
@@ -48,6 +40,12 @@ app.use(cors({
 
 
 
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
+});
 
 app.use(express.json());
 
