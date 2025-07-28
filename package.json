@@ -23,6 +23,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "@types/pg": "^8.15.4",
     "nodemon": "^3.1.10"
   }
 }
