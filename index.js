@@ -34,7 +34,7 @@ const corsOptions = {
 };
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'http://localhost:3000',
   credentials: true,
 }));
 
