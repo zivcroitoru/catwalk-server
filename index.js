@@ -32,7 +32,7 @@ app.use(cors({
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'*',
     credentials: true
   }
 });
