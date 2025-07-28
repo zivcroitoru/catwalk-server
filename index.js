@@ -11,10 +11,12 @@ const server = http.createServer(app); // Create HTTP server for Socket.io
 
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://127.0.0.1:5501'],
+    origin: allowedOrigins,
     credentials: true
   }
 });
+
+
 
 
 
@@ -30,7 +32,14 @@ const adminRoutes = require('./routes/admins');
 
 
 
-const allowedOrigins = ['http://127.0.0.1:5501', 'http://localhost:3000', 'http://127.0.0.1:5500'];
+const allowedOrigins = [
+  'http://127.0.0.1:5501',
+  'http://localhost:3000',
+  'http://127.0.0.1:5500',
+  'https://catwalk-server.onrender.com'
+];
+
+
 
 app.use(cors({
   origin: allowedOrigins,
@@ -52,10 +61,11 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true in production with HTTPS
+    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    maxAge: 1000 * 60 * 60 * 24
   }
+
 }));
 
 // Routes
@@ -91,7 +101,7 @@ app.get('/api/wow', (req, res) => {
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(Server, 'running on', 'http://localhost:${PORT}');
 });
 
 // Socket.io logic
