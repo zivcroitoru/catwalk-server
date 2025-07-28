@@ -75,7 +75,7 @@ app.use('/api/admins', adminRoutes);
 
 // Test API endpoints
 app.get('/api/test', (req, res) => {
-  DB.query("SELECT * FROM users")
+  DB.query("SELECT * FROM players")
     .then((response) => {
       console.log(response.rows);
       res.json({ message: 'Hello from server' });
@@ -83,7 +83,7 @@ app.get('/api/test', (req, res) => {
 });
 
 app.get('/api/wow', (req, res) => {
-  const query = 'SELECT * FROM users';
+  const query = 'SELECT * FROM players';
   DB.query(query)
     .then((response) => {
       if (response.rows.length === 0) {
