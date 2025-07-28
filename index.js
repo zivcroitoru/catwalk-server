@@ -99,10 +99,10 @@ app.get('/api/wow', (req, res) => {
 
 // Start the server
 server.listen(PORT, () => {
-  console.log(Server, 'running on', 'http://localhost:${PORT}');
+console.log(`running on http://localhost:${PORT}`);
 });
 
-// Socket.io logic
+// Socket.io logics
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -113,3 +113,4 @@ io.on('connection', (socket) => {
     console.log('User disconnected:', socket.id);
   });
 });
+
