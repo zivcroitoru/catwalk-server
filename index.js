@@ -23,17 +23,17 @@ const devAllowedOrigins = [
   'http://localhost:5500'
 ];
 
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL
-    : devAllowedOrigins,
-  credentials: true,
-}));
-
 // app.use(cors({
-//   origin: '*',      // Allow all origins
-//   credentials: true, // Note: credentials cannot be used with '*', see below
+//   origin: process.env.NODE_ENV === 'production'
+//     ? process.env.FRONTEND_URL
+//     : devAllowedOrigins,
+//   credentials: true,
 // }));
+
+app.use(cors({
+  origin: '*',      // Allow all origins
+  credentials: true, // Note: credentials cannot be used with '*', see below
+}));
 
 
 const io = new Server(server);
