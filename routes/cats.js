@@ -73,7 +73,7 @@ router.get('/player/:playerId', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id, pc.birthday
+      `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id
       FROM player_cats pc
       INNER JOIN cat_templates ct ON pc.template = ct.template
       WHERE pc.player_id = $1`,
