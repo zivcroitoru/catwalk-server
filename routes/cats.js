@@ -83,24 +83,6 @@ router.get('/player/:playerId', async (req, res) => {
   }
 });
 
-// GET /api/players/:id/cats — Get sprite URLs for a player's cats ≽^-˕ -^≼
-router.get('/:id/cats', async (req, res) => {
-  const playerId = req.params.id;
-
-  try {
-    const result = await DB.query(`
-      SELECT ct.sprite_url
-      FROM player_cats pc
-      JOIN cat_templates ct ON pc.template = ct.template
-      WHERE pc.player_id = $1
-    `, [playerId]);
-
-    res.json(result.rows); // Array of { sprite_url }
-  } catch (err) {
-    console.error('Error fetching cat sprites:', err);
-    res.status(500).json({ error: 'Failed to fetch cat sprites' });
-  }
-});
 
 
 // DELETE a cat ^. .^₎Ⳋ

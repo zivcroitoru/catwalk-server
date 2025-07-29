@@ -63,10 +63,10 @@ app.use(session({
 }));
 
 // Routes
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);//
-app.use('/shop', shopRoutes);
+app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 
 initFashionShowConfig(server);
