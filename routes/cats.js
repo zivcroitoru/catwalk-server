@@ -75,7 +75,7 @@ router.get('/player/:playerId', async (req, res) => {
     const result = await DB.query(
       `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id
       FROM player_cats pc
-      JOIN cat_templates ct ON pc.template = ct.template
+      INNER JOIN cat_templates ct ON pc.template = ct.template
       WHERE pc.player_id = $1`,
       [playerId]);
     res.status(200).json(result.rows);
