@@ -63,7 +63,7 @@ app.use(session({
 }));
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);//
 app.use('/api/shop', shopRoutes);
