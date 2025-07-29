@@ -73,9 +73,11 @@ router.get('/player/:playerId', async (req, res) => {
 
   try {
     const result = await DB.query(
-      'SELECT * FROM player_cats WHERE player_id = $1',
-      [playerId]
-    );
+      `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id, pc.birthday
+      FROM player_cats pc
+      JOIN cat_templates ct ON pc.template = ct.template
+      WHERE pc.player_id = $1`,
+      [playerId]);
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching player cats:', error);
