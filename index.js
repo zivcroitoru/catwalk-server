@@ -11,17 +11,18 @@ import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
+import { initFashionShowConfig } from './fashion-show.js';
 
 
 const app = express();
-const server = http.createServer(app); // Create HTTP server for Socket.io
+const server = http.createServer(app);
 
 const PORT = 3000;
 
-const devAllowedOrigins = [
-  'http://127.0.0.1:5500',
-  'http://localhost:5500'
-];
+// const devAllowedOrigins = [
+//   'http://127.0.0.1:5500',
+//   'http://localhost:5500'
+// ];
 
 // app.use(cors({
 //   origin: process.env.NODE_ENV === 'production'
@@ -36,11 +37,18 @@ app.use(cors({
 }));
 
 
-const io = new Server(server);
+// Socket.io is used in the fashion-show - so we disable it here.
+// const io = new Server(server);
+// io.on('connection', (socket) => {
+//   console.log('A user connected:', socket.id);
+//   // Send welcome message to the newly connected user
+//   socket.emit('welcome', 'Welcome to the CatWalk socket server!');
+//   socket.on('disconnect', () => {
+//     console.log('User disconnected:', socket.id);
+//   });
+// });
 
 app.use(express.json());
-
-
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
@@ -60,6 +68,8 @@ app.use('/cats', catsRoutes);
 app.use('/api/players', playersRoutes);//
 app.use('/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
+
+initFashionShowConfig(server);
 
 // Test API endpoints
 app.get('/api/test', (req, res) => {
@@ -88,17 +98,5 @@ app.get('/api/wow', (req, res) => {
 // Start the server
 server.listen(PORT, () => {
 console.log(`running on http://localhost:${PORT}`);
-});
-
-// Socket.io logics
-io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-
-  // Send welcome message to the newly connected user
-  socket.emit('welcome', 'Welcome to the CatWalk socket server!');
-
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-  });
 });
 

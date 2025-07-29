@@ -1,10 +1,16 @@
-const express = require('express');
-const http = require('http');
-const socketIo = require('socket.io');
+import { Server } from "socket.io";
 
-const app = express();
-const server = http.createServer(app);
-const io = socketIo(server);
+export function initFashionShowConfig(mainHttpServer) {
+  const io = new Server(mainHttpServer, {
+    cors: {
+      origin: "*"
+    }
+  });
+
+  // Socket.io connection handling
+  io.on('connection', newIoCSocket);
+}
+
 
 // Constants
 const PARTICIPANTS_IN_ROOM = 5;
@@ -218,77 +224,74 @@ function broadcastWaitingRoomUpdate() {
   });
 }
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
+/** A new socket.io connection is opened */
+function newIoCSocket(socket) {
   console.log('🔌 New client connected:', socket.id);
   
   let currentRoom = null;
   let participant = null;
 
-  socket.on('message', (message) => {
-    console.log('📨 Received message:', message);
+  socket.on('join', (message) => {
+    console.log('📨 Received join message:', message);
 
-    if (message.type === 'join') {
-      // Handle join message
-      participant = {
-        playerId: message.playerId,
-        catId: message.catId,
-        socket: socket,
-        isDummy: false
-      };
+    participant = {
+      playerId: message.playerId,
+      catId: message.catId,
+      socket: socket,
+      isDummy: false
+    };
 
-      // Add to waiting room if it's not full and not in voting phase
-      if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
-        waitingRoom.participants.push(participant);
-        currentRoom = waitingRoom;
-        
-        console.log(`👥 Player ${participant.playerId} joined waiting room (${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM})`);
-        
-        // Fill remaining slots with dummies if needed
-        while (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM) {
-          const dummy = generateDummyParticipant();
-          waitingRoom.participants.push(dummy);
-        }
-
-        // Broadcast participant update
-        broadcastWaitingRoomUpdate();
-
-        // If room is now full, start the game
-        if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-          console.log('🎮 Starting new game room');
-          
-          // Create new game room with current participants
-          const gameRoom = new GameRoom([...waitingRoom.participants]);
-          
-          // Update current room reference for all real participants
-          waitingRoom.participants.forEach(p => {
-            if (!p.isDummy && p.socket) {
-              // This is a bit of a hack - we store the room reference in the socket
-              p.socket.gameRoom = gameRoom;
-            }
-          });
-          
-          // Update current room for this participant
-          currentRoom = gameRoom;
-          
-          // Reset waiting room
-          waitingRoom = {
-            participants: [],
-            isVoting: false
-          };
-        }
-      } else {
-        // Waiting room is full or in voting phase, disconnect the client
-        console.log('❌ Waiting room is full or in voting phase, disconnecting client');
-        socket.disconnect();
+    // Add to waiting room if it's not full and not in voting phase
+    if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
+      waitingRoom.participants.push(participant);
+      currentRoom = waitingRoom;
+      
+      console.log(`👥 Player ${participant.playerId} joined waiting room (${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM})`);
+      
+      // Fill remaining slots with dummies if needed
+      while (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM) {
+        const dummy = generateDummyParticipant();
+        waitingRoom.participants.push(dummy);
       }
+
+      // Broadcast participant update
+      broadcastWaitingRoomUpdate();
+
+      // If room is now full, start the game
+      if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
+        console.log('🎮 Starting new game room');
+        
+        // Create new game room with current participants
+        const gameRoom = new GameRoom([...waitingRoom.participants]);
+        
+        // Update current room reference for all real participants
+        waitingRoom.participants.forEach(p => {
+          if (!p.isDummy && p.socket) {
+            // This is a bit of a hack - we store the room reference in the socket
+            p.socket.gameRoom = gameRoom;
+          }
+        });
+        
+        // Update current room for this participant
+        currentRoom = gameRoom;
+        
+        // Reset waiting room
+        waitingRoom = {
+          participants: [],
+          isVoting: false
+        };
+      }
+    } else {
+      // Waiting room is full or in voting phase, disconnect the client
+      console.log('❌ Waiting room is full or in voting phase, disconnecting client');
+      socket.disconnect();
     }
-    
-    else if (message.type === 'vote') {
-      // Handle vote message
-      if (currentRoom && currentRoom instanceof GameRoom && participant) {
-        currentRoom.handleVote(participant, message.votedCatId);
-      }
+  });
+
+  socket.on('vote', (message) => {
+    console.log('📨 Received vote message:', message);
+    if (currentRoom && currentRoom instanceof GameRoom && participant) {
+      currentRoom.handleVote(participant, message.votedCatId);
     }
   });
 
@@ -311,9 +314,4 @@ io.on('connection', (socket) => {
       }
     }
   });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Fashion show server running on port ${PORT}`);
-});
+}
