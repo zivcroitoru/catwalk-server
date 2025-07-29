@@ -1,11 +1,9 @@
-
+import './utils.js'; // this will read ./.env
 import express from 'express';
 import cors from 'cors';
 import session  from 'express-session';
 import http from 'http';
 import { Server } from 'socket.io';
-import dotenv from 'dotenv'
-dotenv.config();
 import DB from './db.js';
 // Import routes
 import authRoutes from './routes/auth.js';
