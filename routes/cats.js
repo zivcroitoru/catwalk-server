@@ -67,22 +67,19 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-
-// GET /api/cats/:playerId ≽^• ˕ • ྀི≼
-router.get('/:playerId', async (req, res) => {
+// GET all cats for a specific playerc
+router.get('/player/:playerId', async (req, res) => {
   const { playerId } = req.params;
 
   try {
-    const { rows } = await DB.query('SELECT uploaded_photo_url FROM player_cats WHERE player_id = $1', [playerId]);
-
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'No cat images found for this player' });
-    }
-
-    res.json(rows); // [{ image_url: '...' }, { image_url: '...' }]
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    const result = await DB.query(
+      'SELECT * FROM player_cats WHERE player_id = $1',
+      [playerId]
+    );
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching player cats:', error);
+    res.status(500).json({ error: 'Server error while fetching cats' });
   }
 });
 
