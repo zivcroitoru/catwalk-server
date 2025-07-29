@@ -130,7 +130,7 @@ router.get('/:id/cats', async (req, res) => {
 
   try {
     const result = await DB.query(`
-      SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id, pc.birthday
+      SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed
       FROM player_cats pc
       JOIN cat_templates ct ON pc.template = ct.template
       WHERE pc.player_id = $1
