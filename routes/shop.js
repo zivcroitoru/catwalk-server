@@ -8,7 +8,6 @@ const router = express.Router();
 // GET shop items
 router.get('/', async (req, res) => {
   try {
-    console.log("hey girl :)");
     const result = await DB.query('SELECT * FROM itemtemplate');
     res.status(200).json(result.rows);
   } catch (error) {
