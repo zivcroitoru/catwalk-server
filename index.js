@@ -24,7 +24,7 @@ const PORT = 3000;
 
 
 app.use(cors({
-  origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'*',
+  origin: process.env.NODE_ENV==='production'?process.env.FRONTEND_URL:'*',
   credentials: process.env.NODE_ENV === 'production',
 }));
 
@@ -32,7 +32,7 @@ app.use(cors({
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'*',
+    origin: process.env.NODE_ENV==='production'?process.env.FRONTEND_URL:'*',
     credentials: process.env.NODE_ENV === 'production'
   }
 });
