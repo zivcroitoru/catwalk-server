@@ -67,6 +67,22 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET all cats for a specific player
+router.get('/player/:playerId', async (req, res) => {
+  const { playerId } = req.params;
+
+  try {
+    const result = await DB.query(
+      'SELECT * FROM player_cats WHERE player_id = $1',
+      [playerId]
+    );
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching player cats:', error);
+    res.status(500).json({ error: 'Server error while fetching cats' });
+  }
+});
+
 
 // DELETE a cat ^. .^₎Ⳋ
 router.delete('/:id', async (req, res) => {
