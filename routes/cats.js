@@ -67,7 +67,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// GET all cats for a specific player
+// GET all cats for a specific playerc
 router.get('/player/:playerId', async (req, res) => {
   const { playerId } = req.params;
 

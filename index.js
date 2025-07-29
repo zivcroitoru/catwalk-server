@@ -64,7 +64,7 @@ app.use(session({
 
 // Routes
 app.use('/auth', authRoutes);
-app.use('/cats', catsRoutes);
+app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);//
 app.use('/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
