@@ -73,7 +73,7 @@ router.get('/:playerId', async (req, res) => {
   const { playerId } = req.params;
 
   try {
-    const { rows } = await DB.query('SELECT image_url FROM player_cats WHERE player_id = $1', [playerId]);
+    const { rows } = await DB.query('SELECT uploaded_photo_url FROM player_cats WHERE player_id = $1', [playerId]);
 
     if (rows.length === 0) {
       return res.status(404).json({ message: 'No cat images found for this player' });
