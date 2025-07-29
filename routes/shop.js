@@ -8,7 +8,7 @@ const router = express.Router();
 // GET shop items
 router.get('/', async (req, res) => {
   try {
-    const result = await DB.query('SELECT * FROM shop');
+    const result = await DB.query('SELECT * FROM itemtemplate');
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching shop items:', error);
@@ -28,7 +28,7 @@ router.post('/', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `INSERT INTO shop (item_name, description, price, type)
+      `INSERT INTO itemtemplate (name, description, price, category)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
       [item_name, description, price, type]
@@ -53,11 +53,11 @@ router.put('/:id', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `UPDATE shop
-       SET item_name = $1, description = $2, price = $3, type = $4
-       WHERE id = $5
+      `UPDATE itemtemplate
+       SET  description = $1, price = $2, type = $3
+       WHERE name = $4
        RETURNING *`,
-      [item_name, description, price, type, id]
+      [item_name, description, price, type]
     );
 
     if (result.rows.length === 0) {
@@ -78,7 +78,7 @@ router.delete('/:id', async (req, res) => {
 
   try {
     const result = await DB.query(
-      'DELETE FROM shop WHERE id = $1 RETURNING *',
+      'DELETE FROM itemtemplate WHERE name = $1 RETURNING *',
       [id]
     );
 
@@ -92,5 +92,19 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error while deleting item' });
   }
 });
+
+
+router.get('/test', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT COUNT(*) FROM itemtemplate');
+    res.status(200).json({ count: result.rows[0].count });
+  } catch (error) {
+    console.error('Error in test route:', error);
+    res.status(500).json({ error: 'Test query failed' });
+  }
+});
+
+
+
 
 export default router;
