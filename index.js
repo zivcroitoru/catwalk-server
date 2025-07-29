@@ -18,22 +18,19 @@ const server = http.createServer(app); // Create HTTP server for Socket.io
 
 const PORT = 3000;
 
-
-
+const devAllowedOrigins = [
+  'http://127.0.0.1:5500',
+  'http://localhost:5500',
+];
 
 app.use(cors({
-  origin: process.env.NODE_ENV==='production'?process.env.FRONTEND_URL:'*',
-  credentials: process.env.NODE_ENV === 'production',
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL
+    : devAllowedOrigins,
+  credentials: true,
 }));
 
-
-
-const io = new Server(server, {
-  cors: {
-    origin: process.env.NODE_ENV==='production'?process.env.FRONTEND_URL:'*',
-    credentials: process.env.NODE_ENV === 'production'
-  }
-});
+const io = new Server(server);
 
 app.use(express.json());
 
