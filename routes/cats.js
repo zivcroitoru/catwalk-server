@@ -73,7 +73,7 @@ router.get('/player/:playerId', async (req, res) => {
 
   try {
     const result = await DB.query(
-      'SELECT * FROM player_cats WHERE player_id = $1',
+      'SELECT * FROM player_cats WHERE player_id = $2',
       [playerId]
     );
     res.status(200).json(result.rows);
