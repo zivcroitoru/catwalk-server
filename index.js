@@ -21,9 +21,19 @@ const PORT = process.env.PORT || 3001;
 
 // ───────────── CORS Config ─────────────
 
+const allowedOrigins = [
+  'https://catwalk.onrender.com' // ← your actual frontend
+];
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : '*',
-  credentials: process.env.NODE_ENV === 'production'
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
+  credentials: true
 }));
 
 
@@ -33,12 +43,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
   resave: false,
   saveUninitialized: false,
-cookie: {
-  secure: process.env.NODE_ENV === 'production',
-  httpOnly: true,
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  maxAge: 1000 * 60 * 60 * 24
-}
+  cookie: {
+    secure: true,
+    sameSite: 'none',
+    httpOnly: true,
+    maxAge: 1000 * 60 * 60 * 24
+  }
 }));
 
 app.use('/auth', authRoutes);
