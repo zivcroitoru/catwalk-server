@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
   }
 });
 // Example Express route
-router.get('/api/cats/template/:template', async (req, res) => {
+router.get('/template/:template', async (req, res) => {
   const { template } = req.params;
   try {
     const result = await DB.query('SELECT * FROM cat_template WHERE template = $1', [template]);
