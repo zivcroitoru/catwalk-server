@@ -4,11 +4,11 @@ const session = require('express-session');
 const http = require('http');
 const { Server } = require('socket.io');
 require("dotenv").config();
+const path = require('path');
 const DB = require('./db');
 
 const app = express();
 const server = http.createServer(app);
-
 const PORT = 3000;
 
 // ──────── Import Routes ────────
@@ -18,35 +18,20 @@ const playersRoutes = require('./routes/players');
 const shopRoutes = require('./routes/shop');
 const adminRoutes = require('./routes/admins');
 const catTemplatesRoutes = require('./routes/catTemplates');
+const userItemsRoutes = require('./routes/userItems');
 
-// ──────── CORS Config ────────
+// ──────── Allowed Origins ────────
 const allowedOrigins = [
-  'http://127.0.0.1:5501',
-  'http://localhost:3000',
   'http://127.0.0.1:5500',
+  'http://127.0.0.1:5501',
+  'http://localhost:5173',
   'https://catwalk-server.onrender.com'
 ];
 
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONEND_URL
-    : 'http://localhost:3000',
-  credentials: true,
-}));
+// ──────── Trust Proxy (for cookies on Render) ────────
+app.set('trust proxy', 1);
 
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
-  }
-});
-
-// ──────── Middleware ────────
-app.use(express.json());
-
-const path = require('path');
-app.use(express.static(path.join(__dirname, 'public')));
-
+// ──────── Session ────────
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
   resave: false,
@@ -54,17 +39,29 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 1000 * 60 * 60 * 24 * 7 // 7 days
   }
 }));
+
+// ──────── CORS ────────
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
+
+// ──────── Middleware ────────
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 // ──────── Routes ────────
 app.use('/auth', authRoutes);
 app.use('/cats', catsRoutes);
 app.use('/players', playersRoutes);
-app.use('/shop', shopRoutes);
+app.use('/api/shop-items', shopRoutes);
 app.use('/api/admins', adminRoutes);
-app.use(catTemplatesRoutes);
+app.use('/api/cat-templates', catTemplatesRoutes);
+app.use('/api/user-items', userItemsRoutes);
 
 // ──────── Test Endpoints ────────
 app.get('/api/test', async (req, res) => {
@@ -78,31 +75,36 @@ app.get('/api/test', async (req, res) => {
   }
 });
 
-app.get('/api/wow', (req, res) => {
-  const query = 'SELECT * FROM players';
-  DB.query(query)
-    .then((response) => {
-      if (response.rows.length === 0) {
-        return res.status(200).send("Not found");
-      }
-      res.status(200).send(response.rows);
-    })
-    .catch((error) => {
-      console.error(error);
-      res.status(404).send("ERROR");
-    });
+app.get('/api/wow', async (req, res) => {
+  try {
+    const response = await DB.query('SELECT * FROM players');
+    if (response.rows.length === 0) {
+      return res.status(200).send("Not found");
+    }
+    res.status(200).send(response.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(404).send("ERROR");
+  }
 });
 
-// ──────── Start Server ────────
-server.listen(PORT, () => {
-  console.log(`running on http://localhost:${PORT}`);
+// ──────── Socket.io Config ────────
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
 });
 
-// ──────── Socket.io Logic ────────
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
   socket.emit('welcome', 'Welcome to the CatWalk socket server!');
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
+});
+
+// ──────── Start Server ────────
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });

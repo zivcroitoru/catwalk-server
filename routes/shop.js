@@ -3,7 +3,7 @@ const router = express.Router();
 const DB = require('../db');
 
 // ✅ NEW: public route for client to fetch all shop items
-router.get('/api/shop-items', async (_req, res) => {
+router.get('/shop-items', async (_req, res) => {
   try {
     const { rows } = await DB.query(`
       SELECT 
