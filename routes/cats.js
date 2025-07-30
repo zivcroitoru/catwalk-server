@@ -14,8 +14,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+//get all the cats
+router.get('/', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT * FROM cat_templates');
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cats:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST a new cat ≽^•⩊•^≼
-router.post('/', async (req, res) => {
+router.post('/allcats', async (req, res) => {
   const { player_id, name, breed, variant, palette, description} = req.body; //correct
 
  if (!player_id || !name || !breed || !variant || !palette) {
