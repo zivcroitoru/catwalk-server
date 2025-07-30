@@ -27,7 +27,7 @@ router.get('/allcats', async (req, res) => {
 });
 
 // POST a new cat ≽^•⩊•^≼
-router.post('/allcats', async (req, res) => {
+router.post('/', async (req, res) => {
   const { player_id, name, breed, variant, palette, description} = req.body; //correct
 
  if (!player_id || !name || !breed || !variant || !palette) {
