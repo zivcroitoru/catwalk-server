@@ -40,15 +40,6 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use(cookieSession({
-  name: 'session',
-  keys: [process.env.SESSION_SECRET || 'secretcatwalkcookie'],
-  secure: true,
-  sameSite: 'none',
-  httpOnly: true,
-  maxAge: 24 * 60 * 60 * 1000 // 24 hours
-}));
-
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);

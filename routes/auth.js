@@ -1,7 +1,27 @@
 // /routes/auth.js
 import express from 'express';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import DB from '../db.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+// JWT Auth Middleware
+function requireLogin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1]; // Bearer <token>
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
 
 const router = express.Router();
 
@@ -41,16 +61,19 @@ router.post('/signup', async (req, res) => {
       [username, password_hash]
     );
 
-    req.session.user = {
+    const user = {
       id: insertResult.rows[0].id,
       username: insertResult.rows[0].username
     };
 
-    console.log('✅ Signup session set:', req.session);
+    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+
+    console.log('✅ Signup successful, token generated');
 
     res.status(201).json({
       message: 'Signup successful',
-      user: req.session.user
+      user,
+      token
     });
   } catch (error) {
     console.error('❌ Signup error:', error);
@@ -81,16 +104,19 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid username or password' });
     }
 
-    req.session.user = {
+    const userData = {
       id: user.id,
       username: user.username
     };
 
-    console.log('✅ Login session set:', req.session);
+    const token = jwt.sign(userData, JWT_SECRET, { expiresIn: '24h' });
+
+    console.log('✅ Login successful, token generated');
 
     res.status(200).json({
       message: 'Login successful',
-      user: req.session.user
+      user: userData,
+      token
     });
   } catch (err) {
     console.error('❌ Login error:', err);
@@ -99,24 +125,19 @@ router.post('/login', async (req, res) => {
 });
 
 // ───────────── LOGOUT ─────────────
-router.post('/logout', (req, res) => {
-  req.session.destroy(err => {
-    if (err) {
-      console.error('❌ Logout error:', err);
-      return res.status(500).json({ error: 'Logout failed' });
-    }
-    res.clearCookie('connect.sid');
-    console.log('🚪 User logged out');
-    res.status(200).json({ message: 'Logout successful' });
-  });
+router.post('/logout', (_req, res) => {
+  // With JWT, we don't need to do anything server-side
+  // The client just needs to remove the token
+  console.log('🚪 Client logged out');
+  res.status(200).json({ message: 'Logout successful' });
 });
 
 // ───────────── AUTH CHECK ─────────────
 router.get('/me', requireLogin, (req, res) => {
-  console.log('🔍 Session user:', req.session.user);
+  console.log('🔍 Authenticated user:', req.user);
   res.status(200).json({
     message: 'You are logged in!',
-    user: req.session.user
+    user: req.user
   });
 });
 
