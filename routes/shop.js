@@ -5,7 +5,27 @@ const router = express.Router();
 
 
 
-// GET shop items
+// ✅ NEW: public route for client to fetch all shop items
+router.get('/shop-items', async (_req, res) => {
+  try {
+    const { rows } = await DB.query(`
+      SELECT 
+        template,
+        name,
+        price,
+        sprite_url_preview,
+        itemcategory.category_name AS category
+      FROM itemtemplate
+      JOIN itemcategory ON itemtemplate.category = itemcategory.category_name
+    `);
+    res.json(rows);
+  } catch (e) {
+    console.error('shop-items:', e);
+    res.status(500).json({ error: 'Failed to fetch shop items' });
+  }
+});
+
+// GET shop items (admin panel)
 router.get('/', async (req, res) => {
   try {
     const result = await DB.query('SELECT * FROM itemtemplate');
@@ -17,11 +37,9 @@ router.get('/', async (req, res) => {
 });
 
 // POST new shop item
-// POST a new shop item
 router.post('/', async (req, res) => {
   const { item_name, description, price, type } = req.body;
 
-  // Validate input
   if (!item_name || !description || !price || !type) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -40,7 +58,6 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: 'Server error while adding item' });
   }
 });
-
 
 // PUT update a shop item
 router.put('/:id', async (req, res) => {
@@ -70,7 +87,6 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({ error: 'Server error while updating item' });
   }
 });
-
 
 // DELETE a shop item
 router.delete('/:id', async (req, res) => {
