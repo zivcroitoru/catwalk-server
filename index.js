@@ -1,7 +1,7 @@
 import './utils.js'; // this will read ./.env
 import express from 'express';
 import cors from 'cors';
-import session from 'express-session';
+import cookieSession from 'cookie-session';
 import http from 'http';
 import { Server } from 'socket.io';
 import DB from './db.js';
@@ -22,7 +22,8 @@ const PORT = process.env.PORT || 3001;
 // ───────────── CORS Config ─────────────
 
 const allowedOrigins = [
-  'https://catwalk.onrender.com' // ← your actual frontend
+  'https://catwalk.onrender.com',
+  process.env.FRONTEND_URL
 ];
 
 app.use(cors({
@@ -39,16 +40,13 @@ app.use(cors({
 
 app.use(express.json());
 
-app.use(session({
-  secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: true,
-    sameSite: 'none',
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24
-  }
+app.use(cookieSession({
+  name: 'session',
+  keys: [process.env.SESSION_SECRET || 'secretcatwalkcookie'],
+  secure: true,
+  sameSite: 'none',
+  httpOnly: true,
+  maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
 
 app.use('/auth', authRoutes);
