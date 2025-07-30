@@ -21,4 +21,4 @@ router.get('/', async (req, res) => {   // <--- path is now "/"
   }
 });
 
-module.exports = router;
+export default router;
