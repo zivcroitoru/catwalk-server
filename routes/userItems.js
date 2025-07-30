@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express'; // import express framework
+import DB from '../db.js';// import your DB connection/module
 const router = express.Router();
-const DB = require('../db');
 
 // GET /api/user-items
 router.get('/', async (req, res) => {   // <--- path is now "/"
