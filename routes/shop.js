@@ -111,11 +111,11 @@ router.get('/player/:playerId', async (req, res) => {
 
   try {
     const result = await DB.query(
-`SELECT it.sprite_url, it.category, it.name, it.description, pi.player_item_id
-   FROM player_items pi
-   INNER JOIN itemtemplate it ON pi.template = it.template
-   WHERE pi.player_id = $1`,
-  [playerId]
+      `SELECT it.sprite_url, it.category, it.name, it.description, it.price
+      FROM player_items pi
+      INNER JOIN itemtemplate it ON pi.template = it.template
+      WHERE pi.player_id = $1`,
+      [playerId]
     );
 
     if (result.rows.length === 0) {
