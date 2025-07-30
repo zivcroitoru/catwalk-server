@@ -148,18 +148,19 @@ router.get('/:id/items', async (req, res) => {
   const playerId = req.params.id;
 
   try {
-    const result = await DB.query(`
-      SELECT it.sprite_url
-      FROM player_items pi
-      JOIN itemtemplate it ON pi.template = it.template
-      WHERE pi.player_id = $1
-    `, [playerId]);
-
+    const result = await DB.query(`SELECT it.sprite_url, it.category, it.name, it.description, pi.player_item_id
+   FROM player_items pi
+   INNER JOIN itemtemplate it ON pi.template = it.template
+   WHERE pi.player_id = $1`,
+      [playerId]
+    );
     res.json(result.rows);
   } catch (err) {
     console.error('Error fetching player items:', err);
     res.status(500).json({ error: 'Failed to fetch player items' });
   }
 });
+
+
 
 export default router;
