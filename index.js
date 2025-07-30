@@ -7,20 +7,19 @@ require("dotenv").config();
 const DB = require('./db');
 
 const app = express();
-const server = http.createServer(app); // Create HTTP server for Socket.io
+const server = http.createServer(app);
 
 const PORT = 3000;
 
-// Import routes
+// ──────── Import Routes ────────
 const authRoutes = require('./routes/auth');
 const catsRoutes = require('./routes/cats');
 const playersRoutes = require('./routes/players');
 const shopRoutes = require('./routes/shop');
-
 const adminRoutes = require('./routes/admins');
+const catTemplatesRoutes = require('./routes/catTemplates');
 
-
-
+// ──────── CORS Config ────────
 const allowedOrigins = [
   'http://127.0.0.1:5501',
   'http://localhost:3000',
@@ -28,17 +27,12 @@ const allowedOrigins = [
   'https://catwalk-server.onrender.com'
 ];
 
-const corsOptions = {
-  origin: allowedOrigins,
-  credentials: true,
-};
-
 app.use(cors({
-  origin: process.env.NODE_ENV==='production'?process.env.FRONEND_URL:'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.FRONEND_URL
+    : 'http://localhost:3000',
   credentials: true,
 }));
-
-
 
 const io = new Server(server, {
   cors: {
@@ -47,12 +41,11 @@ const io = new Server(server, {
   }
 });
 
+// ──────── Middleware ────────
 app.use(express.json());
 
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
-
-
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
@@ -63,23 +56,26 @@ app.use(session({
     httpOnly: true,
     maxAge: 1000 * 60 * 60 * 24
   }
-
 }));
 
-// Routes
+// ──────── Routes ────────
 app.use('/auth', authRoutes);
 app.use('/cats', catsRoutes);
 app.use('/players', playersRoutes);
 app.use('/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
+app.use(catTemplatesRoutes);
 
-// Test API endpoints
-app.get('/api/test', (req, res) => {
-  DB.query("SELECT * FROM players")
-    .then((response) => {
-      console.log(response.rows);
-      res.json({ message: 'Hello from server' });
-    });
+// ──────── Test Endpoints ────────
+app.get('/api/test', async (req, res) => {
+  try {
+    const response = await DB.query("SELECT * FROM players");
+    console.log("🎯 Neon DB responded with:", response.rows);
+    res.json({ message: 'Connected to Neon!', rows: response.rows });
+  } catch (err) {
+    console.error("❌ Neon DB ERROR:", err.message);
+    res.status(500).json({ error: 'DB connection failed' });
+  }
 });
 
 app.get('/api/wow', (req, res) => {
@@ -97,20 +93,16 @@ app.get('/api/wow', (req, res) => {
     });
 });
 
-// Start the server
+// ──────── Start Server ────────
 server.listen(PORT, () => {
-console.log(`running on http://localhost:${PORT}`);
+  console.log(`running on http://localhost:${PORT}`);
 });
 
-// Socket.io logics
+// ──────── Socket.io Logic ────────
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
-
-  // Send welcome message to the newly connected user
   socket.emit('welcome', 'Welcome to the CatWalk socket server!');
-
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
 });
-

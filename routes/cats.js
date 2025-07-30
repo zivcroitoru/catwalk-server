@@ -1,9 +1,8 @@
-const express = require('express'); //import express framework
-const router = express.Router(); //create a new router
+const express = require('express');
+const router = express.Router();
 const DB = require('../db');
 
-
-//list all the cats ^.,.^
+// GET /api/cats — list all player cats
 router.get('/', async (req, res) => {
   try {
     const result = await DB.query('SELECT * FROM player_cats');
@@ -14,11 +13,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST a new cat ≽^•⩊•^≼
+// POST /api/cats — create a player cat
 router.post('/', async (req, res) => {
-  const { player_id, name, breed, variant, palette, description} = req.body; //correct
+  const { player_id, name, breed, variant, palette, description } = req.body;
 
- if (!player_id || !name || !breed || !variant || !palette) {
+  if (!player_id || !name || !breed || !variant || !palette) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -38,7 +37,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT update a cat ฅ^•ﻌ•^ฅ
+// PUT /api/cats/:id — update a cat
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, breed, variant, palette, description } = req.body;
@@ -67,8 +66,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-
-// DELETE a cat ^. .^₎Ⳋ
+// DELETE /api/cats/:id — delete a cat
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -83,7 +81,6 @@ router.delete('/:id', async (req, res) => {
     }
 
     res.status(200).json({ message: 'Cat deleted successfully', cat: result.rows[0] });
-
   } catch (error) {
     console.error('Error deleting cat:', error);
     res.status(500).json({ error: 'Server error while deleting cat' });
