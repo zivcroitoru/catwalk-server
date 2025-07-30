@@ -11,6 +11,7 @@ import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
+import userItemsRoutes from './routes/userItems.js';      // 👈 Add this line
 import { initFashionShowConfig } from './fashion-show.js';
 
 const app = express();
@@ -19,7 +20,6 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // ───────────── CORS Config ─────────────
-// Allow credentials, but NOT '*' origin
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
@@ -28,7 +28,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow REST clients, tools, curl, or SSR with no origin header
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
@@ -38,10 +37,8 @@ app.use(cors({
   credentials: true
 }));
 
-// ───────────── Body Parser ─────────────
 app.use(express.json());
 
-// ───────────── Session Setup ─────────────
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
   resave: false,
@@ -53,17 +50,15 @@ app.use(session({
   }
 }));
 
-// ───────────── Routes ─────────────
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
+app.use('/api/user-items', userItemsRoutes);      // 👈 Add this line
 
-// ───────────── Fashion Show Socket.io ─────────────
 initFashionShowConfig(server);
 
-// ───────────── Test Endpoints ─────────────
 app.get('/api/test', (req, res) => {
   DB.query("SELECT * FROM players")
     .then((response) => {
@@ -87,7 +82,6 @@ app.get('/api/wow', (req, res) => {
     });
 });
 
-// ───────────── Start Server ─────────────
 server.listen(PORT, () => {
   console.log(`running on http://localhost:${PORT}`);
 });
