@@ -35,26 +35,21 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-// Get cat template by template name
-router.get('/:template', async (req, res) => {
+// Example Express route
+router.get('/api/cats/template/:template', async (req, res) => {
   const { template } = req.params;
-
   try {
-    const result = await DB.query(
-      'SELECT template, created_at, last_update_at FROM cat_templates WHERE template = $1',
-      [template]
-    );
-
+    const result = await DB.query('SELECT * FROM cats WHERE template = $1', [template]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Template not found' });
+      return res.status(404).json({ error: 'Cat not found' });
     }
-
-    res.status(200).json(result.rows[0]);
-  } catch (error) {
-    console.error('Error fetching cat template:', error);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching cat:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 // POST a new cat ≽^•⩊•^≼
