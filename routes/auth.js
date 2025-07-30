@@ -25,14 +25,6 @@ function requireLogin(req, res, next) {
 
 const router = express.Router();
 
-// ───────────── Middleware ─────────────
-function requireLogin(req, res, next) {
-  if (!req.session || !req.session.user) {
-    return res.status(401).json({ error: 'Unauthorized. Please log in.' });
-  }
-  next();
-}
-
 // ───────────── SIGNUP ─────────────
 router.post('/signup', async (req, res) => {
   const { username, password } = req.body;
