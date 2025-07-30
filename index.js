@@ -20,28 +20,10 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // ───────────── CORS Config ─────────────
-// const allowedOrigins = [
-//   // 'http://localhost:3000',
-//   'http://127.0.0.1:5501',
-//   'https://catwalk-client.onrender.com'
-// ];
-
-// app.use(cors({
-//   origin: function (origin, callback) {
-//     if (!origin || allowedOrigins.includes(origin)) {
-//       callback(null, origin);
-//     } else {
-//       callback(new Error('Not allowed by CORS: ' + origin));
-//     }
-//   },
-//   credentials: true
-// }));
 
 app.use(cors({
-  origin: function (origin, callback) {
-    callback(null, origin); // Reflect origin
-  },
-  credentials: true
+  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : '*',
+  credentials: process.env.NODE_ENV === 'production'
 }));
 
 
