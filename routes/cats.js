@@ -36,10 +36,10 @@ router.get('/', async (req, res) => {
   }
 });
 // Example Express route
-router.get('/api/cats/template/:template', async (req, res) => {
+router.get('/template/:template', async (req, res) => {
   const { template } = req.params;
   try {
-    const result = await DB.query('SELECT * FROM cat_template WHERE template = $1', [template]);
+    const result = await DB.query('SELECT * FROM cat_templates WHERE template = $1', [template]);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cat not found' });
     }
