@@ -36,6 +36,7 @@ const PORT = process.env.PORT || 3001;
 //   },
 //   credentials: true
 // }));
+
 app.use(cors({
   origin: function (origin, callback) {
     callback(null, origin); // Reflect origin
