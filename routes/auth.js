@@ -56,52 +56,28 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 
-//LOGIN ROUTE
-router.post("/login", async (req, res) => {
-    const { username, password } = req.body;
-
-    try {
-        console.log("Received login request:", req.body)
-        const userResult = await DB.query(
-            "SELECT * FROM players WHERE username = $1",
-            [username]
-        );
-
-        if (userResult.rows.length === 0) {
-            return res.status(400).json({ error: "User not found" });
-        }
-
-        const user = userResult.rows[0];
-
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) {
-            return res.status(400).json({ error: "Incorrect password" });
-        }
-
-        res.status(200).json({ message: "Login successful", username: user.username, userId: user.id });
-    } catch (err) {
-        console.error("Login error:", err);
-        res.status(500).json({ error: "Internal server error" });
-=======
 // LOGIN ROUTE
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
+
   try {
+    console.log("Received login request:", req.body);
+
     const userResult = await DB.query(
-      'SELECT * FROM players WHERE username = $1',
+      "SELECT * FROM players WHERE username = $1",
       [username]
     );
+
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ error: 'User not found' });
->>>>>>> dev
+      return res.status(400).json({ error: "User not found" });
     }
 
     const user = userResult.rows[0];
+
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(400).json({ error: 'Incorrect password' });
+      return res.status(400).json({ error: "Incorrect password" });
     }
 
     // SET SESSION HERE:
@@ -110,10 +86,15 @@ router.post('/login', async (req, res) => {
       username: user.username
     };
 
-    res.status(200).json({ message: 'Login successful', username: user.username });
+    res.status(200).json({
+      message: "Login successful",
+      username: user.username,
+      userId: user.id
+    });
+
   } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
