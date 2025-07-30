@@ -51,11 +51,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'secretcatwalkcookie',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 // 1 day
-  }
+cookie: {
+  secure: process.env.NODE_ENV === 'production',
+  httpOnly: true,
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 1000 * 60 * 60 * 24
+}
 }));
 
 app.use('/auth', authRoutes);

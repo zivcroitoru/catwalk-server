@@ -7,7 +7,7 @@ const router = express.Router();
 
 // ───────────── Middleware ─────────────
 function requireLogin(req, res, next) {
-  if (!req.session.user) {
+  if (!req.session || !req.session.user) {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
   }
   next();
@@ -16,6 +16,7 @@ function requireLogin(req, res, next) {
 // ───────────── SIGNUP ─────────────
 router.post('/signup', async (req, res) => {
   const { username, password } = req.body;
+
   try {
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
@@ -25,6 +26,7 @@ router.post('/signup', async (req, res) => {
       'SELECT * FROM players WHERE username = $1',
       [username]
     );
+
     if (existingUser.rows.length > 0) {
       return res.status(409).json({ error: 'Username already taken' });
     }
@@ -44,12 +46,14 @@ router.post('/signup', async (req, res) => {
       username: insertResult.rows[0].username
     };
 
+    console.log('✅ Signup session set:', req.session);
+
     res.status(201).json({
       message: 'Signup successful',
       user: req.session.user
     });
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('❌ Signup error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -57,8 +61,9 @@ router.post('/signup', async (req, res) => {
 // ───────────── LOGIN ─────────────
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
+
   try {
-    console.log("Received login request:", req.body);
+    console.log("🔐 Received login request:", req.body);
 
     const userResult = await DB.query(
       'SELECT * FROM players WHERE username = $1',
@@ -66,13 +71,14 @@ router.post('/login', async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ error: 'User not found' });
+      return res.status(400).json({ error: 'Invalid username or password' });
     }
 
     const user = userResult.rows[0];
     const isMatch = await bcrypt.compare(password, user.password_hash);
+
     if (!isMatch) {
-      return res.status(400).json({ error: 'Incorrect password' });
+      return res.status(400).json({ error: 'Invalid username or password' });
     }
 
     req.session.user = {
@@ -80,12 +86,14 @@ router.post('/login', async (req, res) => {
       username: user.username
     };
 
+    console.log('✅ Login session set:', req.session);
+
     res.status(200).json({
       message: 'Login successful',
       user: req.session.user
     });
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('❌ Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -94,16 +102,18 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
-      console.error('Logout error:', err);
+      console.error('❌ Logout error:', err);
       return res.status(500).json({ error: 'Logout failed' });
     }
     res.clearCookie('connect.sid');
+    console.log('🚪 User logged out');
     res.status(200).json({ message: 'Logout successful' });
   });
 });
 
 // ───────────── AUTH CHECK ─────────────
 router.get('/me', requireLogin, (req, res) => {
+  console.log('🔍 Session user:', req.session.user);
   res.status(200).json({
     message: 'You are logged in!',
     user: req.session.user
@@ -111,4 +121,3 @@ router.get('/me', requireLogin, (req, res) => {
 });
 
 export default router;
-//ok
