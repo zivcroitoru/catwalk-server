@@ -118,9 +118,5 @@ router.get('/me', requireLogin, (req, res) => {
   });
 });
 
-<<<<<<< HEAD
 
 export default router;
-=======
-module.exports = router;
->>>>>>> dev
