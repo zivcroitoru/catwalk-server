@@ -148,7 +148,8 @@ router.get('/:id/items', async (req, res) => {
   const playerId = req.params.id;
 
   try {
-    const result = await DB.query(`SELECT it.sprite_url, it.category, it.name, it.description, pi.player_item_id
+    const result = await DB.query(
+      `SELECT it.sprite_url, it.category, it.name, it.description, it.price, it.created_at, it.last_updated_at, pi.player_item_id
    FROM player_items pi
    INNER JOIN itemtemplate it ON pi.template = it.template
    WHERE pi.player_id = $1`,
