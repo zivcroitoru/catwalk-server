@@ -1,12 +1,30 @@
-import express from 'express'; // import express framework
-import DB from '../db.js';// import your DB connection/module
+import express from 'express';
+import DB from '../db.js';
+import jwt from 'jsonwebtoken';
 
-const router = express.Router(); // create a new router
+const router = express.Router();
 
-//list all the cats ^.,.^
-router.get('/', async (req, res) => {
+// JWT Auth Middleware
+function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  const token = authHeader.split(' ')[1]; // Bearer <token>
   try {
-    const result = await DB.query('SELECT * FROM player_cats');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+//list user's cats ^.,.^
+router.get('/', requireAuth, async (req, res) => {
+  try {
+    const result = await DB.query('SELECT * FROM player_cats WHERE player_id = $1', [req.user.id]);
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching cats:', error);
