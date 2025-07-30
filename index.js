@@ -17,7 +17,7 @@ import { initFashionShowConfig } from './fashion-show.js';
 const app = express();
 const server = http.createServer(app);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3001;
 
 // const devAllowedOrigins = [
 //   'http://127.0.0.1:5500',
@@ -27,10 +27,9 @@ const PORT = 3000;
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL
-    : '*',
-  credentials: process.env.NODE_ENV === 'production',
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true, // Enable for both dev and production
 }));
-
 
 // Fixed app.use(cors({- 
 // app.use(cors({
