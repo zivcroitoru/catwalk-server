@@ -106,16 +106,13 @@ router.get('/test', async (req, res) => {
 
 
 // GET shop item by template (primary key)
-router.get('/player/:playerId', async (req, res) => {
+router.get('/:template', async (req, res) => {
   const { template } = req.params;
 
   try {
     const result = await DB.query(
-      `SELECT it.sprite_url, it.category, it.name, it.description, it.price
-      FROM player_items pi
-      INNER JOIN itemtemplate it ON pi.template = it.template
-      WHERE pi.player_id = $1`,
-      [playerId]
+      'SELECT * FROM itemtemplate WHERE template = $1',
+      [template]
     );
 
     if (result.rows.length === 0) {
