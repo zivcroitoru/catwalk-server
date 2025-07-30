@@ -19,19 +19,25 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3001;
 
+app.use(cors({
+  origin: '*',      // Allow all origins
+  credentials: true, // Note: credentials cannot be used with '*', see below
+}));
+
 // const devAllowedOrigins = [
 //   'http://127.0.0.1:5500',
 //   'http://localhost:5500'
 // ];
 
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  credentials: true, // Enable for both dev and production
-}));
+// app.use(cors({
+//   origin: process.env.NODE_ENV === 'production'
+//     ? process.env.FRONTEND_URL
+//     : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+//   credentials: true, // Enable for both dev and production
+// }));
 
-// Fixed app.use(cors({- 
+// Fixed 
+// app.use(cors({- 
 // app.use(cors({
 //   origin: '*',      // Allow all origins
 //   credentials: true, // Note: credentials cannot be used with '*', see below
