@@ -14,17 +14,37 @@ router.get('/', async (req, res) => {
   }
 });
 
-
-//get all the cats
-router.get('/allcats', async (req, res) => {
+//get cat by template
+router.get('/', async (req, res) => {
   try {
-    const result = await DB.query('SELECT * FROM cat_templates');
+    const result = await DB.query('SELECT * FROM player_cats');
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching cats:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
+// Get cat template by template name
+router.get('/:template', async (req, res) => {
+  const { template } = req.params;
+
+  try {
+    const result = await DB.query(
+      'SELECT template, created_at, last_update_at FROM cat_templates WHERE template = $1',
+      [template]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching cat template:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 // POST a new cat ≽^•⩊•^≼
 router.post('/', async (req, res) => {
