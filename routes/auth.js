@@ -1,12 +1,11 @@
+// /routes/auth.js
 import express from 'express';
 import bcrypt from 'bcrypt';
 import DB from '../db.js';
 
 const router = express.Router();
 
-
-
-// Middleware: Require login for protected routes
+// ───────────── Middleware ─────────────
 function requireLogin(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Unauthorized. Please log in.' });
@@ -14,7 +13,7 @@ function requireLogin(req, res, next) {
   next();
 }
 
-// SIGNUP ROUTE
+// ───────────── SIGNUP ─────────────
 router.post('/signup', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -22,7 +21,6 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    // Check if username exists
     const existingUser = await DB.query(
       'SELECT * FROM players WHERE username = $1',
       [username]
@@ -31,11 +29,9 @@ router.post('/signup', async (req, res) => {
       return res.status(409).json({ error: 'Username already taken' });
     }
 
-    // Hash password
     const saltRounds = 10;
     const password_hash = await bcrypt.hash(password, saltRounds);
 
-    // Insert new user
     const insertResult = await DB.query(
       `INSERT INTO players (username, password_hash)
        VALUES ($1, $2)
@@ -43,62 +39,58 @@ router.post('/signup', async (req, res) => {
       [username, password_hash]
     );
 
-    // Set session
     req.session.user = {
       id: insertResult.rows[0].id,
       username: insertResult.rows[0].username
     };
 
-    res.status(201).json({ message: 'Signup successful', user: req.session.user });
+    res.status(201).json({
+      message: 'Signup successful',
+      user: req.session.user
+    });
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-
-// LOGIN ROUTE
+// ───────────── LOGIN ─────────────
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
-
   try {
     console.log("Received login request:", req.body);
 
     const userResult = await DB.query(
-      "SELECT * FROM players WHERE username = $1",
+      'SELECT * FROM players WHERE username = $1',
       [username]
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ error: "User not found" });
+      return res.status(400).json({ error: 'User not found' });
     }
 
     const user = userResult.rows[0];
-
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(400).json({ error: "Incorrect password" });
+      return res.status(400).json({ error: 'Incorrect password' });
     }
 
-    // SET SESSION HERE:
     req.session.user = {
       id: user.id,
       username: user.username
     };
 
     res.status(200).json({
-      message: "Login successful",
-      username: user.username,
-      userId: user.id
+      message: 'Login successful',
+      user: req.session.user
     });
-
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// LOGOUT ROUTE
+// ───────────── LOGOUT ─────────────
 router.post('/logout', (req, res) => {
   req.session.destroy(err => {
     if (err) {
@@ -110,7 +102,7 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// Protected route to get logged-in user's info
+// ───────────── AUTH CHECK ─────────────
 router.get('/me', requireLogin, (req, res) => {
   res.status(200).json({
     message: 'You are logged in!',
@@ -118,5 +110,5 @@ router.get('/me', requireLogin, (req, res) => {
   });
 });
 
-
 export default router;
+//ok
