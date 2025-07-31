@@ -29,7 +29,11 @@ router.get('/', requireAuth, async (req, res) => {
       [userId]
     );
 
-    const { usercats = [], coins = 0 } = result.rows[0] || {};
+    if (!result.rows.length) {
+      return res.status(200).json({ userCats: [], coins: 0 });
+    }
+
+    const { usercats = [], coins = 0 } = result.rows[0];
     res.json({ userCats: usercats, coins });
   } catch (err) {
     console.error('❌ GET /user-items error:', err.message);
@@ -43,12 +47,15 @@ router.patch('/', requireAuth, async (req, res) => {
   const { userCats = [], coins = 0 } = req.body;
 
   try {
-    await DB.query(`
+    await DB.query(
+      `
       INSERT INTO user_items (user_id, userCats, coins)
       VALUES ($1, $2, $3)
       ON CONFLICT (user_id)
       DO UPDATE SET userCats = $2, coins = $3
-    `, [userId, JSON.stringify(userCats), coins]);
+      `,
+      [userId, JSON.stringify(userCats), coins]
+    );
 
     res.json({ userCats, coins });
   } catch (err) {
