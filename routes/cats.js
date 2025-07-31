@@ -79,15 +79,21 @@ router.get('/template/:template', async (req, res) => {
 
 
 // change cat template ✩₊˚.⋆☾𓃠☽⋆⁺₊✧
-router.put('/template/:oldTemplate', async (req, res) => {
-  const { oldTemplate } = req.params;
-  const { newTemplate } = req.body;
+router.patch('/template/:template', async (req, res) => {
+  const { template: oldTemplate } = req.params;
+  const { template, breed, variant, pallete } = req.body;
 
   try {
-    const result = await DB.query(
-      `UPDATE cats SET template = $1, last_updated_at = CURRENT_TIMESTAMP WHERE template = $2 RETURNING *`,
-      [newTemplate, oldTemplate]
-    );
+    const result = await DB.query(`
+      UPDATE cat_templates
+      SET template = $1,
+          breed = $2,
+          variant = $3,
+          pallete = $4,
+          last_updated_at = CURRENT_TIMESTAMP
+      WHERE template = $5
+      RETURNING *;
+    `, [template, breed, variant, pallete, oldTemplate]); // ✅ now 5 values
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cat not found' });
@@ -95,10 +101,11 @@ router.put('/template/:oldTemplate', async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Error updating template:', err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error updating cat:', err);
+    res.status(500).json({ error: 'Server error while updating cat' });
   }
 });
+
 
 
 
