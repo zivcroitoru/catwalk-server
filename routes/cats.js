@@ -137,7 +137,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const values = [];
   let idx = 1;
 
-  const push = (col, val) => { setCols.push(`${col} = $${idx}`); values.push(val); idx++; };
+  const push = (col, val) => {
+    setCols.push(`${col} = $${idx}`);
+    values.push(val);
+    idx++;
+  };
 
   if (updates.name !== undefined) push('name', updates.name);
   if (updates.description !== undefined) push('description', updates.description);
@@ -151,22 +155,35 @@ router.patch('/:id', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'No updatable fields supplied' });
   }
 
-  // id + owner
+  // id + player ID
   values.push(id, req.user.id);
 
-  const { rows } = await DB.query(
-    `UPDATE player_cats
-        SET ${setCols.join(', ')}, last_updated = NOW()
-      WHERE id = $${idx} AND player_id = $${idx + 1}
-      RETURNING *`,
+  console.log('🔧 PATCH /cats/:id', {
+    id,
+    userId: req.user.id,
+    updates,
+    setCols,
     values
-  );
+  });
 
-  if (rows.length === 0) {
-    return res.status(404).json({ error: 'Cat not found or not yours' });
+  try {
+    const { rows } = await DB.query(
+      `UPDATE player_cats
+          SET ${setCols.join(', ')}, last_updated = NOW()
+        WHERE id = $${idx} AND player_id = $${idx + 1}
+        RETURNING *`,
+      values
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found or not yours' });
+    }
+
+    res.json({ message: 'Cat updated', cat: rows[0] });
+  } catch (err) {
+    console.error('❌ SQL error in PATCH /cats/:id:', err);
+    res.status(500).json({ error: 'Database error' });
   }
-
-  res.json({ message: 'Cat updated', cat: rows[0] });
 });
 
 // ───────────── DELETE: Remove Cat (Auth) ─────────────
@@ -209,7 +226,7 @@ router.get('/player/:playerId', async (req, res) => {
   }
 });
 
-// routes/cats.js
+// ───────────── POST: Add Template ─────────────
 router.post('/catadd', async (req, res) => {
   const { template, breed, variant, palette, description, sprite_url } = req.body;
 
@@ -231,7 +248,5 @@ router.post('/catadd', async (req, res) => {
     res.status(500).json({ error: 'Server error during insert' });
   }
 });
-
-
 
 export default router;
