@@ -29,7 +29,6 @@ const allowedOrigins = [
 // ───────────── Socket.io Setup ─────────────
 const io = new Server(server, {
   cors: '*',
-    credentials: true
   }
 );
 io.on("connect_error", (err) => {
