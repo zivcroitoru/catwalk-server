@@ -121,6 +121,23 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+
+
+//delete shop item by id
+router.delete('/delete/:item_id', async (req, res) => {
+  const { item_id } = req.params;
+  try {
+    // Your logic to delete item by item_id, e.g.
+    await DB.query('DELETE FROM itemtemplate WHERE item_id = $1', [item_id]);
+    res.json({ message: 'Deleted successfully' });
+  } catch (error) {
+    console.error('Delete failed:', error);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+});
+
+
+
 // PATCH /api/shop/edit/:id
 router.patch('/edit/:id', async (req, res) => {
   const { id } = req.params;
