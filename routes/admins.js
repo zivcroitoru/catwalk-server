@@ -35,7 +35,7 @@ router.post('/login', async (req, res) => {
 
 //messages 
 // Get all tickets for admin dashboard
-router.get('/api/admin/tickets', async (req, res) => {
+router.get('/tickets', async (req, res) => {
   try {
     const result = await db.query(`
       SELECT t.*, p.username AS player_username
