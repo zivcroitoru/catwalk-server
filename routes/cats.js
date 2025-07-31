@@ -197,4 +197,31 @@ router.get('/player/:playerId', async (req, res) => {
   }
 });
 
+
+router.post('/catadd', async (req, res) => {
+  const { template, breed, variant, pallete, description, sprite_url } = req.body;
+
+  if (!template) {
+    return res.status(400).json({ error: 'Template (cat name) is required' });
+  }
+
+  try {
+    const query = `
+      INSERT INTO cat_templates (template, breed, variant, pallete, description, sprite_url)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *;
+    `;
+
+    const values = [template, breed, variant, pallete, description, sprite_url];
+
+    const result = await DB.query(query, values);
+
+    res.status(201).json({ success: true, cat: result.rows[0] });
+  } catch (error) {
+    console.error('Error inserting cat template:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 export default router;
