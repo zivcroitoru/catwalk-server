@@ -1,3 +1,4 @@
+// /routes/cats.js
 import express from 'express';
 import DB from '../db.js';
 import jwt from 'jsonwebtoken';
@@ -21,12 +22,13 @@ function requireAuth(req, res, next) {
   }
 }
 
-
-
-//list user's cats ^.,.^
-router.get('/', async (req, res) => {
+// ───────────── GET: Player's Cats ─────────────
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const result = await DB.query('SELECT * FROM player_cats WHERE player_id = $1', [req.user.id]);
+    const result = await DB.query(
+      'SELECT * FROM player_cats WHERE player_id = $1',
+      [req.user.id]
+    );
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching cats:', error);
@@ -34,9 +36,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-
-
-//get all the cats
+// ───────────── GET: All Cat Templates ─────────────
 router.get('/allcats', async (req, res) => {
   try {
     const result = await DB.query('SELECT * FROM cat_templates');
@@ -47,25 +47,14 @@ router.get('/allcats', async (req, res) => {
   }
 });
 
-
-
-// //get cat by template
-// router.get('/', async (req, res) => {
-//   try {
-//     const result = await DB.query('SELECT * FROM player_cats');
-//     res.status(200).json(result.rows);
-//   } catch (error) {
-//     console.error('Error fetching cats:', error);
-//     res.status(500).json({ error: 'Server error' });
-//   }
-// });
-
-
-// get cat by template ^•ﻌ•^ฅ♡
+// ───────────── GET: Cat by Template ─────────────
 router.get('/template/:template', async (req, res) => {
   const { template } = req.params;
   try {
-    const result = await DB.query('SELECT * FROM cat_templates WHERE template = $1', [template]);
+    const result = await DB.query(
+      'SELECT * FROM cat_templates WHERE template = $1',
+      [template]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cat not found' });
     }
@@ -76,9 +65,7 @@ router.get('/template/:template', async (req, res) => {
   }
 });
 
-
-
-// PATCH /api/cats/:id — Update sprite_url for a cat template
+// ───────────── PATCH: Update Sprite URL ─────────────
 router.patch('/allcats/:id', async (req, res) => {
   const catId = req.params.id;
   const { sprite_url } = req.body;
@@ -99,20 +86,12 @@ router.patch('/allcats/:id', async (req, res) => {
 
     res.json({ message: 'Cat sprite_url updated', cat: result.rows[0] });
   } catch (err) {
-    console.log();
     console.error('Error updating cat sprite_url:', err);
     res.status(500).json({ error: 'Server error', catId, sprite_url });
   }
 });
 
-
-
-
-
-
-
-
-// POST a new cat ≽^•⩊•^≼
+// ───────────── POST: Create New Cat ─────────────
 router.post('/', async (req, res) => {
   const {
     player_id,
@@ -151,8 +130,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-
-// PUT update a cat ฅ^•ﻌ•^ฅ
+// ───────────── PUT: Update Cat ─────────────
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { name, breed, variant, palette, description } = req.body;
@@ -181,17 +159,18 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// GET all cats for a specific player ฅ^>⩊<^ ฅ
+// ───────────── GET: All Cats for Player ID ─────────────
 router.get('/player/:playerId', async (req, res) => {
   const { playerId } = req.params;
 
   try {
     const result = await DB.query(
       `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id, pc.birthdate
-      FROM player_cats pc
-      INNER JOIN cat_templates ct ON pc.template = ct.template
-      WHERE pc.player_id = $1`,
-      [playerId]);
+       FROM player_cats pc
+       INNER JOIN cat_templates ct ON pc.template = ct.template
+       WHERE pc.player_id = $1`,
+      [playerId]
+    );
     res.status(200).json(result.rows);
   } catch (error) {
     console.error('Error fetching player cats:', error);
@@ -199,9 +178,7 @@ router.get('/player/:playerId', async (req, res) => {
   }
 });
 
-
-
-// DELETE a cat ^. .^₎Ⳋ
+// ───────────── DELETE: Remove Cat ─────────────
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -216,7 +193,6 @@ router.delete('/:id', async (req, res) => {
     }
 
     res.status(200).json({ message: 'Cat deleted successfully', cat: result.rows[0] });
-
   } catch (error) {
     console.error('Error deleting cat:', error);
     res.status(500).json({ error: 'Server error while deleting cat' });
