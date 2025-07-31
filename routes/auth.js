@@ -58,7 +58,7 @@ router.post('/signup', async (req, res) => {
       username: insertResult.rows[0].username
     };
 
-    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
 
     console.log('✅ Signup successful, token generated');
 
@@ -101,7 +101,7 @@ router.post('/login', async (req, res) => {
       username: user.username
     };
 
-    const token = jwt.sign(userData, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(userData, JWT_SECRET, { expiresIn: '7d' });
 
     console.log('✅ Login successful, token generated');
 
