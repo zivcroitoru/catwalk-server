@@ -33,4 +33,22 @@ router.post('/login', async (req, res) => {
   }
 });
 
+//messages 
+// Get all tickets for admin dashboard
+router.get('/api/admin/tickets', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT t.*, p.username AS player_username
+      FROM tickets t
+      JOIN players p ON t.player_id = p.id
+      ORDER BY t.last_activity_at DESC
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Failed to get admin tickets:', error);
+    res.status(500).json({ error: 'Failed to get tickets' });
+  }
+});
+
+
 export default router;
