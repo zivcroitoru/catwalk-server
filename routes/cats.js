@@ -223,31 +223,29 @@ router.get('/player/:playerId', async (req, res) => {
   }
 });
 
-
+// routes/cats.js
 router.post('/catadd', async (req, res) => {
-  const { template, breed, variant, pallete, description, sprite_url } = req.body;
+  const { template, breed, variant, palette, description, sprite_url } = req.body;
 
-  if (!template) {
-    return res.status(400).json({ error: 'Template (cat name) is required' });
+  if (!template || !breed || !variant || !palette || !description || !sprite_url) {
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
-    const query = `
-      INSERT INTO cat_templates (template, breed, variant, pallete, description, sprite_url)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *;
-    `;
+    const result = await DB.query(
+      `INSERT INTO cat_templates (template, breed, variant, palette, description, sprite_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [template, breed, variant, palette, description, sprite_url]
+    );
 
-    const values = [template, breed, variant, pallete, description, sprite_url];
-
-    const result = await DB.query(query, values);
-
-    res.status(201).json({ success: true, cat: result.rows[0] });
+    res.status(201).json({ message: 'Cat template added', cat: result.rows[0] });
   } catch (error) {
     console.error('Error inserting cat template:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'Server error during insert' });
   }
 });
+
 
 
 export default router;
