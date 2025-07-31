@@ -2,7 +2,7 @@
 import './utils.js'; // Load environment variables
 import express from 'express';
 import cors from 'cors';
-import http from 'http';
+import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import DB from './db.js';
 
@@ -16,38 +16,26 @@ import playerItemsRoutes from './routes/playerItems.js'; // ✅ Renamed
 import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── Mailbox System ─────────────
-import { setupMailbox, setupDatabase } from './mailbox.js';
+import { setupMailbox } from './mailbox.js';
 
 // ───────────── App Setup ─────────────
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const PORT = process.env.PORT || 3001;
-
-// ───────────── Socket.io Setup ─────────────
-const io = new Server(server, {
-  cors: {
-    origin: function (origin, callback) {
-      const allowedOrigins = [
-        'http://localhost:3000',
-        'https://catwalk.onrender.com',
-        process.env.FRONTEND_URL
-      ];
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, origin);
-      } else {
-        callback(new Error('Not allowed by CORS: ' + origin));
-      }
-    },
-    credentials: true
-  }
-});
-
-// ───────────── CORS Config ─────────────
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://catwalk.onrender.com',
   process.env.FRONTEND_URL
 ];
+// ───────────── Socket.io Setup ─────────────
+const io = new Server(server, {
+  cors: allowedOrigins,
+  credentials: true
+  }
+);
+io.on("connect_error", (err) => {
+  console.log(`connect_error due to ${err.message}`);
+});
+// ───────────── CORS Config ─────────────
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -77,14 +65,10 @@ initFashionShowConfig(server);
 // ───────────── Mailbox Setup ─────────────
 async function initializeMailbox() {
   try {
-    // Setup database tables for mailbox
-    await setupDatabase(DB);
-    
     // Setup Socket.io mailbox functionality
-    const adminFunctions = setupMailbox(io, DB, process.env.JWT_SECRET);
     
     // Make admin functions available globally if needed
-    app.locals.mailboxAdmin = adminFunctions;
+    app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
     
     console.log('📬 Mailbox system initialized');
   } catch (error) {
@@ -119,6 +103,10 @@ app.get('/api/wow', (req, res) => {
 });
 
 // ───────────── Start Server ─────────────
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  await initializeMailbox();
   console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
+});
+io.on('connection', socket => {
+  console.log('📡 New Socket.IO connection:', socket.id);
 });

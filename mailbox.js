@@ -15,7 +15,7 @@ const MAX_SUBJECT_LENGTH = 50;
  * @param {Object} db - Database connection (e.g., sqlite, pg, etc.)
  * @param {string} jwtSecret - JWT secret for token verification
  */
-function setupMailbox(io, db, jwtSecret) {
+export function setupMailbox(io, db, jwtSecret) {
   // Store connected players for targeted messaging
   const connectedPlayers = new Map(); // playerId -> socketId
 
@@ -430,8 +430,3 @@ function setupMailbox(io, db, jwtSecret) {
 
   return adminFunctions;
 }
-
-export {
-  setupMailbox,
-  setupDatabase
-};
