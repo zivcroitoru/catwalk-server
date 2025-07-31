@@ -89,7 +89,7 @@ router.patch('/allcats/:id', async (req, res) => {
 
   try {
     const result = await DB.query(
-      'UPDATE cat_templates SET sprite_url = $1 WHERE id = $2 RETURNING *',
+      'UPDATE cat_templates SET sprite_url = $1 WHERE cat_id = $2 RETURNING *',
       [sprite_url, catId]
     );
 
