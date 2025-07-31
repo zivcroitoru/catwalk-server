@@ -115,27 +115,35 @@ router.patch('/allcats/:id', async (req, res) => {
 
 // POST a new cat ≽^•⩊•^≼
 router.post('/', async (req, res) => {
-  const { player_id, name, breed, variant, palette, description} = req.body; //correct
+  const {
+    player_id,
+    template,
+    name,
+    description,
+    uploaded_photo_url,
+    birthdate
+  } = req.body;
 
- if (!player_id || !name || !breed || !variant || !palette) {
+  if (!player_id || !template || !name || !birthdate) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
     const result = await DB.query(
-      `INSERT INTO player_cats
-       (player_id, name, breed, variant, palette, description)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO player_cats (
+         player_id, template, name, description, uploaded_photo_url, birthdate, created_at, last_updated
+       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
        RETURNING *`,
-      [player_id, name, breed, variant, palette, description]
+      [player_id, template, name, description || '', uploaded_photo_url || '', birthdate]
     );
 
     res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
   } catch (error) {
-    console.error('Error inserting cat:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Error inserting cat:', error);
+    res.status(500).json({ error: 'Server error while inserting cat' });
   }
 });
+
 
 // PUT update a cat ฅ^•ﻌ•^ฅ
 router.put('/:id', async (req, res) => {
