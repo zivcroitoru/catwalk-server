@@ -185,7 +185,7 @@ router.get('/:template', async (req, res) => {
 });
 
 
-// POST /api/clothes/clothesadd
+// POST /api/shop/clothesadd
 router.post('/clothesadd', async (req, res) => {
   const { template, name, category, price, description, sprite_url } = req.body;
 
@@ -196,8 +196,9 @@ router.post('/clothesadd', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `INSERT INTO itemtemplate (template, name, category, price, description, sprite_url)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO itemtemplate 
+        (template, name, category, price, description, sprite_url, sprite_url_preview)
+       VALUES ($1, $2, $3, $4, $5, $6, $6) -- using $6 twice
        RETURNING *`,
       [template, name, category, price, description, sprite_url]
     );
@@ -208,5 +209,6 @@ router.post('/clothesadd', async (req, res) => {
     res.status(500).json({ error: 'Server error while adding clothes' });
   }
 });
+
 
 export default router;
