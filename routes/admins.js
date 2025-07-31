@@ -10,7 +10,7 @@ router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const result = await pool.query(
+    const result = await DB.query(
       'SELECT * FROM admins WHERE username = $1',
       [username]
     );
