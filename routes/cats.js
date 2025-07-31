@@ -99,6 +99,7 @@ router.patch('/:id', async (req, res) => {
 
     res.json({ message: 'Cat sprite_url updated', cat: result.rows[0] });
   } catch (err) {
+    console.log(catId, sprite_url);
     console.error('Error updating cat sprite_url:', err);
     res.status(500).json({ error: 'Server error' });
   }
