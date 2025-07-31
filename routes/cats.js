@@ -170,7 +170,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const { rows } = await DB.query(
       `UPDATE player_cats
           SET ${setCols.join(', ')}, last_updated = NOW()
-        WHERE id = $${idx} AND player_id = $${idx + 1}
+        WHERE cat_id = $${idx} AND player_id = $${idx + 1}
         RETURNING *`,
       values
     );
@@ -192,7 +192,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
   try {
     const result = await DB.query(
-      'DELETE FROM player_cats WHERE id = $1 AND player_id = $2 RETURNING *',
+      'DELETE FROM player_cats WHERE cat_id = $1 AND player_id = $2 RETURNING *',
       [id, req.user.id]
     );
 
