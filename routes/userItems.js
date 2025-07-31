@@ -36,7 +36,8 @@ router.get('/', requireAuth, async (req, res) => {
     const { usercats = [], coins = 0 } = result.rows[0];
     res.json({ userCats: usercats, coins });
   } catch (err) {
-    console.error('❌ GET /user-items error:', err.message);
+    console.error('❌ GET /user-items error:', err);
+
     res.status(500).json({ error: 'Server error' });
   }
 });
