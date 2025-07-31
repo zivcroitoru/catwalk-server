@@ -1,62 +1,59 @@
+// routes/userItems.js
 import express from 'express';
 import DB from '../db.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// JWT Auth Middleware
+// JWT middleware
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
+  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
-  const token = authHeader.split(' ')[1]; // Bearer <token>
+  const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    req.user = decoded;
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
 // GET /api/user-items
 router.get('/', requireAuth, async (req, res) => {
-  const userId = req.user.id; // Get user ID from JWT payload
+  const userId = req.user.id;
 
   try {
-    // Get all items for the user
-    const result = await DB.query(`
-      SELECT 
-        pi.player_item_id,
-        pi.template,
-        it.name,
-        it.category,
-        it.sprite_url_preview
-      FROM player_items pi
-      JOIN itemtemplate it ON pi.template = it.template
-      WHERE pi.player_id = $1
-    `, [userId]);
+    const result = await DB.query(
+      'SELECT userCats, coins FROM user_items WHERE user_id = $1',
+      [userId]
+    );
 
-    // Format response to match frontend expectations
-    const response = {
-      ownedItems: result.rows.map(item => item.template),
-      itemDetails: result.rows.reduce((acc, item) => {
-        acc[item.template] = {
-          id: item.player_item_id,
-          name: item.name,
-          category: item.category,
-          sprite_url_preview: item.sprite_url_preview
-        };
-        return acc;
-      }, {})
-    };
-
-    res.json(response);
+    const { usercats = [], coins = 0 } = result.rows[0] || {};
+    res.json({ userCats: usercats, coins });
   } catch (err) {
-    console.error('❌ Failed to fetch player items:', err.message);
-    res.status(500).json({ error: 'Failed to fetch player items' });
+    console.error('❌ GET /user-items error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PATCH /api/user-items
+router.patch('/', requireAuth, async (req, res) => {
+  const userId = req.user.id;
+  const { userCats = [], coins = 0 } = req.body;
+
+  try {
+    await DB.query(`
+      INSERT INTO user_items (user_id, userCats, coins)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (user_id)
+      DO UPDATE SET userCats = $2, coins = $3
+    `, [userId, JSON.stringify(userCats), coins]);
+
+    res.json({ userCats, coins });
+  } catch (err) {
+    console.error('❌ PATCH /user-items error:', err.message);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
