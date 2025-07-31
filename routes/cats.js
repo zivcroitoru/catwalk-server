@@ -78,31 +78,34 @@ router.get('/template/:template', async (req, res) => {
 
 
 
-// PUT /api/cats/template/:template
-router.put('/template/:template', async (req, res) => {
-  const { template } = req.params;
+// PATCH /api/cats/:id — Update sprite_url for a cat template
+router.patch('/:id', async (req, res) => {
+  const catId = req.params.id;
   const { sprite_url } = req.body;
 
   if (!sprite_url) {
-    return res.status(400).json({ error: 'Missing sprite_url' });
+    return res.status(400).json({ error: 'Missing sprite_url in request body' });
   }
 
   try {
     const result = await DB.query(
-      'UPDATE cat_templates SET sprite_url = $1, last_update_at = NOW() WHERE template = $2 RETURNING *',
-      [sprite_url, template]
+      'UPDATE cat_templates SET sprite_url = $1 WHERE id = $2 RETURNING *',
+      [sprite_url, catId]
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Template not found' });
+      return res.status(404).json({ error: 'Cat not found' });
     }
 
-    res.status(200).json({ message: 'Sprite URL updated', cat: result.rows[0] });
-  } catch (error) {
-    console.error('Error updating sprite_url:', error);
-    res.status(500).json({ error: 'Server error' });
+    res.json({ message: 'Cat sprite_url updated', cat: result.rows[0] });
+  } catch (err) {
+    console.log();
+    console.error('Error updating cat sprite_url:', err);
+    res.status(500).json({ error: 'Server error', catId, sprite_url });
   }
 });
+
+
 
 
 
