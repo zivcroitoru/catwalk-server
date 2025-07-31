@@ -128,22 +128,48 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-// ───────────── PUT: Update Cat (Auth) ─────────────
-router.put('/:id', requireAuth, async (req, res) => {
+// ───────────── PATCH: Update Cat (Auth) ─────────────
+router.patch('/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const { name, breed, variant, palette, description } = req.body;
+  const updates = req.body;
 
-  if (!name || !breed || !variant || !palette) {
-    return res.status(400).json({ error: 'Missing updated cat fields' });
+  // Only update fields that are provided
+  const setColumns = [];
+  const values = [];
+  let paramIndex = 1;
+
+  // Handle each updatable field
+  if (updates.name !== undefined) {
+    setColumns.push(`name = $${paramIndex}`);
+    values.push(updates.name);
+    paramIndex++;
   }
+  if (updates.description !== undefined) {
+    setColumns.push(`description = $${paramIndex}`);
+    values.push(updates.description);
+    paramIndex++;
+  }
+  if (updates.template !== undefined) {
+    setColumns.push(`template = $${paramIndex}`);
+    values.push(updates.template);
+    paramIndex++;
+  }
+  if (updates.equipment !== undefined) {
+    setColumns.push(`equipment = $${paramIndex}`);
+    values.push(updates.equipment);
+    paramIndex++;
+  }
+
+  // Add required query parameters
+  values.push(id, req.user.id); // $paramIndex and $(paramIndex+1)
 
   try {
     const result = await DB.query(
       `UPDATE player_cats
-       SET name = $1, breed = $2, variant = $3, palette = $4, description = $5
-       WHERE id = $6 AND player_id = $7
+       SET ${setColumns.join(', ')}, last_updated = NOW()
+       WHERE id = $${paramIndex} AND player_id = $${paramIndex + 1}
        RETURNING *`,
-      [name, breed, variant, palette, description, id, req.user.id]
+      values
     );
 
     if (result.rows.length === 0) {
