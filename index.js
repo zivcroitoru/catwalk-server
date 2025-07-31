@@ -48,7 +48,7 @@ app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
-app.use('/api/player-items', playerItemsRoutes); // ✅ Updated path
+app.use('/api/player_items', playerItemsRoutes); // ✅ Updated path
 
 // ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
