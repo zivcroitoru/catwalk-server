@@ -45,7 +45,7 @@ router.patch('/', requireAuth, async (req, res) => {
 
   try {
     const itemResult = await DB.query(
-      'SELECT price FROM itemtemplates WHERE template = $1',
+      'SELECT price FROM itemtemplate WHERE template = $1',
       [template]
     );
 

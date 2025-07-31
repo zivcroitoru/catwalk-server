@@ -57,7 +57,7 @@ app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
-app.use('/api/player_items', player_itemsRoutes); // ✅ Updated path
+app.use('/api/playerItems', player_itemsRoutes);
 
 // ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
