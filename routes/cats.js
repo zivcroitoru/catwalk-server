@@ -21,6 +21,8 @@ function requireAuth(req, res, next) {
   }
 }
 
+
+
 //list user's cats ^.,.^
 router.get('/', requireAuth, async (req, res) => {
   try {
@@ -31,6 +33,8 @@ router.get('/', requireAuth, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
 
 //get all the cats
 router.get('/allcats', async (req, res) => {
@@ -43,17 +47,21 @@ router.get('/allcats', async (req, res) => {
   }
 });
 
-//get cat by template
-router.get('/', async (req, res) => {
-  try {
-    const result = await DB.query('SELECT * FROM player_cats');
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error('Error fetching cats:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-// Example Express route
+
+
+// //get cat by template
+// router.get('/', async (req, res) => {
+//   try {
+//     const result = await DB.query('SELECT * FROM player_cats');
+//     res.status(200).json(result.rows);
+//   } catch (error) {
+//     console.error('Error fetching cats:', error);
+//     res.status(500).json({ error: 'Server error' });
+//   }
+// });
+
+
+// get cat by template ^•ﻌ•^ฅ♡
 router.get('/template/:template', async (req, res) => {
   const { template } = req.params;
   try {
@@ -67,6 +75,31 @@ router.get('/template/:template', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+
+// change cat template ✩₊˚.⋆☾𓃠☽⋆⁺₊✧
+router.put('/template/:oldTemplate', async (req, res) => {
+  const { oldTemplate } = req.params;
+  const { newTemplate } = req.body;
+
+  try {
+    const result = await DB.query(
+      `UPDATE cats SET template = $1, last_updated_at = CURRENT_TIMESTAMP WHERE template = $2 RETURNING *`,
+      [newTemplate, oldTemplate]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating template:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 
 
 
