@@ -15,10 +15,32 @@ import adminRoutes from './routes/admins.js';
 import playerItemsRoutes from './routes/playerItems.js'; // ✅ Renamed
 import { initFashionShowConfig } from './fashion-show.js';
 
+// ───────────── Mailbox System ─────────────
+import { setupMailbox, setupDatabase } from './mailbox.js';
+
 // ───────────── App Setup ─────────────
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
+
+// ───────────── Socket.io Setup ─────────────
+const io = new Server(server, {
+  cors: {
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'https://catwalk.onrender.com',
+        process.env.FRONTEND_URL
+      ];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS: ' + origin));
+      }
+    },
+    credentials: true
+  }
+});
 
 // ───────────── CORS Config ─────────────
 const allowedOrigins = [
@@ -51,6 +73,27 @@ app.use('/api/player_items', playerItemsRoutes); // ✅ Updated path
 
 // ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
+
+// ───────────── Mailbox Setup ─────────────
+async function initializeMailbox() {
+  try {
+    // Setup database tables for mailbox
+    await setupDatabase(DB);
+    
+    // Setup Socket.io mailbox functionality
+    const adminFunctions = setupMailbox(io, DB, process.env.JWT_SECRET);
+    
+    // Make admin functions available globally if needed
+    app.locals.mailboxAdmin = adminFunctions;
+    
+    console.log('📬 Mailbox system initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize mailbox system:', error);
+  }
+}
+
+// Initialize mailbox after server starts
+initializeMailbox();
 
 // ───────────── Test Routes ─────────────
 app.get('/api/test', (req, res) => {
