@@ -5,19 +5,16 @@ import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// JWT Auth Middleware
+// ───────────── JWT Auth Middleware ─────────────
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No token provided' });
-  }
+  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
-  const token = authHeader.split(' ')[1]; // Bearer <token>
+  const token = authHeader.split(' ')[1];
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    req.user = decoded;
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
@@ -36,7 +33,7 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// ───────────── GET: All Cat Templates ─────────────
+// ───────────── GET: All Cat Templates (Public) ─────────────
 router.get('/allcats', async (req, res) => {
   try {
     const result = await DB.query('SELECT * FROM cat_templates');
@@ -47,7 +44,7 @@ router.get('/allcats', async (req, res) => {
   }
 });
 
-// ───────────── GET: Cat by Template ─────────────
+// ───────────── GET: Cat by Template (Public) ─────────────
 router.get('/template/:template', async (req, res) => {
   const { template } = req.params;
   try {
@@ -65,7 +62,7 @@ router.get('/template/:template', async (req, res) => {
   }
 });
 
-// ───────────── PATCH: Update Sprite URL ─────────────
+// ───────────── PATCH: Update Sprite URL (Admin use?) ─────────────
 router.patch('/allcats/:id', async (req, res) => {
   const catId = req.params.id;
   const { sprite_url } = req.body;
@@ -91,16 +88,17 @@ router.patch('/allcats/:id', async (req, res) => {
   }
 });
 
-// ───────────── POST: Create New Cat ─────────────
-router.post('/', async (req, res) => {
+// ───────────── POST: Create New Cat (Auth) ─────────────
+router.post('/', requireAuth, async (req, res) => {
   const {
-    player_id,
     template,
     name,
     description,
     uploaded_photo_url,
     birthdate
   } = req.body;
+
+  const player_id = req.user.id;
 
   if (!player_id || !template || !name || !birthdate) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -130,8 +128,8 @@ router.post('/', async (req, res) => {
   }
 });
 
-// ───────────── PUT: Update Cat ─────────────
-router.put('/:id', async (req, res) => {
+// ───────────── PUT: Update Cat (Auth) ─────────────
+router.put('/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { name, breed, variant, palette, description } = req.body;
 
@@ -143,13 +141,13 @@ router.put('/:id', async (req, res) => {
     const result = await DB.query(
       `UPDATE player_cats
        SET name = $1, breed = $2, variant = $3, palette = $4, description = $5
-       WHERE id = $6
+       WHERE id = $6 AND player_id = $7
        RETURNING *`,
-      [name, breed, variant, palette, description, id]
+      [name, breed, variant, palette, description, id, req.user.id]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Cat not found' });
+      return res.status(404).json({ error: 'Cat not found or not yours' });
     }
 
     res.status(200).json({ message: 'Cat updated', cat: result.rows[0] });
@@ -159,7 +157,28 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// ───────────── GET: All Cats for Player ID ─────────────
+// ───────────── DELETE: Remove Cat (Auth) ─────────────
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await DB.query(
+      'DELETE FROM player_cats WHERE id = $1 AND player_id = $2 RETURNING *',
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found or not yours' });
+    }
+
+    res.status(200).json({ message: 'Cat deleted successfully', cat: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting cat:', error);
+    res.status(500).json({ error: 'Server error while deleting cat' });
+  }
+});
+
+// ───────────── GET: Player Cats by ID (Public) ─────────────
 router.get('/player/:playerId', async (req, res) => {
   const { playerId } = req.params;
 
@@ -175,27 +194,6 @@ router.get('/player/:playerId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching player cats:', error);
     res.status(500).json({ error: 'Server error while fetching cats' });
-  }
-});
-
-// ───────────── DELETE: Remove Cat ─────────────
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await DB.query(
-      'DELETE FROM player_cats WHERE id = $1 RETURNING *',
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Cat not found' });
-    }
-
-    res.status(200).json({ message: 'Cat deleted successfully', cat: result.rows[0] });
-  } catch (error) {
-    console.error('Error deleting cat:', error);
-    res.status(500).json({ error: 'Server error while deleting cat' });
   }
 });
 
