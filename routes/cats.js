@@ -253,7 +253,7 @@ router.post('/catadd', async (req, res) => {
 router.delete('/delete/:cat_id', async (req, res) => {
   const { cat_id } = req.params;
   try {
-    await DB.query('DELETE FROM cat_template WHERE cat_id = $1', [cat_id]);
+    await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [cat_id]);
     res.json({ message: 'Cat deleted successfully' });
   } catch (error) {
     console.error('Delete cat error:', error);
