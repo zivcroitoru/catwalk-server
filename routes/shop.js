@@ -25,6 +25,18 @@ router.get('/shop-items', async (_req, res) => {
   }
 });
 
+// get all items from shop table
+router.get('/allclothes', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT * FROM itemtemplate');
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cats:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 // GET shop items (admin panel)
 router.get('/', async (req, res) => {
   try {
