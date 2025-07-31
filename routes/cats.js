@@ -78,31 +78,32 @@ router.get('/template/:template', async (req, res) => {
 
 
 
-// put cat by template ✩₊˚.⋆☾𓃠☽⋆⁺₊✧
+// PUT /api/cats/template/:template
 router.put('/template/:template', async (req, res) => {
   const { template } = req.params;
   const { sprite_url } = req.body;
 
   if (!sprite_url) {
-    return res.status(400).json({ error: 'Missing sprite_url in request body' });
+    return res.status(400).json({ error: 'Missing sprite_url' });
   }
 
   try {
     const result = await DB.query(
-      `UPDATE cats SET sprite_url = $1, last_updated_at = CURRENT_TIMESTAMP WHERE template = $2 RETURNING *`,
+      'UPDATE cat_templates SET sprite_url = $1, last_update_at = NOW() WHERE template = $2 RETURNING *',
       [sprite_url, template]
     );
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Cat not found with given template' });
+      return res.status(404).json({ error: 'Template not found' });
     }
 
-    res.status(200).json({ message: 'Sprite URL updated successfully', cat: result.rows[0] });
+    res.status(200).json({ message: 'Sprite URL updated', cat: result.rows[0] });
   } catch (error) {
     console.error('Error updating sprite_url:', error);
-    res.status(500).json({ error: 'Server error while updating sprite_url' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
+
 
 
 
