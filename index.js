@@ -13,7 +13,7 @@ import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
-import userItemsRoutes from './routes/userItems.js';
+import playerItemsRoutes from './routes/playerItems.js'; // ✅ Renamed
 import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── App Setup ─────────────
@@ -48,7 +48,7 @@ app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
-app.use('/api/user-items', userItemsRoutes);
+app.use('/api/player-items', playerItemsRoutes); // ✅ Updated path
 
 // ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
