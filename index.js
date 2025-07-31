@@ -22,7 +22,7 @@ const PORT = process.env.PORT || 3001;
 
 // ───────────── CORS Config ─────────────
 const allowedOrigins = [
-  'http://localhost:3000',
+  // 'http://localhost:3000',
   'https://catwalk.onrender.com',
   process.env.FRONTEND_URL
 ];
