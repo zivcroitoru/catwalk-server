@@ -18,7 +18,7 @@ function requireAuth(req, res, next) {
   }
 }
 
-// ───────────── GET /api/player-items ─────────────
+// ───────────── GET /api/player_items ─────────────
 // Get all items for the authenticated player
 router.get('/', requireAuth, async (req, res) => {
   const playerId = req.user.id;
@@ -30,7 +30,7 @@ router.get('/', requireAuth, async (req, res) => {
     );
     res.status(200).json({ items: result.rows });
   } catch (err) {
-    console.error('❌ GET /player-items error:', err);
+    console.error('❌ GET /player_items error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -55,7 +55,7 @@ router.patch('/', requireAuth, async (req, res) => {
 
     res.status(200).json({ message: 'Item added', item: result.rows[0] });
   } catch (err) {
-    console.error('❌ PATCH /player-items error:', err.message);
+    console.error('❌ PATCH /player_items error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
