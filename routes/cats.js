@@ -133,54 +133,40 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const updates = req.body;
 
-  // Only update fields that are provided
-  const setColumns = [];
+  const setCols = [];
   const values = [];
-  let paramIndex = 1;
+  let idx = 1;
 
-  // Handle each updatable field
-  if (updates.name !== undefined) {
-    setColumns.push(`name = $${paramIndex}`);
-    values.push(updates.name);
-    paramIndex++;
-  }
-  if (updates.description !== undefined) {
-    setColumns.push(`description = $${paramIndex}`);
-    values.push(updates.description);
-    paramIndex++;
-  }
-  if (updates.template !== undefined) {
-    setColumns.push(`template = $${paramIndex}`);
-    values.push(updates.template);
-    paramIndex++;
-  }
-  if (updates.equipment !== undefined) {
-    setColumns.push(`equipment = $${paramIndex}`);
-    values.push(updates.equipment);
-    paramIndex++;
+  const push = (col, val) => { setCols.push(`${col} = $${idx}`); values.push(val); idx++; };
+
+  if (updates.name !== undefined) push('name', updates.name);
+  if (updates.description !== undefined) push('description', updates.description);
+  if (updates.template !== undefined) push('template', updates.template);
+  if (updates.equipment !== undefined)
+    push('equipment', typeof updates.equipment === 'object'
+      ? JSON.stringify(updates.equipment)
+      : updates.equipment);
+
+  if (setCols.length === 0) {
+    return res.status(400).json({ error: 'No updatable fields supplied' });
   }
 
-  // Add required query parameters
-  values.push(id, req.user.id); // $paramIndex and $(paramIndex+1)
+  // id + owner
+  values.push(id, req.user.id);
 
-  try {
-    const result = await DB.query(
-      `UPDATE player_cats
-       SET ${setColumns.join(', ')}, last_updated = NOW()
-       WHERE id = $${paramIndex} AND player_id = $${paramIndex + 1}
-       RETURNING *`,
-      values
-    );
+  const { rows } = await DB.query(
+    `UPDATE player_cats
+        SET ${setCols.join(', ')}, last_updated = NOW()
+      WHERE id = $${idx} AND player_id = $${idx + 1}
+      RETURNING *`,
+    values
+  );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Cat not found or not yours' });
-    }
-
-    res.status(200).json({ message: 'Cat updated', cat: result.rows[0] });
-  } catch (error) {
-    console.error('Error updating cat:', error);
-    res.status(500).json({ error: 'Server error while updating cat' });
+  if (rows.length === 0) {
+    return res.status(404).json({ error: 'Cat not found or not yours' });
   }
+
+  res.json({ message: 'Cat updated', cat: rows[0] });
 });
 
 // ───────────── DELETE: Remove Cat (Auth) ─────────────
