@@ -16,7 +16,7 @@ import playerItemsRoutes from './routes/playerItems.js'; // ✅ Renamed
 import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── Mailbox System ─────────────
-import { setupMailbox, setupDatabase } from './mailbox.js';
+import { setupMailbox } from './mailbox.js';
 
 // ───────────── App Setup ─────────────
 const app = express();
@@ -77,14 +77,10 @@ initFashionShowConfig(server);
 // ───────────── Mailbox Setup ─────────────
 async function initializeMailbox() {
   try {
-    // Setup database tables for mailbox
-    await setupDatabase(DB);
-    
     // Setup Socket.io mailbox functionality
-    const adminFunctions = setupMailbox(io, DB, process.env.JWT_SECRET);
     
     // Make admin functions available globally if needed
-    app.locals.mailboxAdmin = adminFunctions;
+    app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
     
     console.log('📬 Mailbox system initialized');
   } catch (error) {
