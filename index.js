@@ -22,16 +22,14 @@ import { setupMailbox } from './mailbox.js';
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
-
+const allowedOrigins = [
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+];
 // ───────────── Socket.io Setup ─────────────
 const io = new Server(server, {
   cors: {
     origin: function (origin, callback) {
-      const allowedOrigins = [
-        'http://localhost:3000',
-        'https://catwalk.onrender.com',
-        process.env.FRONTEND_URL
-      ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, origin);
       } else {
@@ -43,11 +41,6 @@ const io = new Server(server, {
 });
 
 // ───────────── CORS Config ─────────────
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://catwalk.onrender.com',
-  process.env.FRONTEND_URL
-];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -115,6 +108,10 @@ app.get('/api/wow', (req, res) => {
 });
 
 // ───────────── Start Server ─────────────
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  await initializeMailbox();
   console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
+});
+io.on('connection', socket => {
+  console.log('📡 New Socket.IO connection:', socket.id);
 });
