@@ -2,7 +2,7 @@
 import './utils.js'; // Load environment variables
 import express from 'express';
 import cors from 'cors';
-import http from 'http';
+import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import DB from './db.js';
 
@@ -20,7 +20,7 @@ import { setupMailbox } from './mailbox.js';
 
 // ───────────── App Setup ─────────────
 const app = express();
-const server = http.createServer(app);
+const server = createServer(app);
 const PORT = process.env.PORT || 3001;
 const allowedOrigins = [
   'http://localhost:3000',
