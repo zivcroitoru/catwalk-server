@@ -112,7 +112,6 @@ router.patch('/allcats/:id', async (req, res) => {
 
 
 
-
 // POST a new cat ≽^•⩊•^≼
 router.post('/', async (req, res) => {
   const {
@@ -131,10 +130,18 @@ router.post('/', async (req, res) => {
   try {
     const result = await DB.query(
       `INSERT INTO player_cats (
-         player_id, template, name, description, uploaded_photo_url, birthdate, created_at, last_updated
+         player_id, template, name, description,
+         uploaded_photo_url, birthdate, created_at, last_updated
        ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
        RETURNING *`,
-      [player_id, template, name, description || '', uploaded_photo_url || '', birthdate]
+      [
+        player_id,
+        template,
+        name,
+        description || '',
+        uploaded_photo_url || '',
+        birthdate
+      ]
     );
 
     res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
