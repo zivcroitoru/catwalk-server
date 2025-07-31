@@ -32,7 +32,9 @@ const io = new Server(server, {
     credentials: true
   }
 );
-
+io.on("connect_error", (err) => {
+  console.log(`connect_error due to ${err.message}`);
+});
 // ───────────── CORS Config ─────────────
 
 app.use(cors({
