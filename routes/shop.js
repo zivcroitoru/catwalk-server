@@ -214,8 +214,8 @@ router.post('/clothesadd', async (req, res) => {
       item: result.rows[0],
     });
   } catch (err) {
-    console.error("Error inserting item:", err);
-    res.status(500).json({ error: "Server error" });
+    console.error("Detailed error:", err.stack || err);
+    res.status(500).json({ error: "Server error", details: err.message });
   }
 });
 
