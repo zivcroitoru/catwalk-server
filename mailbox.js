@@ -430,8 +430,3 @@ export function setupMailbox(io, db, jwtSecret) {
 
   return adminFunctions;
 }
-
-export {
-  setupMailbox,
-  setupDatabase
-};
