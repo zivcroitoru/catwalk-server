@@ -28,7 +28,8 @@ const allowedOrigins = [
 ];
 // ───────────── Socket.io Setup ─────────────
 const io = new Server(server, {
-  cors: '*',
+  cors: allowedOrigins,
+  credentials: true
   }
 );
 io.on("connect_error", (err) => {
