@@ -35,20 +35,16 @@ router.post('/login', async (req, res) => {
 
 // Assuming you have Express and your DB connection as `db`
 
-app.get('/tickets', async (req, res) => {
+router.get('/tickets', async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT t.*, p.username AS player_username 
-      FROM tickets t 
-      JOIN players p ON t.player_id = p.id
-      ORDER BY t.last_activity_at DESC
-    `);
+    const result = await DB.query('SELECT * FROM tickets ORDER BY created_at DESC');
     res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching tickets:', error);
-    res.status(500).json({ error: 'Server error' });
+  } catch (err) {
+    console.error('Error fetching tickets:', err);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
   }
 });
+
 
 
 export default router;
