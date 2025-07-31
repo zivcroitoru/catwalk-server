@@ -35,8 +35,8 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// ───────────── PATCH /api/player-items ─────────────
-// Add a new item template to the player
+// ───────────── PATCH /api/player_items ─────────────
+// Add a new item template to the player AND deduct coins
 router.patch('/', requireAuth, async (req, res) => {
   const playerId = req.user.id;
   const { template } = req.body;
@@ -46,14 +46,40 @@ router.patch('/', requireAuth, async (req, res) => {
   }
 
   try {
-    const result = await DB.query(
+    // 1. Fetch price from item_templates table
+    const itemResult = await DB.query(
+      'SELECT price FROM itemtemplates WHERE template = $1',
+      [template]
+    );
+
+    if (itemResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid item template' });
+    }
+
+    const price = itemResult.rows[0].price;
+
+    // 2. Deduct coins, only if player has enough
+    const updateResult = await DB.query(
+      `UPDATE players
+       SET coins = coins - $1
+       WHERE id = $2 AND coins >= $1
+       RETURNING coins`,
+      [price, playerId]
+    );
+
+    if (updateResult.rows.length === 0) {
+      return res.status(400).json({ error: 'Not enough coins' });
+    }
+
+    // 3. Unlock the item
+    const insertResult = await DB.query(
       `INSERT INTO player_items (player_id, template)
        VALUES ($1, $2)
        RETURNING *`,
       [playerId, template]
     );
 
-    res.status(200).json({ message: 'Item added', item: result.rows[0] });
+    res.status(200).json({ message: 'Item added', item: insertResult.rows[0], coins: updateResult.rows[0].coins });
   } catch (err) {
     console.error('❌ PATCH /player_items error:', err.message);
     res.status(500).json({ error: 'Server error' });
