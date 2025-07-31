@@ -19,24 +19,22 @@ function requireAuth(req, res, next) {
 }
 
 // ───────────── GET /api/playerItems ─────────────
-// Get all items for the authenticated player
 router.get('/', requireAuth, async (req, res) => {
   const playerId = req.user.id;
 
   try {
     const result = await DB.query(
-      'SELECT * FROM playerItems WHERE player_id = $1',
+      'SELECT * FROM "playerItems" WHERE player_id = $1',
       [playerId]
     );
     res.status(200).json({ items: result.rows });
   } catch (err) {
-    console.error('❌ GET /playerItems error:', err);
+    console.error('❌ GET /playerItems error:', err.stack || err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 // ───────────── PATCH /api/playerItems ─────────────
-// Add a new item template to the player AND deduct coins
 router.patch('/', requireAuth, async (req, res) => {
   const playerId = req.user.id;
   const { template } = req.body;
@@ -46,7 +44,6 @@ router.patch('/', requireAuth, async (req, res) => {
   }
 
   try {
-    // 1. Fetch price from item_templates table
     const itemResult = await DB.query(
       'SELECT price FROM itemtemplates WHERE template = $1',
       [template]
@@ -58,7 +55,6 @@ router.patch('/', requireAuth, async (req, res) => {
 
     const price = itemResult.rows[0].price;
 
-    // 2. Deduct coins, only if player has enough
     const updateResult = await DB.query(
       `UPDATE players
        SET coins = coins - $1
@@ -71,17 +67,20 @@ router.patch('/', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Not enough coins' });
     }
 
-    // 3. Unlock the item
     const insertResult = await DB.query(
-      `INSERT INTO playerItems (player_id, template)
+      `INSERT INTO "playerItems" (player_id, template)
        VALUES ($1, $2)
        RETURNING *`,
       [playerId, template]
     );
 
-    res.status(200).json({ message: 'Item added', item: insertResult.rows[0], coins: updateResult.rows[0].coins });
+    res.status(200).json({
+      message: 'Item added',
+      item: insertResult.rows[0],
+      coins: updateResult.rows[0].coins
+    });
   } catch (err) {
-    console.error('❌ PATCH /playerItems error:', err.message);
+    console.error('❌ PATCH /playerItems error:', err.stack || err);
     res.status(500).json({ error: 'Server error' });
   }
 });
