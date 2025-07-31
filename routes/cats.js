@@ -24,7 +24,7 @@ function requireAuth(req, res, next) {
 
 
 //list user's cats ^.,.^
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const result = await DB.query('SELECT * FROM player_cats WHERE player_id = $1', [req.user.id]);
     res.status(200).json(result.rows);
