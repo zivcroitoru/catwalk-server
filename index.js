@@ -1,26 +1,26 @@
-import './utils.js'; // this will read ./.env
+// index.js – catwalk-server entry point
+import './utils.js'; // Load environment variables
 import express from 'express';
 import cors from 'cors';
-import cookieSession from 'cookie-session';
 import http from 'http';
 import { Server } from 'socket.io';
 import DB from './db.js';
-// Import routes
+
+// ───────────── Routes ─────────────
 import authRoutes from './routes/auth.js';
 import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
-import userItemsRoutes from './routes/userItems.js';      // 👈 Add this line
+import playerItemsRoutes from './routes/playerItems.js'; // ✅ Renamed
 import { initFashionShowConfig } from './fashion-show.js';
 
+// ───────────── App Setup ─────────────
 const app = express();
 const server = http.createServer(app);
-
 const PORT = process.env.PORT || 3001;
 
 // ───────────── CORS Config ─────────────
-
 const allowedOrigins = [
   'http://localhost:3000',
   'https://catwalk.onrender.com',
@@ -38,18 +38,21 @@ app.use(cors({
   credentials: true
 }));
 
-
+// ───────────── Middleware ─────────────
 app.use(express.json());
 
+// ───────────── Route Mounts ─────────────
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
-app.use('/api/user-items', userItemsRoutes);      // 👈 Add this line
+app.use('/api/player_items', playerItemsRoutes); // ✅ Updated path
 
+// ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
 
+// ───────────── Test Routes ─────────────
 app.get('/api/test', (req, res) => {
   DB.query("SELECT * FROM players")
     .then((response) => {
@@ -59,8 +62,7 @@ app.get('/api/test', (req, res) => {
 });
 
 app.get('/api/wow', (req, res) => {
-  const query = 'SELECT * FROM players';
-  DB.query(query)
+  DB.query('SELECT * FROM players')
     .then((response) => {
       if (response.rows.length === 0) {
         return res.status(200).send("Not found");
@@ -73,6 +75,7 @@ app.get('/api/wow', (req, res) => {
     });
 });
 
+// ───────────── Start Server ─────────────
 server.listen(PORT, () => {
-  console.log(`running on http://localhost:${PORT}`);
+  console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
 });
