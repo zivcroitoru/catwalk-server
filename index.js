@@ -28,14 +28,7 @@ const allowedOrigins = [
 ];
 // ───────────── Socket.io Setup ─────────────
 const io = new Server(server, {
-  cors: {
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, origin);
-      } else {
-        callback(new Error('Not allowed by CORS: ' + origin));
-      }
-    },
+  cors: '*',
     credentials: true
   }
 });
@@ -43,7 +36,13 @@ const io = new Server(server, {
 // ───────────── CORS Config ─────────────
 
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
   credentials: true
 }));
 
