@@ -205,8 +205,8 @@ router.post('/clothesadd', async (req, res) => {
 
   try {
     const result = await DB.query(
-      `INSERT INTO clothes 
-        (template, name, category, price, description, preview, sprite_url) 
+      `INSERT INTO itemtemplate 
+        (template, name, category, price, description, sprite_url_preview, sprite_url) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) 
        RETURNING *`,
       [template, name, category, price, description, preview, sprite_url]
