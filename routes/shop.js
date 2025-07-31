@@ -184,4 +184,29 @@ router.get('/:template', async (req, res) => {
   }
 });
 
+
+// POST /api/clothes/clothesadd
+router.post('/clothesadd', async (req, res) => {
+  const { template, name, category, price, description, sprite_url } = req.body;
+
+  // Basic validation
+  if (!template || !name || !category || !price || !description || !sprite_url) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const result = await DB.query(
+      `INSERT INTO itemtemplate (template, name, category, price, description, sprite_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [template, name, category, price, description, sprite_url]
+    );
+
+    res.status(201).json({ message: 'Clothes added successfully', clothes: result.rows[0] });
+  } catch (error) {
+    console.error('Error adding clothes:', error);
+    res.status(500).json({ error: 'Server error while adding clothes' });
+  }
+});
+
 export default router;
