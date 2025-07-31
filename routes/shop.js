@@ -184,44 +184,41 @@ router.get('/:template', async (req, res) => {
   }
 });
 
-
-// POST /api/shop/clothesadd
-// Add new clothing item
+//add new clothes item to shop
 router.post('/clothesadd', async (req, res) => {
   const {
     template,
-    name,
     category,
-    price,
+    name,
     description,
-    preview,
-    sprite_url
+    price,
+    sprite_url,
+    sprite_url_preview
   } = req.body;
 
-  // Basic validation
-  if (!template || !name || !category || !price || !description || !preview || !sprite_url) {
-    return res.status(400).json({ error: "Missing required fields" });
+  if (!template) {
+    return res.status(400).json({ error: "Missing required field: template" });
   }
 
   try {
     const result = await DB.query(
-      `INSERT INTO itemtemplate 
-        (template, name, category, price, description, sprite_url_preview, sprite_url) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7) 
+      `INSERT INTO itemtemplate
+       (template, category, name, description, price, sprite_url, sprite_url_preview, created_at, last_updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [template, name, category, price, description, preview, sprite_url]
+      [template, category, name, description, price, sprite_url, sprite_url_preview]
     );
 
     res.status(201).json({
-      message: "Clothing item added successfully",
-      clothes: result.rows[0]
+      message: "Item added successfully",
+      item: result.rows[0],
     });
-
   } catch (err) {
-    console.error("Error inserting clothes:", err);
+    console.error("Error inserting item:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 
 
