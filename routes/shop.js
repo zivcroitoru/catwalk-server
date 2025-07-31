@@ -121,7 +121,37 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/shop/edit/:id
+router.patch('/edit/:id', async (req, res) => {
+  const { id } = req.params;
+  const { sprite_url_preview } = req.body;
 
+  if (!sprite_url_preview) {
+    return res.status(400).json({ error: 'Missing sprite_url_preview in request body' });
+  }
+
+  try {
+    const result = await DB.query(
+      `UPDATE itemtemplate
+       SET sprite_url_preview = $1,
+           last_updated_at = CURRENT_TIMESTAMP
+       WHERE item_id = $2
+       RETURNING *;`,
+      [sprite_url_preview, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+
+    res.status(200).json({ message: 'Item updated successfully', item: result.rows[0] });
+  } catch (err) {
+    console.error('Error updating item:', err);
+    res.status(500).json({ error: 'Server error while updating item' });
+  }
+});
+
+//test
 router.get('/test', async (req, res) => {
   try {
     const result = await DB.query('SELECT COUNT(*) FROM itemtemplate');
