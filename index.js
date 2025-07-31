@@ -31,7 +31,7 @@ const io = new Server(server, {
   cors: '*',
     credentials: true
   }
-});
+);
 
 // ───────────── CORS Config ─────────────
 
