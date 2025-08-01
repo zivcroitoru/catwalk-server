@@ -15,9 +15,6 @@ import player_itemsRoutes from './routes/player_items.js';
 import catItemsRoutes from './routes/cat_items.js'; // ✅ NEW: Cat items route
 import { initFashionShowConfig } from './fashion-show.js';
 
-// ───────────── Mailbox System ─────────────
-import mailboxRoutes from './routes/mailbox.js'; // ✅ NEW: Mailbox HTTP routes
-
 // ───────────── App Setup ─────────────
 const app = express();
 const PORT = process.env.PORT || 3001;
