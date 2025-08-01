@@ -47,6 +47,23 @@ router.get('/tickets', async (req, res) => {
   }
 });
 
+//get the ticket by id
+
+router.get('/messages/:ticketId', async (req, res) => {
+  const { ticketId } = req.params;
+
+  try {
+    const result = await DB.query(
+      'SELECT * FROM messages WHERE ticket_id = $1 ORDER BY created_at ASC',
+      [ticketId]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error fetching messages:", err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 
 export default router;
