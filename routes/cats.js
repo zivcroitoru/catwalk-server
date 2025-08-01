@@ -508,7 +508,7 @@ router.post('/catadd', async (req, res) => {
   if (!template || !breed || !variant || !palette || !description || !sprite_url) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-
+ 
   try {
     const result = await DB.query(
       `INSERT INTO cat_templates (template, breed, variant, palette, description, sprite_url)
