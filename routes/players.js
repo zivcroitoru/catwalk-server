@@ -52,25 +52,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.get('/:coins/:cat_count', async (req, res) => {
-  const { coins, cat_count } = req.params;
 
-  try {
-    const result = await DB.query(
-      'SELECT * FROM players WHERE coins = $1 AND cat_count = $2',
-      [coins, cat_count]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Player not found with given coins and cat count' });
-    }
-
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error('Error fetching player:', error);
-    res.status(500).json({ error: 'Server error while fetching player' });
-  }
-});
 
 
 // PUT update player
