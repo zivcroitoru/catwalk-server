@@ -75,10 +75,13 @@ router.get('/messages/:ticketId', async (req, res) => {
 });
 
 //respond to a ticket
-// routes/messages.js
 router.post('/messages/:ticketId', async (req, res) => {
   const { ticketId } = req.params;
   const { body } = req.body;
+
+  console.log("POST /messages/:ticketId");
+  console.log("ticketId:", ticketId);
+  console.log("body:", body);
 
   try {
     const result = await db.query(
@@ -94,6 +97,7 @@ router.post('/messages/:ticketId', async (req, res) => {
     res.status(500).json({ error: "Failed to save message" });
   }
 });
+
 
 
 export default router;
