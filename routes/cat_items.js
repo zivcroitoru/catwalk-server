@@ -1,24 +1,31 @@
+// routes/cat_items.js
 import express from 'express';
-import DB from '../db.js'; // Make sure this is imported
+import DB from '../db.js';
+
 const router = express.Router();
 
+// ───────────── PATCH: Update Cat Equipment ─────────────
 // PATCH /api/cat_items/:catId
 router.patch('/:catId', async (req, res) => {
   const { catId } = req.params;
-  const { equipment } = req.body; // e.g. { hats: "jester_hat_001", tops: "wizard_robe_002" }
+  const { equipment, player_id } = req.body;
 
   if (!equipment || typeof equipment !== 'object') {
     return res.status(400).json({ error: 'Missing or invalid equipment' });
   }
 
+  if (!player_id) {
+    return res.status(400).json({ error: 'Missing player_id' });
+  }
+
   try {
     for (const [category, template] of Object.entries(equipment)) {
       await DB.query(
-        `INSERT INTO cat_items (cat_id, category, template)
-         VALUES ($1, $2, $3)
+        `INSERT INTO cat_items (cat_id, player_id, category, template)
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT (cat_id, category)
          DO UPDATE SET template = EXCLUDED.template`,
-        [catId, category, template]
+        [catId, player_id, category, template]
       );
     }
 
@@ -29,6 +36,8 @@ router.patch('/:catId', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+
+// ───────────── GET: Get Cat Equipment ─────────────
 // GET /api/cat_items/:catId
 router.get('/:catId', async (req, res) => {
   const { catId } = req.params;
@@ -39,7 +48,6 @@ router.get('/:catId', async (req, res) => {
       [catId]
     );
 
-    // Build equipment object
     const equipment = {};
     result.rows.forEach(row => {
       equipment[row.category] = row.template;
