@@ -74,7 +74,27 @@ router.get('/messages/:ticketId', async (req, res) => {
   }
 });
 
+//respond to a ticket
+router.post('/messages', async (req, res) => {
+  const { ticket_id, body } = req.body;
 
+  if (!ticket_id || !body) {
+    return res.status(400).json({ error: "Missing ticket_id or body" });
+  }
 
+  try {
+    const result = await DB.query(
+      `INSERT INTO messages (ticket_id, body, created_at)
+       VALUES ($1, $2, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [ticket_id, body]
+    );
+
+    res.status(201).json({ success: true, message: result.rows[0] });
+  } catch (err) {
+    console.error("Error inserting message:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 export default router;
