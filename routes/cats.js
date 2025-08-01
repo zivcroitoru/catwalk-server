@@ -356,3 +356,5 @@ export async function updateCatItems(catId, equipment) {
   console.log('✅ Cat equipment updated via cat_items:', data);
   return data;
 }
+export default router;
+
