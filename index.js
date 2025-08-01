@@ -20,7 +20,9 @@ import { initFashionShowConfig } from './fashion-show.js';
 import { setupMailbox } from './mailbox.js';
 
 // ───────────── App Setup ─────────────
+
 const app = express();
+app.use(express.static('public'));
 const server = createServer(app);
 const PORT = process.env.PORT || 3001;
 
