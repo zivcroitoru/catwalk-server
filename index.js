@@ -55,11 +55,11 @@ app.use(express.json());
 // ───────────── Route Mounts ─────────────
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
+app.use('/api/cat_items', catItemsRoutes); // ✅
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
-app.use('/api', catItemsRoutes); // ✅ NEW: Mounts /api/cat_items/:catId
 
 // ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
