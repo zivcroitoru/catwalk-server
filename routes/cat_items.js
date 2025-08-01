@@ -8,17 +8,25 @@ const router = express.Router();
 // PATCH /api/cat_items/:catId
 router.patch('/:catId', async (req, res) => {
   const { catId } = req.params;
-  const { equipment, player_id } = req.body;
+  const { equipment } = req.body;
 
   if (!equipment || typeof equipment !== 'object') {
     return res.status(400).json({ error: 'Missing or invalid equipment' });
   }
 
-  if (!player_id) {
-    return res.status(400).json({ error: 'Missing player_id' });
-  }
-
   try {
+    // Get player_id from player_cats
+    const result = await DB.query(
+      `SELECT player_id FROM player_cats WHERE cat_id = $1`,
+      [catId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found' });
+    }
+
+    const player_id = result.rows[0].player_id;
+
     for (const [category, template] of Object.entries(equipment)) {
       await DB.query(
         `INSERT INTO cat_items (cat_id, player_id, category, template)
