@@ -28,6 +28,12 @@ router.patch('/:catId', async (req, res) => {
     const player_id = result.rows[0].player_id;
 
     for (const [category, template] of Object.entries(equipment)) {
+      // Skip if unequipped or invalid
+      if (!template || typeof template !== 'string') {
+        console.log(`⚠️ Skipping unequip or invalid template for "${category}":`, template);
+        continue;
+      }
+
       await DB.query(
         `INSERT INTO cat_items (cat_id, player_id, category, template)
          VALUES ($1, $2, $3, $4)
