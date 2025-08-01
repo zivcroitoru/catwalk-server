@@ -76,7 +76,7 @@ router.get('/messages/:ticketId', async (req, res) => {
 
 //respond to a ticket
 // routes/messages.js
-router.post('/:ticketId', async (req, res) => {
+router.post('messages/:ticketId', async (req, res) => {
   const { ticketId } = req.params;
   const { body } = req.body;
 
