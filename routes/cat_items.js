@@ -5,32 +5,35 @@ import DB from '../db.js';
 const router = express.Router();
 
 // ───────────── PATCH: Update Cat Equipment ─────────────
-// PATCH /api/cat_items/:catId
 router.patch('/:catId', async (req, res) => {
-  const { catId } = req.params;
+  const catId = parseInt(req.params.catId); // ✅ cast to integer
   const { equipment } = req.body;
 
+  console.log('📥 Incoming PATCH /cat_items:', { catId, equipment });
+
   if (!equipment || typeof equipment !== 'object') {
+    console.log('❌ Invalid equipment');
     return res.status(400).json({ error: 'Missing or invalid equipment' });
   }
 
   try {
-    // Get player_id from player_cats
     const result = await DB.query(
       `SELECT player_id FROM player_cats WHERE cat_id = $1`,
       [catId]
     );
 
     if (result.rows.length === 0) {
+      console.log('❌ No cat found for ID:', catId);
       return res.status(404).json({ error: 'Cat not found' });
     }
 
     const player_id = result.rows[0].player_id;
 
     for (const [category, template] of Object.entries(equipment)) {
-      // Skip if unequipped or invalid
+      console.log('🔧 Processing:', { category, template, types: [typeof category, typeof template] });
+
       if (!template || typeof template !== 'string') {
-        console.log(`⚠️ Skipping unequip or invalid template for "${category}":`, template);
+        console.log(`⚠️ Skipping invalid template for "${category}":`, template);
         continue;
       }
 
@@ -43,18 +46,17 @@ router.patch('/:catId', async (req, res) => {
       );
     }
 
-    console.log(`💾 Updated equipment for cat ${catId}:`, equipment);
+    console.log(`✅ Updated equipment for cat ${catId}`);
     res.status(200).json({ success: true, catId, equipment });
   } catch (error) {
-    console.error('❌ Failed to update cat_items:', error);
+    console.error('❌ DB ERROR during PATCH:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
 // ───────────── GET: Get Cat Equipment ─────────────
-// GET /api/cat_items/:catId
 router.get('/:catId', async (req, res) => {
-  const { catId } = req.params;
+  const catId = parseInt(req.params.catId);
 
   try {
     const result = await DB.query(
