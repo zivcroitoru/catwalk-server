@@ -62,29 +62,70 @@ router.get('/template/:template', async (req, res) => {
   }
 });
 
-// ───────────── PATCH: Update Sprite URL (Admin use?) ─────────────
-router.patch('/allcats/:id', async (req, res) => {
-  const catId = req.params.id;
-  const { sprite_url } = req.body;
+// ───────────── PATCH: Update Cat (Auth) ─────────────
+router.patch('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
 
-  if (!sprite_url) {
-    return res.status(400).json({ error: 'Missing sprite_url in request body' });
+  const setCols = [];
+  const values = [];
+  let idx = 1;
+
+  const push = (col, val) => {
+    setCols.push(`${col} = $${idx}`);
+    values.push(val);
+    idx++;
+  };
+
+  if (updates.name !== undefined) push('name', updates.name);
+  if (updates.description !== undefined) push('description', updates.description);
+  if (updates.template !== undefined) push('template', updates.template);
+
+  if (updates.equipment !== undefined) {
+    const e = updates.equipment;
+
+    const sanitized = {
+      hat: typeof e.hat === 'string' && e.hat.length > 0 ? e.hat : null,
+      top: typeof e.top === 'string' && e.top.length > 0 ? e.top : null,
+      eyes: typeof e.eyes === 'string' && e.eyes.length > 0 ? e.eyes : null,
+      accessories: Array.isArray(e.accessories) ? e.accessories : []
+    };
+
+    console.log('🛠️ Sanitized equipment:', sanitized);
+    push('equipment', JSON.stringify(sanitized));
   }
 
+  if (setCols.length === 0) {
+    return res.status(400).json({ error: 'No updatable fields supplied' });
+  }
+
+  values.push(id, req.user.id);
+
+  console.log('🔧 PATCH /cats/:id', {
+    id,
+    userId: req.user.id,
+    updates,
+    setCols,
+    values
+  });
+
   try {
-    const result = await DB.query(
-      'UPDATE cat_templates SET sprite_url = $1 WHERE cat_id = $2 RETURNING *',
-      [sprite_url, catId]
+    const { rows } = await DB.query(
+      `UPDATE player_cats
+         SET ${setCols.join(', ')}, last_updated = NOW()
+       WHERE cat_id = $${idx} AND player_id = $${idx + 1}
+       RETURNING *`,
+      values
     );
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Cat not found' });
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found or not yours' });
     }
 
-    res.json({ message: 'Cat sprite_url updated', cat: result.rows[0] });
+    res.json({ message: 'Cat updated', cat: rows[0] });
   } catch (err) {
-    console.error('Error updating cat sprite_url:', err);
-    res.status(500).json({ error: 'Server error', catId, sprite_url });
+    console.error('❌ SQL error in PATCH /cats/:id:', err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
