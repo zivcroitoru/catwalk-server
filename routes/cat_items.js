@@ -29,5 +29,27 @@ router.patch('/:catId', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+// GET /api/cat_items/:catId
+router.get('/:catId', async (req, res) => {
+  const { catId } = req.params;
+
+  try {
+    const result = await DB.query(
+      `SELECT category, template FROM cat_items WHERE cat_id = $1`,
+      [catId]
+    );
+
+    // Build equipment object
+    const equipment = {};
+    result.rows.forEach(row => {
+      equipment[row.category] = row.template;
+    });
+
+    res.status(200).json({ catId, equipment });
+  } catch (error) {
+    console.error('❌ Failed to fetch equipment:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
 
 export default router;
