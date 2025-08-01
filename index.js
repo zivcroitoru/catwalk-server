@@ -13,7 +13,7 @@ import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
 import player_itemsRoutes from './routes/player_items.js';
 import catItemsRoutes from './routes/cat_items.js'; // ✅ NEW: Cat items route
-import { initFashionShowConfig } from './fashion-show.js';
+// import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── App Setup ─────────────
 const app = express();
@@ -50,7 +50,7 @@ app.use('/api/playerItems', player_itemsRoutes);
 app.use('/api/mailbox', mailboxRoutes); // ✅ NEW: Mailbox HTTP routes
 
 // ───────────── Fashion Show Setup ─────────────
-initFashionShowConfig(app); // Changed from server to app
+// initFashionShowConfig(app); // Changed from server to app
 
 // ───────────── Test Routes ─────────────
 app.get('/api/test', (req, res) => {
