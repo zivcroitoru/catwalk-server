@@ -6,6 +6,7 @@ import DB from './db.js';
 
 // ───────────── Routes ─────────────
 import authRoutes from './routes/auth.js';
+import mailboxRoutes from './routes/mailbox.js'; // ✅ NEW: Mailbox HTTP routes
 import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
