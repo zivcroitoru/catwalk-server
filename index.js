@@ -2,8 +2,6 @@
 import './utils.js'; // Load environment variables
 import express from 'express';
 import cors from 'cors';
-import { createServer } from 'node:http';
-import { Server } from 'socket.io';
 import DB from './db.js';
 
 // ───────────── Routes ─────────────
@@ -17,25 +15,16 @@ import catItemsRoutes from './routes/cat_items.js'; // ✅ NEW: Cat items route
 import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── Mailbox System ─────────────
-import { setupMailbox } from './mailbox.js';
+import mailboxRoutes from './routes/mailbox.js'; // ✅ NEW: Mailbox HTTP routes
 
 // ───────────── App Setup ─────────────
 const app = express();
-const server = createServer(app);
 const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   'http://localhost:3000',
   process.env.FRONTEND_URL
 ];
-
-// ───────────── Socket.io Setup ─────────────
-const io = new Server(server, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
-  }
-});
 
 // ───────────── CORS Config ─────────────
 app.use(cors({
@@ -60,9 +49,10 @@ app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
+app.use('/api/mailbox', mailboxRoutes); // ✅ NEW: Mailbox HTTP routes
 
 // ───────────── Fashion Show Setup ─────────────
-initFashionShowConfig(server);
+initFashionShowConfig(app); // Changed from server to app
 
 // ───────────── Test Routes ─────────────
 app.get('/api/test', (req, res) => {
@@ -88,17 +78,11 @@ app.get('/api/wow', (req, res) => {
 });
 
 // ───────────── Start Server ─────────────
-server.listen(PORT, async () => {
+app.listen(PORT, async () => {
   try {
-    app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
-    console.log('📬 Mailbox system initialized');
+    console.log('📬 Mailbox HTTP API initialized');
     console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
   } catch (error) {
-    console.error('❌ Failed to initialize mailbox system:', error);
+    console.error('❌ Failed to initialize server:', error);
   }
-});
-
-// ───────────── Socket.io Connection Handling ─────────────
-io.on('connection', (socket) => {
-  console.log('📡 New Socket.IO connection:', socket.id);
 });

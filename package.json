@@ -20,8 +20,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth2": "^0.2.0",
     "passport-google-oauth20": "^2.0.0",
-    "pg": "^8.16.3",
-    "socket.io": "^4.8.1"
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/pg": "^8.15.4",

@@ -7,10 +7,10 @@ export function initFashionShowConfig(mainHttpServer) {
     }
   });
 
-  // Socket.io connection handling
+  console.log('🧵 Socket.io server initialized');
+
   io.on('connection', newIoCSocket);
 }
-
 
 // Constants
 const PARTICIPANTS_IN_ROOM = 5;
@@ -22,7 +22,7 @@ let waitingRoom = {
   isVoting: false
 };
 
-// Room class for active games
+// ─────────────── Game Room Class ───────────────
 class GameRoom {
   constructor(participants) {
     this.participants = participants;
@@ -30,63 +30,57 @@ class GameRoom {
     this.votingStartTime = Date.now();
     this.isFinalized = false;
     this.votingTimer = null;
-    
-    // Start voting phase
+
+    console.log('🗳️ GameRoom created with participants:', this.participants.map(p => p.playerId));
     this.startVotingPhase();
   }
 
   startVotingPhase() {
-    // Send voting phase message to all participants
+    console.log('⏳ Voting phase started');
+
     this.participants.forEach(participant => {
-      if (participant.socket && participant.socket.connected) {
+      if (participant.socket?.connected) {
         participant.socket.emit('voting_phase', {
           type: 'voting_phase',
           participants: this.getParticipantsForClient(),
           timerSeconds: VOTING_TIMER
         });
+        console.log(`📤 Sent voting_phase to ${participant.playerId}`);
       }
     });
 
-    // Make dummy participants vote immediately
     this.participants.forEach(participant => {
       if (participant.isDummy) {
         this.makeDummyVote(participant);
       }
     });
 
-    // Start voting timer
     this.votingTimer = setTimeout(() => {
+      console.log('⏰ Voting timeout reached');
       this.handleVotingTimeout();
     }, VOTING_TIMER * 1000);
   }
 
-  makeDummyVote(dummyParticipant) {
-    // Get all cats except the dummy's own cat
-    const availableCats = this.participants
-      .filter(p => p.catId !== dummyParticipant.catId)
-      .map(p => p.catId);
-    
+  makeDummyVote(dummy) {
+    const availableCats = this.participants.filter(p => p.catId !== dummy.catId).map(p => p.catId);
     if (availableCats.length > 0) {
-      const randomCatId = availableCats[Math.floor(Math.random() * availableCats.length)];
-      this.handleVote(dummyParticipant, randomCatId);
+      const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
+      console.log(`🤖 Dummy ${dummy.playerId} voting for ${choice}`);
+      this.handleVote(dummy, choice);
     }
   }
 
-  handleVote(participant, votedCatId) {
-    if (this.isFinalized) return;
+  handleVote(voter, votedCatId) {
+    if (this.isFinalized || votedCatId === voter.catId) return;
 
-    // Validate vote (can't vote for own cat)
-    if (votedCatId === participant.catId) return;
+    voter.votedCatId = votedCatId;
+    console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
 
-    // Update participant's vote
-    participant.votedCatId = votedCatId;
-
-    // Send voting update to all participants
     this.broadcastVotingUpdate();
 
-    // Check if all participants have voted
     const allVoted = this.participants.every(p => p.votedCatId);
     if (allVoted) {
+      console.log('✅ All participants voted. Finalizing...');
       this.finalizeVoting();
     }
   }
@@ -94,16 +88,13 @@ class GameRoom {
   handleVotingTimeout() {
     if (this.isFinalized) return;
 
-    // Make random votes for participants who haven't voted
     this.participants.forEach(participant => {
       if (!participant.votedCatId) {
-        const availableCats = this.participants
-          .filter(p => p.catId !== participant.catId)
-          .map(p => p.catId);
-        
+        const availableCats = this.participants.filter(p => p.catId !== participant.catId).map(p => p.catId);
         if (availableCats.length > 0) {
-          const randomCatId = availableCats[Math.floor(Math.random() * availableCats.length)];
-          participant.votedCatId = randomCatId;
+          const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
+          participant.votedCatId = choice;
+          console.log(`⚠️ Timeout vote for ${participant.playerId}: voted ${choice}`);
         }
       }
     });
@@ -113,59 +104,51 @@ class GameRoom {
 
   finalizeVoting() {
     if (this.isFinalized) return;
-    
     this.isFinalized = true;
-    
-    // Clear voting timer
-    if (this.votingTimer) {
-      clearTimeout(this.votingTimer);
-      this.votingTimer = null;
-    }
 
-    // Calculate results
+    if (this.votingTimer) clearTimeout(this.votingTimer);
+
     this.calculateResults();
 
-    // Send results to all participants
     this.participants.forEach(participant => {
-      if (participant.socket && participant.socket.connected) {
+      if (participant.socket?.connected) {
         participant.socket.emit('results', {
           type: 'results',
           participants: this.getParticipantsForClient()
         });
+        console.log(`📤 Sent results to ${participant.playerId}`);
       }
     });
   }
 
   calculateResults() {
-    // Count votes for each cat
-    const voteCounts = {};
-    this.participants.forEach(participant => {
-      if (participant.votedCatId) {
-        voteCounts[participant.votedCatId] = (voteCounts[participant.votedCatId] || 0) + 1;
+    const votes = {};
+    this.participants.forEach(p => {
+      if (p.votedCatId) {
+        votes[p.votedCatId] = (votes[p.votedCatId] || 0) + 1;
       }
     });
 
-    // Calculate coins for each participant
-    this.participants.forEach(participant => {
-      const votesReceived = voteCounts[participant.catId] || 0;
-      participant.votesReceived = votesReceived;
-      participant.coinsEarned = votesReceived * 25;
+    this.participants.forEach(p => {
+      p.votesReceived = votes[p.catId] || 0;
+      p.coinsEarned = p.votesReceived * 25;
+      console.log(`💰 ${p.playerId} earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
     });
   }
 
   broadcastVotingUpdate() {
-    this.participants.forEach(participant => {
-      if (participant.socket && participant.socket.connected) {
-        participant.socket.emit('voting_update', {
+    this.participants.forEach(p => {
+      if (p.socket?.connected) {
+        p.socket.emit('voting_update', {
           type: 'voting_update',
           participants: this.getParticipantsForClient()
         });
+        console.log(`🔄 Sent voting update to ${p.playerId}`);
       }
     });
   }
 
   getParticipantsForClient() {
-    // Return participants without isDummy field and socket reference
     return this.participants.map(p => ({
       playerId: p.playerId,
       catId: p.catId,
@@ -175,44 +158,39 @@ class GameRoom {
     }));
   }
 
-  handleParticipantDisconnect(disconnectedParticipant) {
+  handleParticipantDisconnect(p) {
     if (this.isFinalized) return;
 
-    // If participant hasn't voted yet, make a random vote for them
-    if (!disconnectedParticipant.votedCatId) {
-      const availableCats = this.participants
-        .filter(p => p.catId !== disconnectedParticipant.catId)
-        .map(p => p.catId);
-      
-      if (availableCats.length > 0) {
-        const randomCatId = availableCats[Math.floor(Math.random() * availableCats.length)];
-        disconnectedParticipant.votedCatId = randomCatId;
-        
-        // Check if all participants have now voted
+    if (!p.votedCatId) {
+      const options = this.participants.filter(x => x.catId !== p.catId).map(x => x.catId);
+      if (options.length > 0) {
+        const vote = options[Math.floor(Math.random() * options.length)];
+        p.votedCatId = vote;
+        console.log(`⚠️ ${p.playerId} disconnected - voting randomly for ${vote}`);
         const allVoted = this.participants.every(p => p.votedCatId);
-        if (allVoted) {
-          this.finalizeVoting();
-        } else {
-          this.broadcastVotingUpdate();
-        }
+        allVoted ? this.finalizeVoting() : this.broadcastVotingUpdate();
       }
     }
   }
 }
 
+// ─────────────── Utilities ───────────────
 function generateDummyParticipant() {
-  return {
-    playerId: `dummy_${Math.random().toString(36).substr(2, 9)}`,
-    catId: `cat_${Math.random().toString(36).substr(2, 9)}`,
+  const id = Math.random().toString(36).substr(2, 9);
+  const dummy = {
+    playerId: `dummy_${id}`,
+    catId: `cat_${id}`,
     isDummy: true,
     socket: null
   };
+  console.log(`👻 Generated dummy: ${dummy.playerId}`);
+  return dummy;
 }
 
 function broadcastWaitingRoomUpdate() {
-  waitingRoom.participants.forEach(participant => {
-    if (participant.socket && participant.socket.connected) {
-      participant.socket.emit('participant_update', {
+  waitingRoom.participants.forEach(p => {
+    if (p.socket?.connected) {
+      p.socket.emit('participant_update', {
         type: 'participant_update',
         participants: waitingRoom.participants.map(p => ({
           playerId: p.playerId,
@@ -220,97 +198,88 @@ function broadcastWaitingRoomUpdate() {
         })),
         maxCount: PARTICIPANTS_IN_ROOM
       });
+      console.log(`📤 Sent waiting room update to ${p.playerId}`);
     }
   });
 }
 
-/** A new socket.io connection is opened */
+// ─────────────── Socket Handler ───────────────
 function newIoCSocket(socket) {
   console.log('🔌 New client connected:', socket.id);
-  
+
   let currentRoom = null;
   let participant = null;
 
   socket.on('join', (message) => {
     console.log('📨 Received join message:', message);
 
+    if (!message.playerId || !message.catId) {
+      console.warn('⚠️ Missing playerId or catId. Disconnecting.');
+      return socket.disconnect();
+    }
+
     participant = {
       playerId: message.playerId,
       catId: message.catId,
-      socket: socket,
+      socket,
       isDummy: false
     };
+    console.log(`✅ Registered: ${participant.playerId} (${participant.catId})`);
 
-    // Add to waiting room if it's not full and not in voting phase
     if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
       waitingRoom.participants.push(participant);
       currentRoom = waitingRoom;
-      
-      console.log(`👥 Player ${participant.playerId} joined waiting room (${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM})`);
-      
-      // Fill remaining slots with dummies if needed
+
+      console.log(`👥 Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
+
       while (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM) {
-        const dummy = generateDummyParticipant();
-        waitingRoom.participants.push(dummy);
+        waitingRoom.participants.push(generateDummyParticipant());
       }
 
-      // Broadcast participant update
       broadcastWaitingRoomUpdate();
 
-      // If room is now full, start the game
       if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-        console.log('🎮 Starting new game room');
-        
-        // Create new game room with current participants
+        console.log('🚀 Launching game room');
         const gameRoom = new GameRoom([...waitingRoom.participants]);
-        
-        // Update current room reference for all real participants
+
         waitingRoom.participants.forEach(p => {
-          if (!p.isDummy && p.socket) {
-            // This is a bit of a hack - we store the room reference in the socket
-            p.socket.gameRoom = gameRoom;
-          }
+          if (!p.isDummy && p.socket) p.socket.gameRoom = gameRoom;
         });
-        
-        // Update current room for this participant
+
         currentRoom = gameRoom;
-        
-        // Reset waiting room
+
         waitingRoom = {
           participants: [],
           isVoting: false
         };
       }
     } else {
-      // Waiting room is full or in voting phase, disconnect the client
-      console.log('❌ Waiting room is full or in voting phase, disconnecting client');
+      console.warn('❌ Waiting room full or voting. Disconnecting.');
       socket.disconnect();
     }
   });
 
   socket.on('vote', (message) => {
-    console.log('📨 Received vote message:', message);
-    if (currentRoom && currentRoom instanceof GameRoom && participant) {
+    console.log('🗳️ Received vote:', message);
+    if (currentRoom instanceof GameRoom && participant) {
       currentRoom.handleVote(participant, message.votedCatId);
     }
   });
 
   socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
-    
+    console.log('🔌 Disconnected:', socket.id);
+
     if (participant) {
       if (currentRoom === waitingRoom) {
-        // Remove from waiting room
-        const index = waitingRoom.participants.indexOf(participant);
-        if (index > -1) {
-          waitingRoom.participants.splice(index, 1);
+        const idx = waitingRoom.participants.indexOf(participant);
+        if (idx > -1) {
+          waitingRoom.participants.splice(idx, 1);
           broadcastWaitingRoomUpdate();
-          console.log(`👥 Player ${participant.playerId} left waiting room`);
+          console.log(`👤 ${participant.playerId} left waiting room`);
         }
       } else if (currentRoom instanceof GameRoom) {
-        // Handle disconnect during voting phase
         currentRoom.handleParticipantDisconnect(participant);
-        console.log(`👥 Player ${participant.playerId} disconnected during voting`);
+        console.log(`👤 ${participant.playerId} disconnected during game`);
       }
     }
   });
