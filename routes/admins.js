@@ -47,8 +47,8 @@ router.get('/tickets', async (req, res) => {
   }
 });
 
-//get the ticket by id
 
+//get the ticket by id
 router.get('/messages/:ticketId', async (req, res) => {
   const { ticketId } = req.params;
 
