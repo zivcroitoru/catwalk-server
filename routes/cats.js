@@ -1,360 +1,265 @@
-/*-----------------------------------------------------------------------------
-  storage.js – DB-backed player inventory & cats
------------------------------------------------------------------------------*/
-import { APP_URL } from '../config.js'
-const PLAYER_ITEMS_API = `${APP_URL}/api/playerItems`;
-const PLAYER_CATS_API = `${APP_URL}/api/cats`;
+// /routes/cats.js
+import express from 'express';
+import DB from '../db.js';
+import jwt from 'jsonwebtoken';
 
-let itemCache = null;
+const router = express.Router();
 
-// ───────────── REST helpers ─────────────
-async function apiGetItems() {
-  const token = localStorage.getItem('token');
-  const res = await fetch(PLAYER_ITEMS_API, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
+// ───────────── JWT Auth Middleware ─────────────
+function requireAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
 
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = 'login.html';
-      throw new Error('Auth token expired');
-    }
-    throw new Error('GET /playerItems failed');
-  }
-
-  return res.json();
-}
-
-async function apiPatchItem(template) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(PLAYER_ITEMS_API, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ template })
-  });
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = 'login.html';
-      throw new Error('Auth token expired');
-    }
-    throw new Error('PATCH /playerItems failed');
-  }
-
-  return res.json();
-}
-
-async function apiGetCats() {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.error('No auth token found');
-    window.location.href = 'login.html';
-    throw new Error('No auth token');
-  }
-
-  console.log('🔄 Fetching cats from API...');
-  const res = await fetch(PLAYER_CATS_API, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = 'login.html';
-      throw new Error('Auth token expired');
-    }
-    console.error('Failed to fetch cats:', res.status, res.statusText);
-    throw new Error('GET /cats failed');
-  }
-
-  const data = await res.json();
-  console.log('📦 Received cats data:', data);
-
-  if (!Array.isArray(data)) {
-    console.error('Invalid cats data received:', data);
-    throw new Error('Invalid cats data format');
-  }
-
-  return data;
-}
-
-async function apiUpdateCat(catId, updates) {
-  const token = localStorage.getItem('token');
-  if (!token) throw new Error('No auth token');
-
-  const res = await fetch(`${APP_URL}/api/cats/${catId}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify(updates)
-  });
-
-  if (!res.ok) {
-    console.error('Failed to update cat:', res.status, res.statusText);
-    throw new Error('Failed to update cat');
-  }
-
-  return res.json();
-}
-
-// ───────────── Load & Save ─────────────
-export async function loadPlayerItems(force = false) {
-  if (!force && itemCache) {
-    console.log('🪵 Using cached player items');
-    return itemCache;
-  }
-  console.log('🪵 Fetching fresh player items from API...');
-  itemCache = await apiGetItems();
-  itemCache.ownedItems = itemCache.items?.map(i => i.template) || [];
-  console.log('🪵 Fetched items:', itemCache);
-  return itemCache;
-}
-
-export async function unlockPlayerItem(template) {
-  console.log('🔓 Unlocking item:', template);
-  const result = await apiPatchItem(template);
-  console.log('✅ Unlock result:', result);
-  await loadPlayerItems(true);
-  updateUI();
-  return result.item;
-}
-
-// ───────────── Player ID from JWT ─────────────
-function getPlayerIdFromToken() {
-  const token = localStorage.getItem('token');
-  if (!token) return null;
-
-  const payload = token.split('.')[1];
-  if (!payload) return null;
-
+  const token = authHeader.split(' ')[1];
   try {
-    return JSON.parse(atob(payload)).id;
-  } catch (e) {
-    console.error('Failed to decode JWT token:', e);
-    return null;
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
-// ───────────── Cats Access ─────────────
-export function buildSpriteLookup(breedItems = {}) {
-  return Object.values(breedItems).flat().reduce((acc, v) => {
-    const key = v.id ?? v.template;
-    acc[key] = v.sprite_url;
-    return acc;
-  }, {});
-}
-
-let cachedSpriteLookup = null;
-export function resetSpriteLookup() {
-  cachedSpriteLookup = null;
-}
-
-function getSpriteLookup() {
-  if (!cachedSpriteLookup) {
-    if (!window.breedItems || Object.keys(window.breedItems).length === 0) {
-      console.warn("⚠️ window.breedItems is empty or undefined in getSpriteLookup");
-    } else {
-      console.log("✅ window.breedItems in getSpriteLookup:", window.breedItems);
-    }
-    cachedSpriteLookup = buildSpriteLookup(window.breedItems);
-  }
-  return cachedSpriteLookup;
-}
-
-export async function getPlayerCats() {
-  console.log('📥 getPlayerCats() start...');
-  const [raw, sprites] = await Promise.all([apiGetCats(), getSpriteLookup()]);
-  const cats = raw.map(c => normalizeCat(c, sprites));
-  console.log('✅ Normalized cats:', cats);
-  window.userCats = cats;
-  return cats;
-}
-
-export async function updateCat(catId, updates) {
-  console.log(`✏️ Updating cat ${catId} with:`, updates);
-  const allowedFields = ['name', 'description', 'template'];
-  const safeUpdates = Object.fromEntries(
-    Object.entries(updates).filter(([key]) => allowedFields.includes(key))
-  );
-
+// ───────────── GET: Player's Cats ─────────────
+router.get('/', requireAuth, async (req, res) => {
   try {
-    const updatedCat = await apiUpdateCat(catId, safeUpdates);
-    const idx = window.userCats.findIndex(c => c.id === catId);
-    if (idx !== -1) {
-      window.userCats[idx] = { ...window.userCats[idx], ...updatedCat };
-      console.log(`✅ Cat ${catId} updated in local cache`);
-    }
-    return updatedCat;
+    const result = await DB.query(
+      'SELECT * FROM player_cats WHERE player_id = $1',
+      [req.user.id]
+    );
+    res.status(200).json(result.rows);
   } catch (error) {
-    console.error('❌ Error updating cat:', error);
-    throw error;
+    console.error('Error fetching cats:', error);
+    res.status(500).json({ error: 'Server error' });
   }
-}
+});
 
-export async function deleteCat(catId) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${PLAYER_CATS_API}/${catId}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-
-  if (!res.ok) {
-    console.error('❌ Failed to delete cat:', res.status, res.statusText);
-    throw new Error('Failed to delete cat');
+// ───────────── GET: All Cat Templates (Public) ─────────────
+router.get('/allcats', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT * FROM cat_templates');
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching cats:', error);
+    res.status(500).json({ error: 'Server error' });
   }
+});
 
-  return res.json();
-}
-
-export async function addCatToUser(cat) {
-  console.log('➕ Adding cat:', cat);
-  const token = localStorage.getItem('token');
-  const playerId = getPlayerIdFromToken();
-  if (!playerId) throw new Error('No player ID found in token');
-
-  if (!cat.breed || !cat.variant || !cat.palette || !cat.sprite_url) {
-    throw new Error('Missing required template fields (breed, variant, palette)');
+// ───────────── GET: Cat by Template (Public) ─────────────
+router.get('/template/:template', async (req, res) => {
+  const { template } = req.params;
+  try {
+    const result = await DB.query(
+      'SELECT * FROM cat_templates WHERE template = $1',
+      [template]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching cat:', err);
+    res.status(500).json({ error: 'Server error' });
   }
+});
 
-  const res = await fetch(`${APP_URL}/api/cats`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      player_id: playerId,
-      template: cat.template,
-      name: cat.name,
-      birthdate: cat.birthdate,
-      description: cat.description || ''
-    })
-  });
+// ───────────── PATCH: Update Sprite URL (Admin use?) ─────────────
+router.patch('/allcats/:id', async (req, res) => {
+  const catId = req.params.id;
+  const { sprite_url } = req.body;
 
-  if (!res.ok) throw new Error('Failed to add cat');
-
-  const result = await res.json();
-  console.log('✅ New cat added:', result.cat);
-
-  await loadPlayerItems(true);
-  updateUI();
-  return result.cat;
-}
-
-// ───────────── UI Updates ─────────────
-export async function updateCoinCount() {
-  const token = localStorage.getItem('token');
-  const playerId = getPlayerIdFromToken();
-  if (!token || !playerId) return;
-
-  const res = await fetch(`${APP_URL}/api/players/${playerId}`, {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-
-  if (!res.ok) {
-    console.error('Failed to fetch player data for coin count:', res.statusText);
-    return;
-  }
-
-  const { coins } = await res.json();
-  const el = document.querySelector('.coin-count');
-  if (el) {
-    el.textContent = coins;
-    console.log('🪙 Coin count updated:', coins);
-  } else {
-    console.warn('⚠️ .coin-count element not found');
-  }
-}
-
-export async function updateUI() {
-  const token = localStorage.getItem('token');
-  const playerId = getPlayerIdFromToken();
-  if (!token || !playerId) {
-    console.warn('⚠️ Missing token or player ID');
-    return;
+  if (!sprite_url) {
+    return res.status(400).json({ error: 'Missing sprite_url in request body' });
   }
 
   try {
-    console.log('🔄 Fetching player data for UI update...');
-    const res = await fetch(`${APP_URL}/api/players/${playerId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const result = await DB.query(
+      'UPDATE cat_templates SET sprite_url = $1 WHERE cat_id = $2 RETURNING *',
+      [sprite_url, catId]
+    );
 
-    if (!res.ok) {
-      console.error('❌ Failed to fetch player data:', res.statusText);
-      return;
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Cat not found' });
     }
 
-    const { coins, cat_count } = await res.json();
-    console.log('✅ Player data fetched:', { coins, cat_count });
-
-    const coinEl = document.querySelector('.coin-count');
-    if (coinEl) {
-      coinEl.textContent = coins;
-      console.log('🪙 Coin count updated:', coins);
-    } else {
-      console.warn('⚠️ .coin-count element not found');
-    }
-
-    const catCountEl = document.getElementById('cat-count');
-    if (catCountEl) {
-      catCountEl.textContent = `Inventory: ${cat_count}/25`;
-      console.log('🐱 Cat count updated:', cat_count);
-    } else {
-      console.warn('⚠️ #cat-count element not found');
-    }
+    res.json({ message: 'Cat sprite_url updated', cat: result.rows[0] });
   } catch (err) {
-    console.error('Error updating UI:', err);
+    console.error('Error updating cat sprite_url:', err);
+    res.status(500).json({ error: 'Server error', catId, sprite_url });
   }
-}
+});
 
-export function normalizeCat(cat, spriteByTemplate) {
-  const template = cat.template;
-  const [breed, variant, palette] = template?.split('-') ?? [];
-  return {
-    id: cat.cat_id ?? cat.id,
+// ───────────── POST: Create New Cat (Auth) ─────────────
+router.post('/', requireAuth, async (req, res) => {
+  const {
     template,
-    name: cat.name ?? 'Unnamed Cat',
-    birthdate: cat.birthdate,
-    description: cat.description ?? '',
-    sprite_url: spriteByTemplate[template] ?? 'data:image/png;base64,PLACEHOLDER_IMAGE_BASE64',
-    breed: cat.breed || breed,
-    variant: cat.variant || variant,
-    palette: cat.palette || palette,
-    selected: false,
-    equipment: { hat: null, top: null, eyes: null, accessories: [] },
+    name,
+    description,
+    uploaded_photo_url,
+    birthdate
+  } = req.body;
+
+  const player_id = req.user.id;
+
+  if (!player_id || !template || !name || !birthdate) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    const result = await DB.query(
+      `INSERT INTO player_cats (
+         player_id, template, name, description,
+         uploaded_photo_url, birthdate, created_at, last_updated
+       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       RETURNING *`,
+      [
+        player_id,
+        template,
+        name,
+        description || '',
+        uploaded_photo_url || '',
+        birthdate
+      ]
+    );
+
+    res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
+  } catch (error) {
+    console.error('❌ Error inserting cat:', error);
+    res.status(500).json({ error: 'Server error while inserting cat' });
+  }
+});
+
+// ───────────── PATCH: Update Cat (Auth) ─────────────
+router.patch('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  const setCols = [];
+  const values = [];
+  let idx = 1;
+
+  const push = (col, val) => {
+    setCols.push(`${col} = $${idx}`);
+    values.push(val);
+    idx++;
   };
-}
 
-// ───────────── Cat Equipment Patch ─────────────
-export async function updateCatItems(catId, equipment) {
-  const token = localStorage.getItem('token');
-  const url = `${APP_URL}/api/cat_items/${catId}`;
+  if (updates.name !== undefined) push('name', updates.name);
+  if (updates.description !== undefined) push('description', updates.description);
+  if (updates.template !== undefined) push('template', updates.template);
+  if (updates.equipment !== undefined)
+    push('equipment', typeof updates.equipment === 'object'
+      ? JSON.stringify(updates.equipment)
+      : updates.equipment);
 
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify(equipment)
+  if (setCols.length === 0) {
+    return res.status(400).json({ error: 'No updatable fields supplied' });
+  }
+
+  // id + player ID
+  values.push(id, req.user.id);
+
+  console.log('🔧 PATCH /cats/:id', {
+    id,
+    userId: req.user.id,
+    updates,
+    setCols,
+    values
   });
 
-  if (!res.ok) {
-    console.error('❌ Failed to update cat items:', res.status, res.statusText);
-    throw new Error('Failed to update cat items');
+  try {
+    const { rows } = await DB.query(
+      `UPDATE player_cats
+          SET ${setCols.join(', ')}, last_updated = NOW()
+        WHERE cat_id = $${idx} AND player_id = $${idx + 1}
+        RETURNING *`,
+      values
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found or not yours' });
+    }
+
+    res.json({ message: 'Cat updated', cat: rows[0] });
+  } catch (err) {
+    console.error('❌ SQL error in PATCH /cats/:id:', err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ───────────── DELETE: Remove Cat (Auth) ─────────────
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await DB.query(
+      'DELETE FROM player_cats WHERE cat_id = $1 AND player_id = $2 RETURNING *',
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cat not found or not yours' });
+    }
+
+    res.status(200).json({ message: 'Cat deleted successfully', cat: result.rows[0] });
+  } catch (error) {
+    console.error('Error deleting cat:', error);
+    res.status(500).json({ error: 'Server error while deleting cat' });
+  }
+});
+
+// ───────────── GET: Player Cats by ID (Public) ─────────────
+router.get('/player/:playerId', async (req, res) => {
+  const { playerId } = req.params;
+
+  try {
+    const result = await DB.query(
+      `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id, pc.birthdate
+       FROM player_cats pc
+       INNER JOIN cat_templates ct ON pc.template = ct.template
+       WHERE pc.player_id = $1`,
+      [playerId]
+    );
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching player cats:', error);
+    res.status(500).json({ error: 'Server error while fetching cats' });
+  }
+});
+
+// ───────────── POST: Add Template ─────────────
+router.post('/catadd', async (req, res) => {
+  const { template, breed, variant, palette, description, sprite_url } = req.body;
+
+  if (!template || !breed || !variant || !palette || !description || !sprite_url) {
+    return res.status(400).json({ error: 'Missing required fields' });
   }
 
-  const data = await res.json();
-  console.log('✅ Cat equipment updated via cat_items:', data);
-  return data;
-}
-export default router;
+  try {
+    const result = await DB.query(
+      `INSERT INTO cat_templates (template, breed, variant, palette, description, sprite_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [template, breed, variant, palette, description, sprite_url]
+    );
 
+    res.status(201).json({ message: 'Cat template added', cat: result.rows[0] });
+  } catch (error) {
+    console.error('Error inserting cat template:', error);
+    res.status(500).json({ error: 'Server error during insert' });
+  }
+});
+
+// ───────────── DELETE: Remove Cat Template (Admin) ─────────────
+router.delete('/delete/:cat_id', async (req, res) => {
+  const { cat_id } = req.params;
+  try {
+    await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [cat_id]);
+    res.json({ message: 'Cat deleted successfully' });
+  } catch (error) {
+    console.error('Delete cat error:', error);
+    res.status(500).json({ error: 'Failed to delete cat' });
+  }
+});
+
+
+export default router;
