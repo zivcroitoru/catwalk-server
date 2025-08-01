@@ -29,11 +29,20 @@ router.patch('/:catId', async (req, res) => {
 
     const player_id = result.rows[0].player_id;
 
-    for (const [category, template] of Object.entries(equipment)) {
-      console.log('🔧 Processing:', { category, template, types: [typeof category, typeof template] });
+    const categoryMap = {
+      hat: 'hats',
+      top: 'tops',
+      eyes: 'eyes',
+      accessories: 'accessories'
+    };
 
-      if (!template || typeof template !== 'string') {
-        console.log(`⚠️ Skipping invalid template for "${category}":`, template);
+    for (const [rawKey, template] of Object.entries(equipment)) {
+      const category = categoryMap[rawKey]; // 👈 convert to plural
+
+      console.log('🔧 Processing:', { rawKey, category, template });
+
+      if (!category || !template || typeof template !== 'string') {
+        console.log(`⚠️ Skipping invalid input:`, { rawKey, template });
         continue;
       }
 
