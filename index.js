@@ -27,14 +27,23 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ];
 // ───────────── Socket.io Setup ─────────────
+
 const io = new Server(server, {
-  cors: allowedOrigins,
-  credentials: true
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
   }
-);
-io.on("connect_error", (err) => {
-  console.log(`connect_error due to ${err.message}`);
 });
+
+// const io = new Server(server, {
+//   cors: allowedOrigins,
+//   credentials: true
+//   }
+// );
+// io.on("connect_error", (err) => {
+//   console.log(`connect_error due to ${err.message}`);
+// });
+
 // ───────────── CORS Config ─────────────
 
 app.use(cors({
@@ -63,21 +72,22 @@ app.use('/api/playerItems', player_itemsRoutes);
 initFashionShowConfig(server);
 
 // ───────────── Mailbox Setup ─────────────
-async function initializeMailbox() {
-  try {
-    // Setup Socket.io mailbox functionality
-    
-    // Make admin functions available globally if needed
-    app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
-    
-    console.log('📬 Mailbox system initialized');
-  } catch (error) {
-    console.error('❌ Failed to initialize mailbox system:', error);
-  }
-}
 
-// Initialize mailbox after server starts
-initializeMailbox();
+// async function initializeMailbox() {
+//   try {
+//     // Setup Socket.io mailbox functionality
+    
+//     // Make admin functions available globally if needed
+//     app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
+    
+//     console.log('📬 Mailbox system initialized');
+//   } catch (error) {
+//     console.error('❌ Failed to initialize mailbox system:', error);
+//   }
+// }
+
+// // Initialize mailbox after server starts
+// initializeMailbox();
 
 // ───────────── Test Routes ─────────────
 app.get('/api/test', (req, res) => {
@@ -103,10 +113,29 @@ app.get('/api/wow', (req, res) => {
 });
 
 // ───────────── Start Server ─────────────
+
 server.listen(PORT, async () => {
-  await initializeMailbox();
-  console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
+  try {
+    // ✅ Initialize mailbox ONLY after server starts
+    app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
+    console.log('📬 Mailbox system initialized');
+    console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
+  } catch (error) {
+    console.error('❌ Failed to initialize mailbox system:', error);
+  }
 });
-io.on('connection', socket => {
+
+// server.listen(PORT, async () => {
+//   await initializeMailbox();
+//   console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
+// });
+// io.on('connection', socket => {
+//   console.log('📡 New Socket.IO connection:', socket.id);
+// });
+
+// ───────────── Socket.io Connection Handling ─────────────
+io.on('connection', (socket) => {
   console.log('📡 New Socket.IO connection:', socket.id);
 });
+
+
