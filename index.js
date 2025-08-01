@@ -12,7 +12,8 @@ import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
-import player_itemsRoutes from './routes/player_items.js'; // ✅ Renamed
+import player_itemsRoutes from './routes/player_items.js';
+import catItemsRoutes from './routes/cat_items.js'; // ✅ NEW: Cat items route
 import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── Mailbox System ─────────────
@@ -22,12 +23,13 @@ import { setupMailbox } from './mailbox.js';
 const app = express();
 const server = createServer(app);
 const PORT = process.env.PORT || 3001;
+
 const allowedOrigins = [
   'http://localhost:3000',
   process.env.FRONTEND_URL
 ];
-// ───────────── Socket.io Setup ─────────────
 
+// ───────────── Socket.io Setup ─────────────
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
@@ -35,17 +37,7 @@ const io = new Server(server, {
   }
 });
 
-// const io = new Server(server, {
-//   cors: allowedOrigins,
-//   credentials: true
-//   }
-// );
-// io.on("connect_error", (err) => {
-//   console.log(`connect_error due to ${err.message}`);
-// });
-
 // ───────────── CORS Config ─────────────
-
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -67,27 +59,10 @@ app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
+app.use('/api', catItemsRoutes); // ✅ NEW: Mounts /api/cat_items/:catId
 
 // ───────────── Fashion Show Setup ─────────────
 initFashionShowConfig(server);
-
-// ───────────── Mailbox Setup ─────────────
-
-// async function initializeMailbox() {
-//   try {
-//     // Setup Socket.io mailbox functionality
-    
-//     // Make admin functions available globally if needed
-//     app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
-    
-//     console.log('📬 Mailbox system initialized');
-//   } catch (error) {
-//     console.error('❌ Failed to initialize mailbox system:', error);
-//   }
-// }
-
-// // Initialize mailbox after server starts
-// initializeMailbox();
 
 // ───────────── Test Routes ─────────────
 app.get('/api/test', (req, res) => {
@@ -113,10 +88,8 @@ app.get('/api/wow', (req, res) => {
 });
 
 // ───────────── Start Server ─────────────
-
 server.listen(PORT, async () => {
   try {
-    // ✅ Initialize mailbox ONLY after server starts
     app.locals.mailboxAdmin = setupMailbox(io, DB, process.env.JWT_SECRET);
     console.log('📬 Mailbox system initialized');
     console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
@@ -125,17 +98,7 @@ server.listen(PORT, async () => {
   }
 });
 
-// server.listen(PORT, async () => {
-//   await initializeMailbox();
-//   console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
-// });
-// io.on('connection', socket => {
-//   console.log('📡 New Socket.IO connection:', socket.id);
-// });
-
 // ───────────── Socket.io Connection Handling ─────────────
 io.on('connection', (socket) => {
   console.log('📡 New Socket.IO connection:', socket.id);
 });
-
-
