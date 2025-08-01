@@ -1,8 +1,7 @@
 /*-----------------------------------------------------------------------------
   storage.js – DB-backed player inventory & cats
 -----------------------------------------------------------------------------*/
-import { APP_URL } from './config.js';
-
+import { APP_URL } from '../config.js'
 const PLAYER_ITEMS_API = `${APP_URL}/api/playerItems`;
 const PLAYER_CATS_API = `${APP_URL}/api/cats`;
 
