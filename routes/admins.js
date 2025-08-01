@@ -75,26 +75,25 @@ router.get('/messages/:ticketId', async (req, res) => {
 });
 
 //respond to a ticket
-router.post('/messages', async (req, res) => {
-  const { ticket_id, body } = req.body;
-
-  if (!ticket_id || !body) {
-    return res.status(400).json({ error: "Missing ticket_id or body" });
-  }
+// routes/messages.js
+router.post('/:ticketId', async (req, res) => {
+  const { ticketId } = req.params;
+  const { body } = req.body;
 
   try {
-    const result = await DB.query(
+    const result = await db.query(
       `INSERT INTO messages (ticket_id, body, created_at)
-       VALUES ($1, $2, CURRENT_TIMESTAMP)
+       VALUES ($1, $2, NOW())
        RETURNING *`,
-      [ticket_id, body]
+      [ticketId, body]
     );
 
-    res.status(201).json({ success: true, message: result.rows[0] });
+    res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error("Error inserting message:", err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Failed to save message" });
   }
 });
+
 
 export default router;
