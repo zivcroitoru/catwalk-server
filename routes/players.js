@@ -22,10 +22,13 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Username is required' });
   }
   try {
-    const result = await DB.query(
-      'INSERT INTO players (username, coins) VALUES ($1, $2) RETURNING *',
-      [username, coins ?? 1500]
-    );
+const coinsToInsert = (typeof coins === 'number' && coins >= 0) ? coins : 1500;
+
+const result = await DB.query(
+  'INSERT INTO players (username, coins) VALUES ($1, $2) RETURNING *',
+  [username, coinsToInsert]
+);
+
     res.status(201).json({ message: 'Player created', player: result.rows[0] });
   } catch (error) {
     console.error('Error creating player:', error);
