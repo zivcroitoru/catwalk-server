@@ -24,7 +24,7 @@ router.post('/', async (req, res) => {
   try {
     const result = await DB.query(
       'INSERT INTO players (username, coins) VALUES ($1, $2) RETURNING *',
-      [username, coins || 0] // Default to 0 coins if not provided
+      [username, coins || 1500] // Default to 2000 coins if not provided
     );
     res.status(201).json({ message: 'Player created', player: result.rows[0] });
   } catch (error) {
