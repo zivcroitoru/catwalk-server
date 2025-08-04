@@ -33,7 +33,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Assuming you have Express and your DB connection as `db`
 
 // routes/admin.js or similar
 
@@ -75,7 +74,6 @@ router.get('/messages/:ticketId', async (req, res) => {
 });
 
 //respond to a ticket
-// routes/messages.js
 router.post('/messages/:ticketId', async (req, res) => {
   const { ticketId } = req.params;
   const { body } = req.body;

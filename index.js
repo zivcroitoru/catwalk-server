@@ -6,13 +6,13 @@ import DB from './db.js';
 
 // ───────────── Routes ─────────────
 import authRoutes from './routes/auth.js';
-import mailboxRoutes from './routes/mailbox.js'; // ✅ NEW: Mailbox HTTP routes
+import mailboxRoutes from './routes/mailbox.js';
 import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
 import player_itemsRoutes from './routes/player_items.js';
-import catItemsRoutes from './routes/cat_items.js'; // ✅ NEW: Cat items route
+import catItemsRoutes from './routes/cat_items.js';
 // import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── App Setup ─────────────
@@ -42,12 +42,12 @@ app.use(express.json());
 // ───────────── Route Mounts ─────────────
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
-app.use('/api/cat_items', catItemsRoutes); // ✅
+app.use('/api/cat_items', catItemsRoutes); 
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
-app.use('/api/mailbox', mailboxRoutes); // ✅ NEW: Mailbox HTTP routes
+app.use('/api/mailbox', mailboxRoutes);
 
 // ───────────── Fashion Show Setup ─────────────
 // initFashionShowConfig(app); // Changed from server to app
@@ -78,9 +78,9 @@ app.get('/api/wow', (req, res) => {
 // ───────────── Start Server ─────────────
 app.listen(PORT, async () => {
   try {
-    console.log('📬 Mailbox HTTP API initialized');
-    console.log(`✅ catwalk-server running on http://localhost:${PORT}`);
+    console.log('Mailbox HTTP API initialized');
+    console.log(`catwalk-server running on http://localhost:${PORT}`);
   } catch (error) {
-    console.error('❌ Failed to initialize server:', error);
+    console.error('Failed to initialize server:', error);
   }
 });

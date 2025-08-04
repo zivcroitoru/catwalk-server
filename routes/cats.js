@@ -276,7 +276,7 @@ function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
-    console.warn('🔒 No Authorization header received');
+    console.warn('No Authorization header received');
     return res.status(401).json({ error: 'No token provided' });
   }
 
@@ -285,17 +285,17 @@ function requireAuth(req, res, next) {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     req.user = decoded;
-    console.log('🔓 Authenticated user:', req.user.id);
+    console.log('Authenticated user:', req.user.id);
     next();
   } catch (err) {
-    console.warn('❌ Invalid or expired token:', err.message);
+    console.warn('Invalid or expired token:', err.message);
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
 // ───────────── GET: Player's Cats ─────────────
 router.get('/', requireAuth, async (req, res) => {
-  console.log(`📥 GET /api/cats hit by player ID: ${req.user?.id}`);
+  console.log(`GET /api/cats hit by player ID: ${req.user?.id}`);
   try {
     const result = await DB.query(
       'SELECT * FROM player_cats WHERE player_id = $1',
@@ -398,7 +398,7 @@ router.post('/', requireAuth, async (req, res) => {
 
     res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
   } catch (error) {
-    console.error('❌ Error inserting cat:', error);
+    console.error('Error inserting cat:', error);
     res.status(500).json({ error: 'Server error while inserting cat' });
   }
 });
@@ -456,7 +456,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     res.json({ message: 'Cat updated', cat: rows[0] });
   } catch (err) {
-    console.error('❌ SQL error in PATCH /cats/:id:', err);
+    console.error('SQL error in PATCH /cats/:id:', err);
     res.status(500).json({ error: 'Database error' });
   }
 });

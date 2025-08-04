@@ -29,7 +29,7 @@ router.get('/', requireAuth, async (req, res) => {
     );
     res.status(200).json({ items: result.rows });
   } catch (err) {
-    console.error('❌ GET /player_items error:', err.stack || err);
+    console.error('GET /player_items error:', err.stack || err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -80,7 +80,7 @@ router.patch('/', requireAuth, async (req, res) => {
       coins: updateResult.rows[0].coins
     });
   } catch (err) {
-    console.error('❌ PATCH /player_items error:', err.stack || err);
+    console.error('PATCH /player_items error:', err.stack || err);
     res.status(500).json({ error: 'Server error' });
   }
 });

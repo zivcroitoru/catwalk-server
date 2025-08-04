@@ -6,13 +6,13 @@ const router = express.Router();
 
 // ───────────── PATCH: Update Cat Equipment ─────────────
 router.patch('/:catId', async (req, res) => {
-  const catId = parseInt(req.params.catId); // ✅ cast to integer
+  const catId = parseInt(req.params.catId);
   const { equipment } = req.body;
 
-  console.log('📥 Incoming PATCH /cat_items:', { catId, equipment });
+  console.log('Incoming PATCH /cat_items:', { catId, equipment });
 
   if (!equipment || typeof equipment !== 'object') {
-    console.log('❌ Invalid equipment');
+    console.log('Invalid equipment');
     return res.status(400).json({ error: 'Missing or invalid equipment' });
   }
 
@@ -23,7 +23,7 @@ router.patch('/:catId', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      console.log('❌ No cat found for ID:', catId);
+      console.log('No cat found for ID:', catId);
       return res.status(404).json({ error: 'Cat not found' });
     }
 
@@ -37,12 +37,12 @@ router.patch('/:catId', async (req, res) => {
     };
 
     for (const [rawKey, template] of Object.entries(equipment)) {
-      const category = categoryMap[rawKey]; // 👈 convert to plural
+      const category = categoryMap[rawKey]; 
 
-      console.log('🔧 Processing:', { rawKey, category, template });
+      console.log('Processing:', { rawKey, category, template });
 
       if (!category || !template || typeof template !== 'string') {
-        console.log(`⚠️ Skipping invalid input:`, { rawKey, template });
+        console.log(`Skipping invalid input:`, { rawKey, template });
         continue;
       }
 
@@ -55,10 +55,10 @@ router.patch('/:catId', async (req, res) => {
       );
     }
 
-    console.log(`✅ Updated equipment for cat ${catId}`);
+    console.log(`Updated equipment for cat ${catId}`);
     res.status(200).json({ success: true, catId, equipment });
   } catch (error) {
-    console.error('❌ DB ERROR during PATCH:', error);
+    console.error('DB ERROR during PATCH:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
@@ -80,7 +80,7 @@ router.get('/:catId', async (req, res) => {
 
     res.status(200).json({ catId, equipment });
   } catch (error) {
-    console.error('❌ Failed to fetch equipment:', error);
+    console.error('Failed to fetch equipment:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });

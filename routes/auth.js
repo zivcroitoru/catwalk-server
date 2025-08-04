@@ -60,7 +60,7 @@ router.post('/signup', async (req, res) => {
 
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
 
-    console.log('✅ Signup successful, token generated');
+    console.log('Signup successful, token generated');
 
     res.status(201).json({
       message: 'Signup successful',
@@ -68,7 +68,7 @@ router.post('/signup', async (req, res) => {
       token
     });
   } catch (error) {
-    console.error('❌ Signup error:', error);
+    console.error('Signup error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -78,7 +78,7 @@ router.post('/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    console.log("🔐 Received login request:", req.body);
+    console.log("Received login request:", req.body);
 
     const userResult = await DB.query(
       'SELECT * FROM players WHERE username = $1',
@@ -103,7 +103,7 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(userData, JWT_SECRET, { expiresIn: '7d' });
 
-    console.log('✅ Login successful, token generated');
+    console.log('Login successful, token generated');
 
     res.status(200).json({
       message: 'Login successful',
@@ -111,7 +111,7 @@ router.post('/login', async (req, res) => {
       token
     });
   } catch (err) {
-    console.error('❌ Login error:', err);
+    console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -120,13 +120,13 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (_req, res) => {
   // With JWT, we don't need to do anything server-side
   // The client just needs to remove the token
-  console.log('🚪 Client logged out');
+  console.log('Client logged out');
   res.status(200).json({ message: 'Logout successful' });
 });
 
 // ───────────── AUTH CHECK ─────────────
 router.get('/me', requireLogin, (req, res) => {
-  console.log('🔍 Authenticated user:', req.user);
+  console.log('Authenticated user:', req.user);
   res.status(200).json({
     message: 'You are logged in!',
     user: req.user
