@@ -5,8 +5,8 @@ import cors from 'cors';
 import DB from './db.js';
 
 // ───────────── SOCKET.IO ──────────
-const WebSocket = require('ws');
-const server = new WebSocket.Server({ noServer: true });
+import WebSocket, { WebSocketServer } from 'ws';
+const server = new WebSocketServer({ noServer: true });
 
 // ───────────── Routes ─────────────
 import authRoutes from './routes/auth.js';
