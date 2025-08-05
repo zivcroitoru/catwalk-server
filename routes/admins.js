@@ -73,6 +73,18 @@ router.get('/messages/:ticketId', async (req, res) => {
   }
 });
 
+
+// Get all users
+router.get('/players', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT id, username, coins, created_at FROM players ORDER BY id ASC');
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
 //respond to a ticket
 router.post('/messages/:ticketId', async (req, res) => {
   const { ticketId } = req.params;
