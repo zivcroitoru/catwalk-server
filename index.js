@@ -4,9 +4,13 @@ import express from 'express';
 import cors from 'cors';
 import DB from './db.js';
 
+// ───────────── SOCKET.IO ──────────
+const WebSocket = require('ws');
+const server = new WebSocket.Server({ noServer: true });
+
 // ───────────── Routes ─────────────
 import authRoutes from './routes/auth.js';
-import mailboxRoutes from './routes/mailbox.js';
+import messagesRoutes from './routes/messages.js';
 import catsRoutes from './routes/cats.js';
 import playersRoutes from './routes/players.js';
 import shopRoutes from './routes/shop.js';
@@ -42,12 +46,12 @@ app.use(express.json());
 // ───────────── Route Mounts ─────────────
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
-app.use('/api/cat_items', catItemsRoutes); 
+app.use('/api/cat_items', catItemsRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
-app.use('/api/mailbox', mailboxRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // ───────────── Fashion Show Setup ─────────────
 // initFashionShowConfig(app); // Changed from server to app
@@ -76,11 +80,71 @@ app.get('/api/wow', (req, res) => {
 });
 
 // ───────────── Start Server ─────────────
-app.listen(PORT, async () => {
-  try {
-    console.log('Mailbox HTTP API initialized');
-    console.log(`catwalk-server running on http://localhost:${PORT}`);
-  } catch (error) {
-    console.error('Failed to initialize server:', error);
+// app.listen(PORT, async () => {
+//   try {
+//     console.log('Mailbox HTTP API initialized');
+//     console.log(`catwalk-server running on http://localhost:${PORT}`);
+//   } catch (error) {
+//     console.error('Failed to initialize server:', error);
+//   }
+// });
+
+// ───────────── Socket.IO Setup ─────────────
+
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+
+// Create HTTP server from Express app
+const httpServer = http.createServer(app);
+
+// Create Socket.IO server
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
   }
 });
+
+// Start listening
+httpServer.listen(PORT, async () => {
+  console.log(`catwalk-server running on http://localhost:${PORT}`);
+});
+
+
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  // Join a chat room
+  socket.on('joinRoom', ({ roomId }) => {
+    socket.join(roomId);
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
+  });
+
+  // Send message to room and save to DB
+  socket.on('sendMessage', async ({ roomId, senderId, message }) => {
+    const timestamp = new Date();
+
+    try {
+      // Save message to database
+      await DB.query(
+        `INSERT INTO messages_list (room_id, sender_id, message_text, timestamp) VALUES ($1, $2, $3, $4)`,
+        [roomId, senderId, message, timestamp]);
+
+
+      // Emit the new message to everyone in the room
+      io.to(roomId).emit('newMessage', {
+        senderId,
+        message,
+        timestamp
+      });
+    } catch (err) {
+      console.error('Failed to store message:', err);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+
