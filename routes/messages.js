@@ -33,4 +33,17 @@ router.get('/rooms', async (req, res) => {
 });
 
 
+// GET all chat users (for the admin)
+router.get('/users', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT id, username FROM players ORDER BY id');
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error('Error fetching users for admin:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
 export default router;
