@@ -63,21 +63,24 @@ router.post("/admin/send", async (req, res) => {
 
 // POST /api/messages/send
 router.post('/send', async (req, res) => {
-  const { senderId, receiverId, content } = req.body;
+  const { receiverId, content } = req.body;
 
   try {
-    const newMessage = await DB.query(`
-      INSERT INTO messages (sender_id, receiver_id, content)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `, [senderId, receiverId, content]);
+    const room_id = `admin_user_${receiverId}`; // or however you're forming room IDs
+    const sender_id = 0; // use 0 or a fixed ID for admin
 
-    res.status(201).json(newMessage.rows[0]);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to send message' });
+    await db.query(
+      `INSERT INTO messages_list (room_id, sender_id, message_text) VALUES ($1, $2, $3)`,
+      [room_id, sender_id, content]
+    );
+
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error('Error saving admin message:', err);
+    res.status(500).json({ error: 'Failed to save message' });
   }
 });
+
 
 
 
