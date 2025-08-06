@@ -63,23 +63,22 @@ router.post("/admin/send", async (req, res) => {
 
 // POST /api/messages/send
 router.post('/send', async (req, res) => {
-  const { room_id, sender_id, message_text } = req.body;
-
-  if (!room_id || !sender_id || !message_text) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
+  const { senderId, receiverId, content } = req.body;
 
   try {
-    await DB.query(
-      `INSERT INTO messages_list (room_id, sender_id, message_text) VALUES ($1, $2, $3)`,
-      [room_id, sender_id, message_text]
-    );
-    res.status(201).json({ success: true, message: 'Message sent.' });
+    const newMessage = await DB.query(`
+      INSERT INTO messages (sender_id, receiver_id, content)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `, [senderId, receiverId, content]);
+
+    res.status(201).json(newMessage.rows[0]);
   } catch (error) {
-    console.error('Error inserting message:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error(error);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
+
 
 
 
