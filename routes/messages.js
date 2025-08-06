@@ -44,6 +44,43 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// radmin send message
+router.post("/admin/send", async (req, res) => {
+  const { room_id, sender_id, message_text } = req.body;
+  try {
+    const result = await DB.query(
+      "INSERT INTO messages_list (room_id, sender_id, message_text) VALUES ($1, $2, $3) RETURNING *",
+      [room_id, sender_id, message_text]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error saving message:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+
+
+// POST /api/messages/send
+router.post('/send', async (req, res) => {
+  const { room_id, sender_id, message_text } = req.body;
+
+  if (!room_id || !sender_id || !message_text) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  try {
+    await DB.query(
+      `INSERT INTO messages_list (room_id, sender_id, message_text) VALUES ($1, $2, $3)`,
+      [room_id, sender_id, message_text]
+    );
+    res.status(201).json({ success: true, message: 'Message sent.' });
+  } catch (error) {
+    console.error('Error inserting message:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 
 export default router;
