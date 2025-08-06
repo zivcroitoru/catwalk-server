@@ -59,6 +59,22 @@ router.post("/admin/send", async (req, res) => {
   }
 });
 
+// Get messages between admin and a specific user
+router.get('/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const room_id = `admin_user_${userId}`; // same format used in .post('/send')
+
+  try {
+    const result = await DB.query(
+      `SELECT * FROM messages_list WHERE room_id = $1 ORDER BY timestamp ASC`,
+      [room_id]
+    );
+    res.status(200).json(result.rows);
+  } catch (err) {
+    console.error('Failed to fetch messages for user:', err);
+    res.status(500).json({ error: 'Failed to fetch user messages' });
+  }
+});
 
 
 // POST /api/messages/send
