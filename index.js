@@ -17,6 +17,7 @@ import shopRoutes from './routes/shop.js';
 import adminRoutes from './routes/admins.js';
 import player_itemsRoutes from './routes/player_items.js';
 import catItemsRoutes from './routes/cat_items.js';
+import mailboxRoutes from './routes/mailbox.js';
 // import { initFashionShowConfig } from './fashion-show.js';
 
 // ───────────── App Setup ─────────────
@@ -52,6 +53,7 @@ app.use('/api/shop', shopRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/mailbox', mailboxRoutes);
 
 // ───────────── Fashion Show Setup ─────────────
 // initFashionShowConfig(app); // Changed from server to app
