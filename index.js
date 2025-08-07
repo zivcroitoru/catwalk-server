@@ -6,6 +6,24 @@ import DB from './db.js';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 
+
+// ───────────── HTTP Server Setup ─────────────
+const httpServer = http.createServer(app);
+
+// // Create Socket.IO server
+// const io = new SocketIOServer(httpServer, {
+//   cors: {
+//     origin: allowedOrigins,
+//     credentials: true
+//   }
+// });
+
+
+// Start listening
+httpServer.listen(PORT, async () => {
+  console.log(`catwalk-server running on http://localhost:${PORT}`);
+});
+
 // Attach to correct server!
 const io = new SocketIOServer(httpServer, {
   cors: {
@@ -104,21 +122,6 @@ app.get('/api/wow', (req, res) => {
 
 
 // Create HTTP server from Express app
-const httpServer = http.createServer(app);
-
-// // Create Socket.IO server
-// const io = new SocketIOServer(httpServer, {
-//   cors: {
-//     origin: allowedOrigins,
-//     credentials: true
-//   }
-// });
-
-
-// Start listening
-httpServer.listen(PORT, async () => {
-  console.log(`catwalk-server running on http://localhost:${PORT}`);
-});
 
 
 io.on('connection', (socket) => {
