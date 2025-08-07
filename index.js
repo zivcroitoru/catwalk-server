@@ -99,13 +99,30 @@ import { Server as SocketIOServer } from 'socket.io';
 // Create HTTP server from Express app
 const httpServer = http.createServer(app);
 
-// Create Socket.IO server
+// // Create Socket.IO server
+// const io = new SocketIOServer(httpServer, {
+//   cors: {
+//     origin: allowedOrigins,
+//     credentials: true
+//   }
+// });
+
+
 const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS (Socket.IO): ' + origin));
+      }
+    },
     credentials: true
   }
 });
+
+
+
 
 // Start listening
 httpServer.listen(PORT, async () => {
