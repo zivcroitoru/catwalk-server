@@ -50,4 +50,29 @@ router.post('/:ticketId/messages', async (req, res) => {
   }
 });
 
+
+// GET open ticket for a user
+router.get('/user/:userId/open', async (req, res) => {
+  const userId = parseInt(req.params.userId, 10);
+  if (isNaN(userId)) return res.status(400).send('Invalid user ID');
+
+  try {
+    const query = `
+      SELECT * FROM tickets_table 
+      WHERE user_id = $1 AND status = 'open'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    const { rows } = await DB.query(query, [userId]);
+
+    if (rows.length === 0) {
+      return res.status(404).send('No open ticket found');
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching open ticket:', error);
+    res.status(500).send('Server error');
+  }
+});
+
 export default router;
