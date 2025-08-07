@@ -3,10 +3,20 @@ import './utils.js'; // Load environment variables
 import express from 'express';
 import cors from 'cors';
 import DB from './db.js';
-
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 // ───────────── SOCKET.IO ──────────
-import WebSocket, { WebSocketServer } from 'ws';
-const server = new WebSocketServer({ noServer: true });
+import { Server as SocketIOServer } from 'socket.io';
+
+// Attach to correct server!
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: ["https://catwalk.onrender.com", "http://localhost:3000"],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
 
 // ───────────── Routes ─────────────
 import authRoutes from './routes/auth.js';
@@ -26,6 +36,7 @@ const PORT = process.env.PORT || 3001;
 
 const allowedOrigins = [
   'http://localhost:3000',
+  'https://catwalk.onrender.com',
   process.env.FRONTEND_URL
 ];
 
@@ -93,8 +104,6 @@ app.get('/api/wow', (req, res) => {
 
 // ───────────── Socket.IO Setup ─────────────
 
-import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
 
 // Create HTTP server from Express app
 const httpServer = http.createServer(app);
@@ -106,22 +115,6 @@ const httpServer = http.createServer(app);
 //     credentials: true
 //   }
 // });
-
-
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, origin);
-      } else {
-        callback(new Error('Not allowed by CORS (Socket.IO): ' + origin));
-      }
-    },
-    credentials: true
-  }
-});
-
-
 
 
 // Start listening
