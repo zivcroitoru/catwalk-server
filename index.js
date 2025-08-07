@@ -5,8 +5,6 @@ import cors from 'cors';
 import DB from './db.js';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-// ───────────── SOCKET.IO ──────────
-import { Server as SocketIOServer } from 'socket.io';
 
 // Attach to correct server!
 const io = new SocketIOServer(httpServer, {
