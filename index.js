@@ -9,13 +9,16 @@ import { Server as SocketIOServer } from 'socket.io';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// ───────────── HTTP Server Setup ─────────────
+const httpServer = http.createServer(app);
+
+// ───────────── CORS Config ─────────────
 const allowedOrigins = [
   'http://localhost:3000',
   'https://catwalk.onrender.com',
   process.env.FRONTEND_URL
 ];
 
-// ───────────── CORS Config ─────────────
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -71,8 +74,7 @@ app.get('/api/wow', async (req, res) => {
   }
 });
 
-// ───────────── HTTP Server Setup ─────────────
-const httpServer = http.createServer(app);
+
 
 // ───────────── Socket.IO Setup ─────────────
 const io = new SocketIOServer(httpServer, {
