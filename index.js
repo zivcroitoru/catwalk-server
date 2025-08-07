@@ -43,6 +43,7 @@ import adminRoutes from './routes/admins.js';
 import player_itemsRoutes from './routes/player_items.js';
 import catItemsRoutes from './routes/cat_items.js';
 import mailboxRoutes from './routes/mailbox.js';
+import ticketsRoutes from './routes/tickets.js';
 
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
@@ -53,6 +54,8 @@ app.use('/api/admins', adminRoutes);
 app.use('/api/playerItems', player_itemsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/mailbox', mailboxRoutes);
+app.use('/api/tickets', ticketsRoutes);
+
 
 // ───────────── Test Routes ─────────────
 app.get('/api/test', async (req, res) => {
@@ -208,5 +211,3 @@ socket.on('adminReply', ({ toUserId, text }) => {
 httpServer.listen(PORT, () => {
   console.log(`catwalk-server running on http://localhost:${PORT}`);
 });
-
-

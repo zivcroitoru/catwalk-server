@@ -1,0 +1,53 @@
+import express from 'express';
+import DB from '../db.js';
+
+const router = express.Router();
+
+// 1. Get all tickets (with user info)
+router.get('/', async (req, res) => {
+  try {
+    const result = await DB.query(`
+      SELECT t.ticket_id, t.user_id, t.status, t.created_at, u.username
+      FROM tickets_table t
+      JOIN players u ON t.user_id = u.id
+      ORDER BY t.created_at DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// 2. Get messages by ticket_id
+router.get('/:ticketId/messages', async (req, res) => {
+  const ticketId = req.params.ticketId;
+  try {
+    const result = await DB.query(
+      'SELECT sender, content, timestamp FROM messages_table WHERE ticket_id = $1 ORDER BY timestamp',
+      [ticketId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
+});
+
+// 3. Send a message to a ticket
+router.post('/:ticketId/messages', async (req, res) => {
+  const ticketId = req.params.ticketId;
+  const { sender, content } = req.body;
+  try {
+    await DB.query(
+      'INSERT INTO messages_table (ticket_id, sender, content) VALUES ($1, $2, $3)',
+      [ticketId, sender, content]
+    );
+    res.status(201).json({ message: 'Message saved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save message' });
+  }
+});
+
+export default router;
