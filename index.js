@@ -84,6 +84,9 @@ const io = new SocketIOServer(httpServer, {
   }
 });
 
+// Map to track player userId to socket id
+const playerSockets = new Map();
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
@@ -91,6 +94,31 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
+
+  // Player registers their userId after connection
+  socket.on('registerPlayer', (userId) => {
+    playerSockets.set(userId, socket.id);
+    console.log(`Registered player ${userId} with socket ${socket.id}`);
+  });
+
+  // Player sends a message to admin
+  socket.on('playerMessage', ({ userId, text }) => {
+    console.log(`Player ${userId} says: ${text}`);
+    // Broadcast to all admins (you may want to filter admin sockets)
+    io.emit('adminMessage', { fromUserId: userId, text });
+  });
+
+  // Admin replies to a specific player
+  socket.on('adminReply', ({ toUserId, text }) => {
+    const targetSocketId = playerSockets.get(toUserId);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('adminMessage', { text });
+      console.log(`Sent reply to player ${toUserId}`);
+    } else {
+      console.log(`Player ${toUserId} is not online`);
+    }
+  });
+
 
   socket.on('sendMessage', async ({ roomId, senderId, message }) => {
     const timestamp = new Date();
