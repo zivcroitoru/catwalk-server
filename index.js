@@ -86,14 +86,44 @@ const io = new SocketIOServer(httpServer, {
 
 // Map to track player userId to socket id
 const playerSockets = new Map();
+const adminSockets = new Set();  // socket.id of admins
+
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
+
+
+  // Admin registers themselves
+  socket.on('registerAdmin', () => {
+    adminSockets.add(socket.id);
+    console.log(`Admin registered: ${socket.id}`);
+  });
+
+  // register player
+  socket.on('registerPlayer', (userId) => {
+    playerSockets.set(userId, socket.id);
+    const playerRoom = `player_${userId}`; // player-specific room
+    socket.join(playerRoom);
+    console.log(`Registered player ${userId} with socket ${socket.id} and joined room ${playerRoom}`);
+  });
 
   socket.on('joinRoom', ({ roomId }) => {
     socket.join(roomId);
     console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
+
+
+  // Player sends message — forward it to admin room 
+  socket.on('playerMessage', (data) => {
+    const adminRoom = `admin_user_${data.userId}`;
+    // Send to all admins in that room (admins joined that room)
+    socket.to(adminRoom).emit('userMessage', {
+      senderId: data.userId,
+      content: data.text,
+    });
+    console.log(`Player ${data.userId} sent message to room ${adminRoom}`);
+  });
+
 
   // Player registers their userId after connection
   socket.on('registerPlayer', (userId) => {
@@ -102,16 +132,29 @@ io.on('connection', (socket) => {
   });
 
   // Player sends a message to admin
-// Assuming you keep track of admin sockets in adminSockets Set or similar
-socket.on("playerMessage", (data) => {
-  // Send only to admin sockets, not to the player socket itself
-  adminSockets.forEach(adminSocketId => {
-    io.to(adminSocketId).emit("adminMessage", {
-      fromUserId: data.userId,
-      text: data.text
+  socket.on("playerMessage", (data) => {
+    // Send only to admin sockets, not to the player socket itself
+    adminSockets.forEach(adminSocketId => {
+      io.to(adminSocketId).emit("adminMessage", {
+        fromUserId: data.userId,
+        text: data.text
+      });
     });
   });
-});
+
+  socket.on('sendMessage', async ({ roomId, senderId, message }) => {
+    const timestamp = new Date();
+    try {
+      await DB.query(
+        `INSERT INTO messages_list (room_id, sender_id, message_text, timestamp) VALUES ($1, $2, $3, $4)`,
+        [roomId, senderId, message, timestamp]
+      );
+      io.to(roomId).emit('newMessage', { senderId, message, timestamp });
+      console.log(`Message sent to room ${roomId} by sender ${senderId}`);
+    } catch (err) {
+      console.error('Failed to store message:', err);
+    }
+  });
 
   // Admin replies to a specific player
   socket.on('adminReply', ({ toUserId, text }) => {
