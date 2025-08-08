@@ -110,7 +110,7 @@ router.get('/:ticketId', async (req, res) => {
     const result = await DB.query(
       `SELECT t.ticket_id, t.status, t.created_at, t.updated_at, u.username, t.user_id
        FROM tickets_table t
-       JOIN users_table u ON t.user_id = u.user_id
+       JOIN players u ON t.user_id = u.id
        WHERE t.ticket_id = $1`,
       [ticketId]
     );
