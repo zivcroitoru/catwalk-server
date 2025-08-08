@@ -116,32 +116,32 @@ export default function (io) {
 
 
     // PATCH /api/tickets/:ticketId/close — closes ticket and emits event
-    router.patch('/:ticketId/close', async (req, res) => {
-        const ticketId = parseInt(req.params.ticketId, 10);
-        if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
+    r  router.patch('/:ticketId/close', async (req, res) => {
+    // Close ticket in DB
+    const ticketId = parseInt(req.params.ticketId, 10);
+    if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
 
-        try {
-            // Update ticket status to 'closed'
-            const result = await DB.query(
-                `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1 AND status = 'open' RETURNING *`,
-                [ticketId]
-            );
+    try {
+      const result = await DB.query(
+        `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1 AND status = 'open' RETURNING *`,
+        [ticketId]
+      );
 
-            if (result.rowCount === 0) {
-                return res.status(404).json({ error: 'Ticket not found or already closed' });
-            }
+      if (result.rowCount === 0) {
+        return res.status(404).json({ error: 'Ticket not found or already closed' });
+      }
 
-            const closedTicket = result.rows[0];
+      const closedTicket = result.rows[0];
 
-            // Emit to all connected clients about ticket closure
-            io.emit('ticketClosed', { ticketId: closedTicket.ticket_id, userId: closedTicket.user_id });
+      // Emit event to clients
+      io.emit('ticketClosed', { ticketId: closedTicket.ticket_id, userId: closedTicket.user_id });
 
-            res.json({ message: 'Ticket closed successfully' });
-        } catch (err) {
-            console.error('Failed to close ticket:', err);
-            res.status(500).json({ error: 'Failed to close ticket' });
-        }
-    });
+      res.json({ message: 'Ticket closed successfully' });
+    } catch (err) {
+      console.error('Failed to close ticket:', err);
+      res.status(500).json({ error: 'Failed to close ticket' });
+    }
+  });
 
     return router;
 }
