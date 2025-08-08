@@ -102,7 +102,7 @@ router.get('/user/:userId/open', async (req, res) => {
 
 
 
-app.get('/:ticketId', async (req, res) => {
+router.get('/:ticketId', async (req, res) => {
   const ticketId = req.params.ticketId;
 
   try {
