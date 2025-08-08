@@ -1,147 +1,99 @@
-import { APP_URL } from '../../core/config.js';
-import { io } from 'socket.io-client';
-import { getAuthToken } from '../../core/auth/authentication.js';
+import './utils.js'; // Load environment variables
+import express from 'express';
+import cors from 'cors';
+import DB from './db.js';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
-const socket = io(APP_URL, {
-  auth: {
-    token: getAuthToken(),
-  }
-});
+// ───────────── App Setup ─────────────
+const app = express();
+const PORT = process.env.PORT || 3001;
 
-const userId = localStorage.getItem('userId');
+// ───────────── HTTP Server Setup ─────────────
+const httpServer = http.createServer(app);
 
-const sendBtn = document.getElementById('sendBtn');
-const messageBox = document.getElementById('messageBox');
-const chatMessages = document.getElementById('chatMessages');
-const createTicketBtn = document.getElementById('createTicketBtn');
-const chatBox = document.getElementById('chatBox');
+// ───────────── CORS Config ─────────────
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://catwalk.onrender.com',
+  process.env.FRONTEND_URL
+];
 
-let currentTicketId = null;
-
-socket.on('connect', () => {
-  console.log('✅ Connected to Socket.IO server with ID:', socket.id);
-  socket.emit('registerPlayer', userId);
-  checkOpenTicket();
-});
-
-socket.on('connect_error', (err) => {
-  console.error('❌ Socket connection error:', err.message);
-});
-
-// Check if user has an open ticket by HTTP GET
-async function checkOpenTicket() {
-  try {
-    console.log('Checking for open ticket...');
-    const res = await fetch(`${APP_URL}/api/tickets/user/${userId}/open`);
-    if (res.status === 404) {
-      console.log('No open ticket found.');
-      showCreateTicketButton();
-    } else if (res.ok) {
-      const ticket = await res.json();
-      console.log('Open ticket found:', ticket);
-      openTicket(ticket.ticket_id);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin);
     } else {
-      console.error("Error checking open ticket", await res.text());
+      callback(new Error('Not allowed by CORS: ' + origin));
     }
-  } catch (err) {
-    console.error("Failed to check open ticket", err);
+  },
+  credentials: true
+}));
+
+// ───────────── Middleware ─────────────
+app.use(express.json());
+
+// ───────────── Routes (your existing routes here) ─────────────
+// For example:
+import ticketsRoutes from './routes/tickets.js';
+app.use('/api/tickets', ticketsRoutes);
+
+// ───────────── Socket.IO Setup ─────────────
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
   }
-}
+});
 
-// Show the create ticket button and hide chat box
-function showCreateTicketButton() {
-  createTicketBtn.style.display = 'block';
-  chatBox.style.display = 'none';
-}
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
 
-// Hide create ticket button and show chat box, set current ticket
-function openTicket(ticketId) {
-  currentTicketId = ticketId;
-  createTicketBtn.style.display = 'none';
-  chatBox.style.display = 'block';
-  fetchChatHistory();
-}
-
-// Use Socket.IO to request opening/creating a ticket
-function openOrCreateTicket() {
-  console.log('Emitting openTicketRequest for userId:', userId);
-  socket.emit('openTicketRequest', { userId }, (response) => {
-    console.log('Received response for openTicketRequest:', response);
-    if (response.error) {
-      alert('Error opening ticket: ' + response.error);
-      return;
-    }
-    openTicket(response.ticket.ticket_id);
+  // Register player socket
+  socket.on('registerPlayer', (userId) => {
+    console.log(`Player registered: userId=${userId}, socketId=${socket.id}`);
   });
-}
 
-// Create ticket button click handler
-createTicketBtn.addEventListener('click', () => {
-  openOrCreateTicket();
-});
+  // Handle request to open or create ticket
+  socket.on('openTicketRequest', async ({ userId }, callback) => {
+    console.log('openTicketRequest received for userId:', userId);
+    try {
+      const result = await DB.query(
+        `SELECT * FROM tickets_table WHERE user_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 1`,
+        [userId]
+      );
+      console.log('DB query result:', result.rows);
 
-// Fetch chat messages for current ticket (implement as needed)
-async function fetchChatHistory() {
-  try {
-    const res = await fetch(`${APP_URL}/api/tickets/${currentTicketId}/messages`);
-    if (res.ok) {
-      const messages = await res.json();
-      chatMessages.innerHTML = '';
-      messages.forEach(msg => addMessage(msg.sender, msg.content));
-      scrollToBottom();
-    } else {
-      console.error('Failed to load chat messages');
+      if (result.rows.length > 0) {
+        console.log('Returning existing open ticket');
+        callback({ ticket: result.rows[0] });
+      } else {
+        console.log('Creating new ticket');
+        const insertResult = await DB.query(
+          `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
+          [userId]
+        );
+        console.log('New ticket created:', insertResult.rows[0]);
+        callback({ ticket: insertResult.rows[0] });
+      }
+    } catch (err) {
+      console.error('Error in openTicketRequest:', err);
+      callback({ error: 'Failed to open or create ticket' });
     }
-  } catch (err) {
-    console.error('Error fetching chat history', err);
-  }
-}
+  });
 
-// Send message event example (implement as needed)
-sendBtn.addEventListener('click', async () => {
-  const message = messageBox.value.trim();
-  if (!message || !currentTicketId) return;
-
-  addMessage('You', message);
-
-  try {
-    const res = await fetch(`${APP_URL}/api/tickets/${currentTicketId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sender: 'user', content: message })
-    });
-
-    if (!res.ok) {
-      console.error('Failed to send message');
-    }
-  } catch (err) {
-    console.error('Error sending message', err);
-  }
-
-  messageBox.value = '';
-  scrollToBottom();
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
 });
 
-// Helper UI functions
-function addMessage(sender, text) {
-  const p = document.createElement('p');
-  p.textContent = `${sender}: ${text}`;
-  chatMessages.appendChild(p);
-}
-
-function scrollToBottom() {
-  chatMessages.scrollTop = chatMessages.scrollHeight;
-}
-
-// Listen for admin messages via Socket.IO and show them in chat
-socket.on('adminMessage', (data) => {
-  if (data.ticketId === currentTicketId) {
-    addMessage('Admin', data.text);
-    scrollToBottom();
-  }
+// ───────────── Start Server ─────────────
+httpServer.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
 });
 
-console.log('✅ Player Mailbox initialized for user:', userId);
+
+
 
 
 
