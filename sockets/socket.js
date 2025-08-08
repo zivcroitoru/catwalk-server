@@ -68,32 +68,41 @@ export default function setupSocket(io) {
 
     // Player opens ticket
     socket.on('openTicketRequest', async ({ userId }, callback) => {
-      try {
-        const result = await DB.query(
-          `SELECT * FROM tickets_table WHERE user_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 1`,
-          [userId]
-        );
+  try {
+    const result = await DB.query(
+      `SELECT * FROM tickets_table WHERE user_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
 
-        if (result.rows.length > 0) {
-          callback({ ticket: result.rows[0] });
-        } else {
-          const insertResult = await DB.query(
-            `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
-            [userId]
-          );
+    if (result.rows.length > 0) {
+      callback({ ticket: result.rows[0] });
+    } else {
+      const insertResult = await DB.query(
+        `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
+        [userId]
+      );
 
-          const newTicket = insertResult.rows[0];
+      const newTicket = insertResult.rows[0];
 
-          // <--- Add this line to notify all admins of new ticket
-          io.to('admins').emit('newTicketCreated', newTicket);
+      // Query for username
+      const userResult = await DB.query(
+        `SELECT username FROM users_table WHERE user_id = $1`,
+        [userId]
+      );
+      const username = userResult.rows.length > 0 ? userResult.rows[0].username : 'Unidentified';
 
-          callback({ ticket: newTicket });
-        }
-      } catch (err) {
-        console.error('Error in openTicketRequest:', err);
-        callback({ error: 'Failed to open or create ticket' });
-      }
-    });
+      // Attach username to ticket before sending to admins
+      newTicket.username = username;
+
+      io.to('admins').emit('newTicketCreated', newTicket);
+
+      callback({ ticket: newTicket });
+    }
+  } catch (err) {
+    console.error('Error in openTicketRequest:', err);
+    callback({ error: 'Failed to open or create ticket' });
+  }
+});
 
 
     // Admin sends message
