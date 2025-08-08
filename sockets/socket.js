@@ -75,7 +75,15 @@ export default function setupSocket(io) {
     );
 
     if (result.rows.length > 0) {
-      callback({ ticket: result.rows[0] });
+      // Add username to ticket object
+      const ticket = result.rows[0];
+      const userResult = await DB.query(
+        `SELECT username FROM users_table WHERE user_id = $1`,
+        [userId]
+      );
+      ticket.username = userResult.rows[0]?.username || 'Unknown';
+
+      callback({ ticket });
     } else {
       const insertResult = await DB.query(
         `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
@@ -84,7 +92,14 @@ export default function setupSocket(io) {
 
       const newTicket = insertResult.rows[0];
 
-      // <--- Add this line to notify all admins of new ticket
+      // Fetch username for new ticket
+      const userResult = await DB.query(
+        `SELECT username FROM users_table WHERE user_id = $1`,
+        [userId]
+      );
+      newTicket.username = userResult.rows[0]?.username || 'Unknown';
+
+      // Notify admins with username included
       io.to('admins').emit('newTicketCreated', newTicket);
 
       callback({ ticket: newTicket });
@@ -94,7 +109,6 @@ export default function setupSocket(io) {
     callback({ error: 'Failed to open or create ticket' });
   }
 });
-
 
     // Admin sends message
     socket.on('adminMessage', async ({ ticketId, text }) => {
