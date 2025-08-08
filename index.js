@@ -168,6 +168,32 @@ io.on('connection', (socket) => {
   });
 
 
+  socket.on('openTicketRequest', async ({ userId }, callback) => {
+    try {
+      // Check if user has an open ticket
+      const result = await DB.query(
+        `SELECT * FROM tickets_table WHERE user_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 1`,
+        [userId]
+      );
+
+      if (result.rows.length > 0) {
+        // Return existing open ticket
+        callback({ ticket: result.rows[0] });
+      } else {
+        // Create new ticket
+        const insertResult = await DB.query(
+          `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
+          [userId]
+        );
+        callback({ ticket: insertResult.rows[0] });
+      }
+    } catch (err) {
+      console.error('Error in openTicketRequest:', err);
+      callback({ error: 'Failed to open or create ticket' });
+    }
+  });
+
+
   // Admin sends message to a ticket room
   socket.on('adminMessage', async ({ ticketId, text }) => {
     const roomName = `ticket_${ticketId}`;
