@@ -13,7 +13,6 @@ export default function setupSocket(io) {
       adminSockets.add(socket.id);
       console.log(`Admin registered: ${socket.id}`);
     });
-
     // Player registers and joins all their open ticket rooms
     socket.on('registerPlayer', async (userId) => {
       playerSockets.set(userId, socket.id);
