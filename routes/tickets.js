@@ -68,29 +68,34 @@ export default function (io) {
     }
   });
 
-  // GET open ticket for a user
   router.get('/user/:userId/open', async (req, res) => {
-    const userId = parseInt(req.params.userId, 10);
-    if (isNaN(userId)) return res.status(400).send('Invalid user ID');
+  const userId = parseInt(req.params.userId, 10);
+  console.log('GET open ticket for userId:', userId);
+  if (isNaN(userId)) {
+    console.log('Invalid userId:', req.params.userId);
+    return res.status(400).send('Invalid user ID');
+  }
 
-    try {
-      const query = `
-        SELECT * FROM tickets_table 
-        WHERE user_id = $1 AND status = 'open'
-        ORDER BY created_at DESC
-        LIMIT 1
-      `;
-      const { rows } = await DB.query(query, [userId]);
+  try {
+    const query = `
+      SELECT * FROM tickets_table 
+      WHERE user_id = $1 AND status = 'open'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    const { rows } = await DB.query(query, [userId]);
+    console.log('Query result:', rows);
 
-      if (rows.length === 0) {
-        return res.status(404).send('No open ticket found');
-      }
-      res.json(rows[0]);
-    } catch (error) {
-      console.error('Error fetching open ticket:', error);
-      res.status(500).send('Server error');
+    if (rows.length === 0) {
+      return res.status(404).send('No open ticket found');
     }
-  });
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Error fetching open ticket:', error);
+    res.status(500).send('Server error');
+  }
+});
+
 
   // PATCH to close a ticket
   router.patch('/:ticketId/close', async (req, res) => {
