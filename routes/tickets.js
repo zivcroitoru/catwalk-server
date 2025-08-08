@@ -93,4 +93,21 @@ router.get('/user/:userId/open', async (req, res) => {
   }
 });
 
+
+// Close ticket endpoint
+router.patch('/:ticketId/close', async (req, res) => {
+  const ticketId = req.params.ticketId;
+  try {
+    await DB.query(
+      `UPDATE tickets_table SET status = 'closed', updated_at = NOW() WHERE ticket_id = $1`,
+      [ticketId]
+    );
+    res.json({ message: 'Ticket closed' });
+  } catch (err) {
+    console.error('Failed to close ticket:', err);
+    res.status(500).json({ error: 'Failed to close ticket' });
+  }
+});
+
+
 export default router;
