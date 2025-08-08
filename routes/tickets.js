@@ -99,6 +99,34 @@ router.get('/user/:userId/open', async (req, res) => {
 });
 
 
+
+
+
+app.get('/:ticketId', async (req, res) => {
+  const ticketId = req.params.ticketId;
+
+  try {
+    // Query ticket info and join with users to get username
+    const result = await DB.query(
+      `SELECT t.ticket_id, t.status, t.created_at, t.updated_at, u.username, t.user_id
+       FROM tickets_table t
+       JOIN users_table u ON t.user_id = u.user_id
+       WHERE t.ticket_id = $1`,
+      [ticketId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching ticket:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 // PATCH to close a ticket
 router.patch('/:ticketId/close', async (req, res) => {
     const ticketId = parseInt(req.params.ticketId, 10);
