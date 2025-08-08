@@ -94,15 +94,23 @@ router.get('/user/:userId/open', async (req, res) => {
 });
 
 
-// Close ticket endpoint
+// PATCH /api/tickets/:ticketId/close
 router.patch('/:ticketId/close', async (req, res) => {
-  const ticketId = req.params.ticketId;
+  const ticketId = parseInt(req.params.ticketId, 10);
+  if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
+
   try {
-    await DB.query(
-      `UPDATE tickets_table SET status = 'closed', updated_at = NOW() WHERE ticket_id = $1`,
+    // Update ticket status to 'closed'
+    const result = await DB.query(
+      `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1 AND status = 'open' RETURNING *`,
       [ticketId]
     );
-    res.json({ message: 'Ticket closed' });
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Ticket not found or already closed' });
+    }
+
+    res.json({ message: 'Ticket closed successfully' });
   } catch (err) {
     console.error('Failed to close ticket:', err);
     res.status(500).json({ error: 'Failed to close ticket' });
