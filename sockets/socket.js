@@ -1,4 +1,4 @@
-import DB from '../db';
+import DB from '../db.js';
 
 export default function setupSocket(io) {
   // Track player and admin sockets
