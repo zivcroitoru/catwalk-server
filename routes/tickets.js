@@ -116,7 +116,7 @@ export default function (io) {
 
 
     // PATCH /api/tickets/:ticketId/close — closes ticket and emits event
-    r  router.patch('/:ticketId/close', async (req, res) => {
+    router.patch('/:ticketId/close', async (req, res) => {
     // Close ticket in DB
     const ticketId = parseInt(req.params.ticketId, 10);
     if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
