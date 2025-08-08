@@ -6,7 +6,7 @@ export default function setupSocket(io) {
   const adminSockets = new Set();
 
 
-  
+
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
@@ -107,6 +107,27 @@ export default function setupSocket(io) {
         ticketId
       });
     });
+
+    // Admin closes ticket via socket
+    socket.on('closeTicket', async ({ ticketId }) => {
+      try {
+        // Update DB
+        await DB.query(
+          `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1`,
+          [ticketId]
+        );
+
+        console.log(`Ticket ${ticketId} closed by admin.`);
+
+        // Broadcast to all in that ticket room
+        io.to(`ticket_${ticketId}`).emit('ticketClosed', { ticketId });
+
+      } catch (err) {
+        console.error('Error closing ticket:', err);
+        socket.emit('errorMessage', { message: 'Failed to close ticket.' });
+      }
+    });
+
 
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
