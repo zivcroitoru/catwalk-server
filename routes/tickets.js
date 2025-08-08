@@ -67,63 +67,63 @@ export default function (io) {
             res.status(500).json({ error: 'Failed to save message' });
         }
     });
+}
+router.get('/user/:userId/open', async (req, res) => {
+    const userId = parseInt(req.params.userId, 10);
+    console.log('GET open ticket for userId:', userId);
+    if (isNaN(userId)) {
+        console.log('Invalid userId:', req.params.userId);
+        return res.status(400).send('Invalid user ID');
+    }
 
-    router.get('/user/:userId/open', async (req, res) => {
-        const userId = parseInt(req.params.userId, 10);
-        console.log('GET open ticket for userId:', userId);
-        if (isNaN(userId)) {
-            console.log('Invalid userId:', req.params.userId);
-            return res.status(400).send('Invalid user ID');
-        }
-
-        try {
-            const query = `
+    try {
+        const query = `
       SELECT * FROM tickets_table 
       WHERE user_id = $1 AND status = 'open'
       ORDER BY created_at DESC
       LIMIT 1
     `;
-            const { rows } = await DB.query(query, [userId]);
-            console.log('Query result:', rows);
-            // return res.status(200).json(rows);
+        const { rows } = await DB.query(query, [userId]);
+        console.log('Query result:', rows);
+        // return res.status(200).json(rows);
 
-            if (rows.length === 0) {
-                return res.status(404).send('No open ticket found');
-            }
-            else {
-                res.status(200).json(rows[0]);
-            }
-        } catch (error) {
-            console.error('Error fetching open ticket:', error);
-            res.status(500).send('Server error');
+        if (rows.length === 0) {
+            return res.status(404).send('No open ticket found');
         }
-    });
-
-
-    // PATCH to close a ticket
-    router.patch('/:ticketId/close', async (req, res) => {
-        const ticketId = parseInt(req.params.ticketId, 10);
-        if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
-
-        try {
-            const result = await DB.query(
-                `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1 AND status = 'open' RETURNING *`,
-                [ticketId]
-            );
-
-            if (result.rowCount === 0) {
-                return res.status(404).json({ error: 'Ticket not found or already closed' });
-            }
-
-            const closedTicket = result.rows[0];
-            io.emit('ticketClosed', { ticketId: closedTicket.ticket_id, userId: closedTicket.user_id });
-
-            res.json({ message: 'Ticket closed successfully' });
-        } catch (err) {
-            console.error('Failed to close ticket:', err);
-            res.status(500).json({ error: 'Failed to close ticket' });
+        else {
+            res.status(200).json(rows[0]);
         }
-    });
+    } catch (error) {
+        console.error('Error fetching open ticket:', error);
+        res.status(500).send('Server error');
+    }
+});
 
-    return router;
-}
+
+// PATCH to close a ticket
+router.patch('/:ticketId/close', async (req, res) => {
+    const ticketId = parseInt(req.params.ticketId, 10);
+    if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
+
+    try {
+        const result = await DB.query(
+            `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1 AND status = 'open' RETURNING *`,
+            [ticketId]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'Ticket not found or already closed' });
+        }
+
+        const closedTicket = result.rows[0];
+        io.emit('ticketClosed', { ticketId: closedTicket.ticket_id, userId: closedTicket.user_id });
+
+        res.json({ message: 'Ticket closed successfully' });
+    } catch (err) {
+        console.error('Failed to close ticket:', err);
+        res.status(500).json({ error: 'Failed to close ticket' });
+    }
+});
+
+return router;
+// }
