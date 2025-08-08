@@ -3,7 +3,6 @@ import DB from '../db.js';
 
 const router = express.Router();
 
-export default function (io) {
     // 1. Get all tickets (with user info)
     router.get('/', async (req, res) => {
         try {
@@ -67,7 +66,7 @@ export default function (io) {
             res.status(500).json({ error: 'Failed to save message' });
         }
     });
-}
+
 router.get('/user/:userId/open', async (req, res) => {
     const userId = parseInt(req.params.userId, 10);
     console.log('GET open ticket for userId:', userId);
@@ -125,5 +124,5 @@ router.patch('/:ticketId/close', async (req, res) => {
     }
 });
 
-return router;
+export default router;
 // }
