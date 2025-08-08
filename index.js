@@ -4,7 +4,8 @@ import cors from 'cors';
 import DB from './db.js';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
-import setupSocket from './socket.js'; // ⬅ import your socket setup
+import setupSocket from './sockets/socket.js'; // ⬅ import your socket setup
+
 
 const app = express();
 const PORT = process.env.PORT || 3001;
