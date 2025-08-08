@@ -104,103 +104,93 @@ function removeSocketFromMaps(socket) {
 }
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log('User connected:', socket.id)
 
 
-  // Admin registers themselves
+  // Admin registers
   socket.on('registerAdmin', () => {
     adminSockets.add(socket.id);
     console.log(`Admin registered: ${socket.id}`);
   });
 
-  // register player
-  socket.on('registerPlayer', (userId) => {
+  // Register player and join all their open ticket rooms
+  socket.on('registerPlayer', async (userId) => {
     playerSockets.set(userId, socket.id);
-    const playerRoom = `player_${userId}`; // player-specific room
-    socket.join(playerRoom);
-    console.log(`Registered player ${userId} with socket ${socket.id} and joined room ${playerRoom}`);
-  });
+    console.log(`Registered player ${userId} with socket ${socket.id}`);
 
-  socket.on('joinRoom', ({ roomId }) => {
-    socket.join(roomId);
-    console.log(`Socket ${socket.id} joined room ${roomId}`);
-  });
-
-
-  // Player sends message — forward it to admin room 
-socket.on('playerMessage', (data) => {
-    console.log(`Player ${data.userId} sent message: ${data.text}`);
-    adminSockets.forEach(adminSocketId => {
-      io.to(adminSocketId).emit('userMessage', {
-        senderId: data.userId,
-        content: data.text
+    // Fetch all open tickets for this player from DB
+    try {
+      const result = await DB.query(
+        `SELECT ticket_id FROM tickets_table WHERE user_id = $1 AND status = 'open'`,
+        [userId]
+      );
+      result.rows.forEach(row => {
+        const ticketRoom = `ticket_${row.ticket_id}`;
+        socket.join(ticketRoom);
+        console.log(`Player socket joined ticket room: ${ticketRoom}`);
       });
+    } catch (err) {
+      console.error('Failed to get player tickets:', err);
+    }
+  });
+
+
+  // Admin joins a ticket room when they select a ticket
+  socket.on('joinTicketRoom', ({ ticketId }) => {
+    const roomName = `ticket_${ticketId}`;
+    socket.join(roomName);
+    console.log(`Admin socket ${socket.id} joined ticket room: ${roomName}`);
+  });
+
+
+  // Player sends message for a ticket room
+  socket.on('playerMessage', async ({ ticketId, userId, text }) => {
+    const roomName = `ticket_${ticketId}`;
+    console.log(`Player ${userId} sent message for ticket ${ticketId}: ${text}`);
+
+    // Save message to DB (optional)
+    try {
+      await DB.query(
+        `INSERT INTO messages_table (ticket_id, sender, content, timestamp) VALUES ($1, 'user', $2, NOW())`,
+        [ticketId, text]
+      );
+    } catch (err) {
+      console.error('Error saving message:', err);
+    }
+
+    // Emit to admin sockets in that ticket room
+    io.to(roomName).emit('newMessage', {
+      sender: 'user',
+      content: text,
+      ticketId,
+      userId
     });
   });
 
 
-  // Player registers their userId after connection
-socket.on('adminReply', ({ toUserId, text }) => {
-    const targetSocketId = playerSockets.get(toUserId);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('adminMessage', { text });
-      console.log(`Admin sent reply to player ${toUserId}: ${text}`);
-    } else {
-      console.log(`Player ${toUserId} is not online`);
-    }
-  });
+  // Admin sends message to a ticket room
+  socket.on('adminMessage', async ({ ticketId, text }) => {
+    const roomName = `ticket_${ticketId}`;
+    console.log(`Admin sent message to ticket ${ticketId}: ${text}`);
 
- // Optional: Save chat message to DB and emit to room 
-  socket.on('sendMessage', async ({ roomId, senderId, message }) => {
-    const timestamp = new Date();
+    // Save message to DB
     try {
       await DB.query(
-        `INSERT INTO messages_list (room_id, sender_id, message_text, timestamp) VALUES ($1, $2, $3, $4)`,
-        [roomId, senderId, message, timestamp]
+        `INSERT INTO messages_table (ticket_id, sender, content, timestamp) VALUES ($1, 'admin', $2, NOW())`,
+        [ticketId, text]
       );
-      io.to(roomId).emit('newMessage', { senderId, message, timestamp });
-      console.log(`Message saved and sent to room ${roomId} by sender ${senderId}`);
     } catch (err) {
-      console.error('Failed to store message:', err);
+      console.error('Error saving message:', err);
     }
-  });
 
-
-  // Player sends a message to admin
-  socket.on("playerMessage", (data) => {
-    // Send only to admin sockets, not to the player socket itself
-    adminSockets.forEach(adminSocketId => {
-      io.to(adminSocketId).emit("adminMessage", {
-        fromUserId: data.userId,
-        text: data.text
-      });
+    // Emit to all in that ticket room (player + admins)
+    io.to(roomName).emit('newMessage', {
+      sender: 'admin',
+      content: text,
+      ticketId
     });
   });
 
-  // Admin replies to a specific player
-  socket.on('adminReply', ({ toUserId, text }) => {
-    const targetSocketId = playerSockets.get(toUserId);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit('adminMessage', { text });
-      console.log(`Sent reply to player ${toUserId}`);
-    } else {
-      console.log(`Player ${toUserId} is not online`);
-    }
-  });
-
-
-  socket.on('sendMessage', async ({ roomId, senderId, message }) => {
-    const timestamp = new Date();
-    try {
-      await DB.query(
-        `INSERT INTO messages_list (room_id, sender_id, message_text, timestamp) VALUES ($1, $2, $3, $4)`,
-        [roomId, senderId, message, timestamp]
-      );
-      io.to(roomId).emit('newMessage', { senderId, message, timestamp });
-    } catch (err) {
-      console.error('Failed to store message:', err);
-    }
-  });
 
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
