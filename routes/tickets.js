@@ -19,6 +19,24 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+// Create a new ticket for a user
+router.post('/', async (req, res) => {
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+
+  try {
+    const result = await DB.query(
+      `INSERT INTO tickets_table (user_id) VALUES ($1) RETURNING *`,
+      [user_id]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating ticket:', error);
+    res.status(500).json({ error: 'Failed to create ticket' });
+  }
+});
+
 // 2. Get messages by ticket_id
 router.get('/:ticketId/messages', async (req, res) => {
   const ticketId = req.params.ticketId;
