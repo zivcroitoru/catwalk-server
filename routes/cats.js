@@ -538,7 +538,7 @@ router.post('/catadd', async (req, res) => {
 
 // Assuming you use something like express and pg client for Neon/Postgres
 
-router.delete('/api/cats/delete/:catId', async (req, res) => {
+router.delete('/delete/:catId', async (req, res) => {
   const catId = req.params.catId;
 
   try {
