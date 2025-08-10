@@ -538,8 +538,9 @@ router.post('/catadd', async (req, res) => {
 
 router.delete('/delete/:catId', async (req, res) => {
   const catId = req.params.catId;
+
   try {
-    // 1. Fetch the template for the cat
+    // 1. Get the cat template for the catId
     const catResult = await db.query(
       'SELECT template FROM cat_templates WHERE cat_id = $1',
       [catId]
@@ -551,18 +552,20 @@ router.delete('/delete/:catId', async (req, res) => {
 
     const catTemplate = catResult.rows[0].template;
 
-    // 2. Delete from cat_templates
-    await db.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
-
-    // 3. Delete from player_cats where template matches
+    // 2. Delete from player_cats where template matches
     await db.query('DELETE FROM player_cats WHERE template = $1', [catTemplate]);
 
-    return res.status(200).json({ message: 'Cat and user cats deleted successfully' });
+    // 3. Delete from cat_templates for that catId
+    await db.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+
+    return res.status(200).json({ message: 'Cat and related user cats deleted successfully' });
+
   } catch (error) {
     console.error('Error deleting cat:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
