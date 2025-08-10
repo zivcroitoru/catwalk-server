@@ -536,36 +536,34 @@ router.post('/catadd', async (req, res) => {
 //   }
 // });
 
-// Assuming you use something like express and pg client for Neon/Postgres
-
 router.delete('/delete/:catId', async (req, res) => {
   const catId = req.params.catId;
-
   try {
-    // 1. Fetch the cat template for the given catId
-    const catTemplateResult = await db.query(
+    // 1. Fetch the template for the cat
+    const catResult = await db.query(
       'SELECT template FROM cat_templates WHERE cat_id = $1',
       [catId]
     );
 
-    if (catTemplateResult.rowCount === 0) {
+    if (catResult.rowCount === 0) {
       return res.status(404).json({ error: 'Cat not found' });
     }
 
-    const catTemplate = catTemplateResult.rows[0].template;
+    const catTemplate = catResult.rows[0].template;
 
-    // 2. Delete the cat from cat_templates
+    // 2. Delete from cat_templates
     await db.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
 
-    // 3. Delete all user cats with the same template from player_cats
+    // 3. Delete from player_cats where template matches
     await db.query('DELETE FROM player_cats WHERE template = $1', [catTemplate]);
 
-    res.status(200).json({ message: 'Cat and user references deleted successfully' });
-  } catch (err) {
-    console.error('Error deleting cat:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(200).json({ message: 'Cat and user cats deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting cat:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 export default router;
