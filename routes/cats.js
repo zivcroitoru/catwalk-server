@@ -265,7 +265,7 @@
 // export default router;
 
 // /routes/cats.js
-import express from 'express';
+import express, { json } from 'express';
 import DB from '../db.js';
 import jwt from 'jsonwebtoken';
 
@@ -537,41 +537,42 @@ router.post('/catadd', async (req, res) => {
 // });
 
 // DELETE cat by ID (safe, respects FK constraint)
-router.delete("/delete/:catId", async (req, res) => {
+router.delete('/delete/:catId', async (req, res) => {
   const { catId } = req.params;
 
   try {
-    await pool.query("BEGIN");
+    await pool.query('BEGIN');
 
-    const templateResult = await pool.query(
-      `SELECT template FROM cat_templates WHERE cat_id = $1`,
+    // Get template string for this cat
+    const { rows } = await pool.query(
+      'SELECT template FROM cat_templates WHERE cat_id = $1',
       [catId]
     );
 
-    if (templateResult.rows.length === 0) {
-      await pool.query("ROLLBACK");
-      return res.status(404).json({ error: "Cat not found" });
+    if (rows.length === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ error: 'Cat not found' });
     }
 
-    const template = templateResult.rows[0].template;
+    const template = rows[0].template;
 
-    await pool.query(
-      `DELETE FROM player_cats WHERE template = $1`,
-      [template]
-    );
+    // Delete user cats referencing this template
+    await pool.query('DELETE FROM player_cats WHERE template = $1', [template]);
 
-    await pool.query(
-      `DELETE FROM cat_templates WHERE cat_id = $1`,
-      [catId]
-    );
+    // Delete the cat template
+    await pool.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
 
-    await pool.query("COMMIT");
-    res.json({ message: "Cat deleted successfully" });
+    await pool.query('COMMIT');
+
+    return res.json({ message: 'Cat deleted successfully' });
 
   } catch (err) {
-    await pool.query("ROLLBACK");
-    console.error("Error deleting cat:", err);
-    res.status(500).json({ error: "Internal server error" });
+    await pool.query('ROLLBACK');
+    console.error('Error deleting cat:', err);
+
+    // Send JSON error so frontend won't choke on HTML
+    console.log(json);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
