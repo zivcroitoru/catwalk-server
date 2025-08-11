@@ -555,7 +555,7 @@ router.delete('/delete/:catId', async (req, res) => {
     }
 
     const template = rows[0].template;
-
+    console.log(template);
     // Delete user cats referencing this template
     await pool.query('DELETE FROM player_cats WHERE template = $1', [template]);
 
