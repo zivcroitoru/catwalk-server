@@ -129,37 +129,37 @@ router.delete('/delete/:itemId', async (req, res) => {
 
   try {
     // Start transaction
-    await db.query('BEGIN');
+    await DB.query('BEGIN');
 
     // 1. Get the template for this itemId
-    const { rows } = await db.query(
+    const { rows } = await DB.query(
       'SELECT template FROM itemtemplate WHERE item_id = $1',
       [itemId]
     );
 
     if (rows.length === 0) {
-      await db.query('ROLLBACK');
+      await DB.query('ROLLBACK');
       return res.status(404).json({ error: 'Item not found' });
     }
 
     const template = rows[0].template;
 
     // 2. Delete from cat_items where template matches
-    await db.query('DELETE FROM cat_items WHERE template = $1', [template]);
+    await DB.query('DELETE FROM cat_items WHERE template = $1', [template]);
 
     // 3. Delete from player_items where template matches
-    await db.query('DELETE FROM player_items WHERE template = $1', [template]);
+    await DB.query('DELETE FROM player_items WHERE template = $1', [template]);
 
     // 4. Delete from itemtemplate where item_id matches
-    await db.query('DELETE FROM itemtemplate WHERE item_id = $1', [itemId]);
+    await DB.query('DELETE FROM itemtemplate WHERE item_id = $1', [itemId]);
 
     // Commit transaction
-    await db.query('COMMIT');
+    await DB.query('COMMIT');
 
     res.json({ message: 'Item and related references deleted successfully' });
   } catch (err) {
     console.error('Delete error:', err);
-    await db.query('ROLLBACK');
+    await DB.query('ROLLBACK');
     res.status(500).json({ error: 'Failed to delete the item' });
   }
 });
