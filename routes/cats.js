@@ -543,24 +543,13 @@ router.delete('/delete/:catId', async (req, res) => {
   try {
     await pool.query('BEGIN');
 
-    // Get template string for this cat
-    const { rows } = await pool.query(
-      'SELECT template FROM cat_templates WHERE cat_id = $1',
-      [catId]
-    );
+    // Delete player_cats entries and cat_templates in one multi-statement query
+    await pool.query(`
+      DELETE FROM player_cats
+      WHERE template = (SELECT template FROM cat_templates WHERE cat_id = $1);
 
-    if (rows.length === 0) {
-      await pool.query('ROLLBACK');
-      return res.status(404).json({ error: 'Cat not found' });
-    }
-
-    const template = rows[0].template;
-
-    // Delete user cats referencing this template
-    await pool.query('DELETE FROM player_cats WHERE template = $1', [template]);
-
-    // Delete the cat template
-    await pool.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+      DELETE FROM cat_templates WHERE cat_id = $1;
+    `, [catId]);
 
     await pool.query('COMMIT');
 
@@ -569,12 +558,8 @@ router.delete('/delete/:catId', async (req, res) => {
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error('Error deleting cat:', err);
-
-    // Send JSON error so frontend won't choke on HTML
-    console.log(json);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 export default router;
