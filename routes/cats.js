@@ -541,37 +541,39 @@ router.delete('/delete/:catId', async (req, res) => {
   const { catId } = req.params;
 
   try {
-    await pool.query('BEGIN');
+    await DB.query('BEGIN');
 
     // Get template string for this cat
-    const { rows } = await pool.query(
+    const { rows } = await DB.query(
       'SELECT template FROM cat_templates WHERE cat_id = $1',
       [catId]
     );
 
     if (rows.length === 0) {
-      await pool.query('ROLLBACK');
+      await DB.query('ROLLBACK');
       return res.status(404).json({ error: 'Cat not found' });
     }
 
     const template = rows[0].template;
-    console.log(template);
+    console.log('Deleting cat with template:', template);
+
     // Delete user cats referencing this template
-    await pool.query('DELETE FROM player_cats WHERE template = $1', [template]);
+    await DB.query('DELETE FROM player_cats WHERE template = $1', [template]);
 
     // Delete the cat template
-    await pool.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+    await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
 
-    await pool.query('COMMIT');
+    await DB.query('COMMIT');
 
     return res.json({ message: 'Cat deleted successfully' });
 
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await DB.query('ROLLBACK');
     console.error('Error deleting cat:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 export default router;
