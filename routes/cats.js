@@ -540,36 +540,32 @@ router.delete('/delete/:catId', async (req, res) => {
   const catId = req.params.catId;
 
   try {
-    await db.query('BEGIN');
-
-    // Find the template for this cat
-    const result = await db.query(
+    // 1. Get the cat template for the catId
+    const catResult = await db.query(
       'SELECT template FROM cat_templates WHERE cat_id = $1',
       [catId]
     );
 
-    if (result.rowCount === 0) {
-      await db.query('ROLLBACK');
+    if (catResult.rowCount === 0) {
       return res.status(404).json({ error: 'Cat not found' });
     }
 
-    const template = result.rows[0].template;
+    const catTemplate = catResult.rows[0].template;
 
-    // Delete player cats that reference this template
-    await db.query('DELETE FROM player_cats WHERE template = $1', [template]);
+    // 2. Delete from player_cats where template matches
+    await db.query('DELETE FROM player_cats WHERE template = $1', [catTemplate]);
 
-    // Delete the cat template
+    // 3. Delete from cat_templates for that catId
     await db.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
 
-    await db.query('COMMIT');
-    res.json({ message: 'Cat deleted successfully' });
+    return res.status(200).json({ message: 'Cat and related user cats deleted successfully' });
 
-  } catch (err) {
-    await db.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (error) {
+    console.error('Error deleting cat:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 
