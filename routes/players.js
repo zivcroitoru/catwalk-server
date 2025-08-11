@@ -22,7 +22,7 @@ router.post('/', async (req, res) => {
     return res.status(400).json({ error: 'Username is required' });
   }
   try {
-const coinsToInsert = (typeof coins === 'number' && coins >= 0) ? coins : 1500;
+const coinsToInsert = 500;
 
 const result = await DB.query(
   'INSERT INTO players (username, coins) VALUES ($1, $2) RETURNING *',
