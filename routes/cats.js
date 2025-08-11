@@ -536,40 +536,47 @@ router.post('/catadd', async (req, res) => {
 //   }
 // });
 
-router.delete('/delete/:catId', async (req, res) => {
-  const catId = req.params.catId;
+router.delete("/delete/:catId", async (req, res) => {
+  const { catId } = req.params;
 
   try {
-    await db.query('BEGIN');
+    await pool.query("BEGIN");
 
-    // Find the template for this cat
-    const result = await db.query(
-      'SELECT template FROM cat_templates WHERE cat_id = $1',
+    // Find the template for this cat_id
+    const templateResult = await pool.query(
+      `SELECT template FROM cat_templates WHERE cat_id = $1`,
       [catId]
     );
 
-    if (result.rowCount === 0) {
-      await db.query('ROLLBACK');
-      return res.status(404).json({ error: 'Cat not found' });
+    if (templateResult.rows.length === 0) {
+      await pool.query("ROLLBACK");
+      return res.status(404).json({ error: "Cat not found" });
     }
 
-    const template = result.rows[0].template;
+    const template = templateResult.rows[0].template;
 
-    // Delete player cats that reference this template
-    await db.query('DELETE FROM player_cats WHERE template = $1', [template]);
+    // Delete from player_cats first (foreign key dependency)
+    await pool.query(
+      `DELETE FROM player_cats WHERE template = $1`,
+      [template]
+    );
 
-    // Delete the cat template
-    await db.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+    // Delete from cat_templates
+    await pool.query(
+      `DELETE FROM cat_templates WHERE cat_id = $1`,
+      [catId]
+    );
 
-    await db.query('COMMIT');
-    res.json({ message: 'Cat deleted successfully' });
+    await pool.query("COMMIT");
 
+    res.json({ message: "Cat deleted successfully" });
   } catch (err) {
-    await db.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    await pool.query("ROLLBACK");
+    console.error("Error deleting cat:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
+
 
 
 
