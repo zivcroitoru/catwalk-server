@@ -4,48 +4,46 @@ import DB from '../db.js';
 
 const router = express.Router();
 
-// ───────────── PATCH: Update Cat Equipment ─────────────
+const categoryMap = { hat: 'hats', top: 'tops', eyes: 'eyes', accessories: 'accessories' };
+const singularFromDb = { hats: 'hat', tops: 'top', eyes: 'eyes', accessories: 'accessories' };
+
+function normalizeSingle(value) {
+  if (Array.isArray(value)) return value.find(Boolean) ?? null;
+  return value ?? null;
+}
+
+// ───────────── PATCH: Update Cat Equipment (upsert-or-delete per slot) ─────────────
 router.patch('/:catId', async (req, res) => {
-  const catId = parseInt(req.params.catId);
+  const catId = parseInt(req.params.catId, 10);
   const { equipment } = req.body;
 
-  console.log('Incoming PATCH /cat_items:', { catId, equipment });
-
   if (!equipment || typeof equipment !== 'object') {
-    console.log('Invalid equipment');
     return res.status(400).json({ error: 'Missing or invalid equipment' });
   }
 
   try {
-    const result = await DB.query(
-      `SELECT player_id FROM player_cats WHERE cat_id = $1`,
-      [catId]
-    );
+    const owner = await DB.query(`SELECT player_id FROM player_cats WHERE cat_id = $1`, [catId]);
+    if (owner.rows.length === 0) return res.status(404).json({ error: 'Cat not found' });
+    const player_id = owner.rows[0].player_id;
 
-    if (result.rows.length === 0) {
-      console.log('No cat found for ID:', catId);
-      return res.status(404).json({ error: 'Cat not found' });
-    }
+    for (const [rawKey, rawVal] of Object.entries(equipment)) {
+      const category = categoryMap[rawKey]; // map to DB category
+      if (!category) continue;
 
-    const player_id = result.rows[0].player_id;
+      const template = normalizeSingle(rawVal); // enforce single value
 
-    const categoryMap = {
-      hat: 'hats',
-      top: 'tops',
-      eyes: 'eyes',
-      accessories: 'accessories'
-    };
-
-    for (const [rawKey, template] of Object.entries(equipment)) {
-      const category = categoryMap[rawKey]; 
-
-      console.log('Processing:', { rawKey, category, template });
-
-      if (!category || !template || typeof template !== 'string') {
-        console.log(`Skipping invalid input:`, { rawKey, template });
+      if (template === null || template === '') {
+        // Unequip: delete row
+        await DB.query(
+          `DELETE FROM cat_items WHERE cat_id = $1 AND category = $2`,
+          [catId, category]
+        );
         continue;
       }
 
+      if (typeof template !== 'string') continue;
+
+      // Upsert the selected template
       await DB.query(
         `INSERT INTO cat_items (cat_id, player_id, category, template)
          VALUES ($1, $2, $3, $4)
@@ -55,17 +53,16 @@ router.patch('/:catId', async (req, res) => {
       );
     }
 
-    console.log(`Updated equipment for cat ${catId}`);
-    res.status(200).json({ success: true, catId, equipment });
+    res.status(200).json({ success: true, catId });
   } catch (error) {
     console.error('DB ERROR during PATCH:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// ───────────── GET: Get Cat Equipment ─────────────
+// ───────────── GET: Return singular-slot equipment ─────────────
 router.get('/:catId', async (req, res) => {
-  const catId = parseInt(req.params.catId);
+  const catId = parseInt(req.params.catId, 10);
 
   try {
     const result = await DB.query(
@@ -73,10 +70,12 @@ router.get('/:catId', async (req, res) => {
       [catId]
     );
 
-    const equipment = {};
-    result.rows.forEach(row => {
-      equipment[row.category] = row.template;
-    });
+    const equipment = { hat: null, top: null, eyes: null, accessories: null };
+    for (const row of result.rows) {
+      const key = singularFromDb[row.category];
+      if (!key) continue;
+      equipment[key] = row.template ?? null; // single value
+    }
 
     res.status(200).json({ catId, equipment });
   } catch (error) {
