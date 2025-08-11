@@ -1,5 +1,5 @@
 // // /routes/cats.js
-// import express from 'express';
+// import express, { json } from 'express';
 // import DB from '../db.js';
 // import jwt from 'jsonwebtoken';
 
@@ -8,19 +8,28 @@
 // // ───────────── JWT Auth Middleware ─────────────
 // function requireAuth(req, res, next) {
 //   const authHeader = req.headers.authorization;
-//   if (!authHeader) return res.status(401).json({ error: 'No token provided' });
+
+//   if (!authHeader) {
+//     console.warn('No Authorization header received');
+//     return res.status(401).json({ error: 'No token provided' });
+//   }
 
 //   const token = authHeader.split(' ')[1];
+
 //   try {
-//     req.user = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+//     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+//     req.user = decoded;
+//     console.log('Authenticated user:', req.user.id);
 //     next();
-//   } catch {
+//   } catch (err) {
+//     console.warn('Invalid or expired token:', err.message);
 //     return res.status(401).json({ error: 'Invalid or expired token' });
 //   }
 // }
 
 // // ───────────── GET: Player's Cats ─────────────
 // router.get('/', requireAuth, async (req, res) => {
+//   console.log(`GET /api/cats hit by player ID: ${req.user?.id}`);
 //   try {
 //     const result = await DB.query(
 //       'SELECT * FROM player_cats WHERE player_id = $1',
@@ -123,7 +132,7 @@
 
 //     res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
 //   } catch (error) {
-//     console.error('❌ Error inserting cat:', error);
+//     console.error('Error inserting cat:', error);
 //     res.status(500).json({ error: 'Server error while inserting cat' });
 //   }
 // });
@@ -181,7 +190,7 @@
 
 //     res.json({ message: 'Cat updated', cat: rows[0] });
 //   } catch (err) {
-//     console.error('❌ SQL error in PATCH /cats/:id:', err);
+//     console.error('SQL error in PATCH /cats/:id:', err);
 //     res.status(500).json({ error: 'Database error' });
 //   }
 // });
@@ -250,330 +259,194 @@
 // });
 
 // // ───────────── DELETE: Remove Cat Template (Admin) ─────────────
-// router.delete('/delete/:cat_id', async (req, res) => {
-//   const { cat_id } = req.params;
+// // router.delete('/delete/:cat_id', async (req, res) => {
+// //   const { cat_id } = req.params;
+// //   try {
+// //     await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [cat_id]);
+// //     res.json({ message: 'Cat deleted successfully' });
+// //   } catch (error) {
+// //     console.error('Delete cat error:', error);
+// //     res.status(500).json({ error: 'Failed to delete cat' });
+// //   }
+// // });
+
+// // DELETE cat by ID (safe, respects FK constraint)
+// router.delete('/delete/:catId', async (req, res) => {
+//   const { catId } = req.params;
+
 //   try {
-//     await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [cat_id]);
-//     res.json({ message: 'Cat deleted successfully' });
-//   } catch (error) {
-//     console.error('Delete cat error:', error);
-//     res.status(500).json({ error: 'Failed to delete cat' });
+//     await DB.query('BEGIN');
+
+//     // Get template string for this cat
+//     const { rows } = await DB.query(
+//       'SELECT template FROM cat_templates WHERE cat_id = $1',
+//       [catId]
+//     );
+
+//     if (rows.length === 0) {
+//       await DB.query('ROLLBACK');
+//       return res.status(404).json({ error: 'Cat not found' });
+//     }
+
+//     const template = rows[0].template;
+//     console.log('Deleting cat with template:', template);
+
+//     // Delete user cats referencing this template
+//     await DB.query('DELETE FROM player_cats WHERE template = $1', [template]);
+
+//     // Delete the cat template
+//     await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+
+//     await DB.query('COMMIT');
+
+//     return res.json({ message: 'Cat deleted successfully' });
+
+//   } catch (err) {
+//     await DB.query('ROLLBACK');
+//     console.error('Error deleting cat:', err);
+//     return res.status(500).json({ error: 'Internal server error' });
 //   }
 // });
+
 
 
 // export default router;
 
 // /routes/cats.js
-import express, { json } from 'express';
+import express from 'express';
 import DB from '../db.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// ───────────── JWT Auth Middleware ─────────────
 function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    console.warn('No Authorization header received');
-    return res.status(401).json({ error: 'No token provided' });
-  }
-
-  const token = authHeader.split(' ')[1];
-
+  if (!authHeader) return res.status(401).json({ error: 'No token provided' });
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    req.user = decoded;
-    console.log('Authenticated user:', req.user.id);
+    req.user = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET || 'your-secret-key');
     next();
-  } catch (err) {
-    console.warn('Invalid or expired token:', err.message);
+  } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
-// ───────────── GET: Player's Cats ─────────────
+// ── helpers reused with /cat_items ─────────────────────────────────────────────
+const categoryMap = { hat: 'hats', top: 'tops', eyes: 'eyes', accessories: 'accessories' };
+const normalizeSingle = v => Array.isArray(v) ? (v.find(Boolean) ?? null) : (v ?? null);
+
+// ── GET player cats (unchanged) ───────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
-  console.log(`GET /api/cats hit by player ID: ${req.user?.id}`);
   try {
-    const result = await DB.query(
-      'SELECT * FROM player_cats WHERE player_id = $1',
-      [req.user.id]
-    );
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error('Error fetching cats:', error);
-    res.status(500).json({ error: 'Server error' });
+    const r = await DB.query('SELECT * FROM player_cats WHERE player_id = $1', [req.user.id]);
+    res.status(200).json(r.rows);
+  } catch (e) {
+    console.error(e); res.status(500).json({ error: 'Server error' });
   }
 });
 
-// ───────────── GET: All Cat Templates (Public) ─────────────
-router.get('/allcats', async (req, res) => {
-  try {
-    const result = await DB.query('SELECT * FROM cat_templates');
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error('Error fetching cats:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// ───────────── GET: Cat by Template (Public) ─────────────
-router.get('/template/:template', async (req, res) => {
-  const { template } = req.params;
-  try {
-    const result = await DB.query(
-      'SELECT * FROM cat_templates WHERE template = $1',
-      [template]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Cat not found' });
-    }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Error fetching cat:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// ───────────── PATCH: Update Sprite URL (Admin use?) ─────────────
-router.patch('/allcats/:id', async (req, res) => {
-  const catId = req.params.id;
-  const { sprite_url } = req.body;
-
-  if (!sprite_url) {
-    return res.status(400).json({ error: 'Missing sprite_url in request body' });
-  }
-
-  try {
-    const result = await DB.query(
-      'UPDATE cat_templates SET sprite_url = $1 WHERE cat_id = $2 RETURNING *',
-      [sprite_url, catId]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: 'Cat not found' });
-    }
-
-    res.json({ message: 'Cat sprite_url updated', cat: result.rows[0] });
-  } catch (err) {
-    console.error('Error updating cat sprite_url:', err);
-    res.status(500).json({ error: 'Server error', catId, sprite_url });
-  }
-});
-
-// ───────────── POST: Create New Cat (Auth) ─────────────
-router.post('/', requireAuth, async (req, res) => {
-  const {
-    template,
-    name,
-    description,
-    uploaded_photo_url,
-    birthdate
-  } = req.body;
-
-  const player_id = req.user.id;
-
-  if (!player_id || !template || !name || !birthdate) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  try {
-    const result = await DB.query(
-      `INSERT INTO player_cats (
-         player_id, template, name, description,
-         uploaded_photo_url, birthdate, created_at, last_updated
-       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-       RETURNING *`,
-      [
-        player_id,
-        template,
-        name,
-        description || '',
-        uploaded_photo_url || '',
-        birthdate
-      ]
-    );
-
-    res.status(201).json({ message: 'Cat created!', cat: result.rows[0] });
-  } catch (error) {
-    console.error('Error inserting cat:', error);
-    res.status(500).json({ error: 'Server error while inserting cat' });
-  }
-});
-
-// ───────────── PATCH: Update Cat (Auth) ─────────────
+// ── PATCH: Update cat meta; forward equipment to cat_items and DO NOT store JSON ─
 router.patch('/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
-  const updates = req.body;
+  const updates = { ...req.body };
 
-  const setCols = [];
-  const values = [];
-  let idx = 1;
+  // Pull equipment off the dynamic update set
+  const equip = updates.equipment;
+  delete updates.equipment;
 
-  const push = (col, val) => {
-    setCols.push(`${col} = $${idx}`);
-    values.push(val);
-    idx++;
-  };
+  const setCols = []; const values = []; let idx = 1;
+  const push = (col, val) => { setCols.push(`${col} = $${idx}`); values.push(val); idx++; };
 
-  if (updates.name !== undefined) push('name', updates.name);
+  if (updates.name !== undefined)        push('name', updates.name);
   if (updates.description !== undefined) push('description', updates.description);
-  if (updates.template !== undefined) push('template', updates.template);
-  if (updates.equipment !== undefined)
-    push('equipment', typeof updates.equipment === 'object'
-      ? JSON.stringify(updates.equipment)
-      : updates.equipment);
+  if (updates.template !== undefined)    push('template', updates.template);
 
-  if (setCols.length === 0) {
-    return res.status(400).json({ error: 'No updatable fields supplied' });
-  }
-
-  // id + player ID
-  values.push(id, req.user.id);
-
-  console.log('🔧 PATCH /cats/:id', {
-    id,
-    userId: req.user.id,
-    updates,
-    setCols,
-    values
-  });
-
-  try {
-    const { rows } = await DB.query(
-      `UPDATE player_cats
-          SET ${setCols.join(', ')}, last_updated = NOW()
-        WHERE cat_id = $${idx} AND player_id = $${idx + 1}
-        RETURNING *`,
-      values
-    );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Cat not found or not yours' });
-    }
-
-    res.json({ message: 'Cat updated', cat: rows[0] });
-  } catch (err) {
-    console.error('SQL error in PATCH /cats/:id:', err);
-    res.status(500).json({ error: 'Database error' });
-  }
-});
-
-// ───────────── DELETE: Remove Cat (Auth) ─────────────
-router.delete('/:id', requireAuth, async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await DB.query(
-      'DELETE FROM player_cats WHERE cat_id = $1 AND player_id = $2 RETURNING *',
-      [id, req.user.id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Cat not found or not yours' });
-    }
-
-    res.status(200).json({ message: 'Cat deleted successfully', cat: result.rows[0] });
-  } catch (error) {
-    console.error('Error deleting cat:', error);
-    res.status(500).json({ error: 'Server error while deleting cat' });
-  }
-});
-
-// ───────────── GET: Player Cats by ID (Public) ─────────────
-router.get('/player/:playerId', async (req, res) => {
-  const { playerId } = req.params;
-
-  try {
-    const result = await DB.query(
-      `SELECT ct.sprite_url, ct.variant, ct.palette, ct.breed, pc.name, pc.description, pc.cat_id, pc.birthdate
-       FROM player_cats pc
-       INNER JOIN cat_templates ct ON pc.template = ct.template
-       WHERE pc.player_id = $1`,
-      [playerId]
-    );
-    res.status(200).json(result.rows);
-  } catch (error) {
-    console.error('Error fetching player cats:', error);
-    res.status(500).json({ error: 'Server error while fetching cats' });
-  }
-});
-
-// ───────────── POST: Add Template ─────────────
-router.post('/catadd', async (req, res) => {
-  const { template, breed, variant, palette, description, sprite_url } = req.body;
-
-  if (!template || !breed || !variant || !palette || !description || !sprite_url) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  try {
-    const result = await DB.query(
-      `INSERT INTO cat_templates (template, breed, variant, palette, description, sprite_url)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [template, breed, variant, palette, description, sprite_url]
-    );
-
-    res.status(201).json({ message: 'Cat template added', cat: result.rows[0] });
-  } catch (error) {
-    console.error('Error inserting cat template:', error);
-    res.status(500).json({ error: 'Server error during insert' });
-  }
-});
-
-// ───────────── DELETE: Remove Cat Template (Admin) ─────────────
-// router.delete('/delete/:cat_id', async (req, res) => {
-//   const { cat_id } = req.params;
-//   try {
-//     await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [cat_id]);
-//     res.json({ message: 'Cat deleted successfully' });
-//   } catch (error) {
-//     console.error('Delete cat error:', error);
-//     res.status(500).json({ error: 'Failed to delete cat' });
-//   }
-// });
-
-// DELETE cat by ID (safe, respects FK constraint)
-router.delete('/delete/:catId', async (req, res) => {
-  const { catId } = req.params;
+  // If only equipment is sent, we still want success
+  const doMetaUpdate = setCols.length > 0;
 
   try {
     await DB.query('BEGIN');
 
-    // Get template string for this cat
-    const { rows } = await DB.query(
-      'SELECT template FROM cat_templates WHERE cat_id = $1',
-      [catId]
-    );
+    // 1) Upsert-or-delete equipment into cat_items (single-slot, supports null)
+    if (equip && typeof equip === 'object') {
+      const owner = await DB.query('SELECT player_id FROM player_cats WHERE cat_id = $1 AND player_id = $2',
+                                   [id, req.user.id]);
+      if (owner.rows.length === 0) {
+        await DB.query('ROLLBACK');
+        return res.status(404).json({ error: 'Cat not found or not yours' });
+      }
+      const player_id = owner.rows[0].player_id;
 
-    if (rows.length === 0) {
-      await DB.query('ROLLBACK');
-      return res.status(404).json({ error: 'Cat not found' });
+      for (const [rawKey, rawVal] of Object.entries(equip)) {
+        const category = categoryMap[rawKey];
+        if (!category) continue;
+        const template = normalizeSingle(rawVal);
+
+        if (template === null || template === '') {
+          await DB.query('DELETE FROM cat_items WHERE cat_id = $1 AND category = $2', [id, category]);
+        } else if (typeof template === 'string') {
+          await DB.query(
+            `INSERT INTO cat_items (cat_id, player_id, category, template)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (cat_id, category) DO UPDATE SET template = EXCLUDED.template`,
+            [id, player_id, category, template]
+          );
+        }
+      }
     }
 
-    const template = rows[0].template;
-    console.log('Deleting cat with template:', template);
-
-    // Delete user cats referencing this template
-    await DB.query('DELETE FROM player_cats WHERE template = $1', [template]);
-
-    // Delete the cat template
-    await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+    // 2) Update meta fields on player_cats (if any were provided)
+    let updatedCat = null;
+    if (doMetaUpdate) {
+      values.push(id, req.user.id);
+      const r = await DB.query(
+        `UPDATE player_cats
+           SET ${setCols.join(', ')}, last_updated = NOW()
+         WHERE cat_id = $${idx} AND player_id = $${idx + 1}
+         RETURNING *`,
+        values
+      );
+      if (r.rows.length === 0) {
+        await DB.query('ROLLBACK');
+        return res.status(404).json({ error: 'Cat not found or not yours' });
+      }
+      updatedCat = r.rows[0];
+    }
 
     await DB.query('COMMIT');
-
-    return res.json({ message: 'Cat deleted successfully' });
-
+    return res.json({ message: 'Cat updated', cat: updatedCat, equipmentUpdated: !!equip });
   } catch (err) {
     await DB.query('ROLLBACK');
-    console.error('Error deleting cat:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('PATCH /cats/:id error:', err);
+    res.status(500).json({ error: 'Database error' });
   }
 });
 
+// ── DELETE template: also remove cat_items for affected cats ───────────────────
+router.delete('/delete/:catId', async (req, res) => {
+  const { catId } = req.params;
+  try {
+    await DB.query('BEGIN');
 
+    const t = await DB.query('SELECT template FROM cat_templates WHERE cat_id = $1', [catId]);
+    if (t.rows.length === 0) { await DB.query('ROLLBACK'); return res.status(404).json({ error: 'Cat not found' }); }
+    const template = t.rows[0].template;
+
+    // Collect cat_ids to clean cat_items
+    const pc = await DB.query('SELECT cat_id FROM player_cats WHERE template = $1', [template]);
+    const ids = pc.rows.map(r => r.cat_id);
+    if (ids.length) {
+      await DB.query('DELETE FROM cat_items WHERE cat_id = ANY($1::int[])', [ids]);
+      await DB.query('DELETE FROM player_cats WHERE cat_id = ANY($1::int[])', [ids]);
+    }
+
+    await DB.query('DELETE FROM cat_templates WHERE cat_id = $1', [catId]);
+    await DB.query('COMMIT');
+    res.json({ message: 'Cat deleted successfully' });
+  } catch (err) {
+    await DB.query('ROLLBACK');
+    console.error('Delete cat error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 export default router;
