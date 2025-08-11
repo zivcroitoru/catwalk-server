@@ -124,31 +124,45 @@ router.delete('/:id', async (req, res) => {
 
 
 //delete shop item by id
-router.delete('/delete/:id', async (req, res) => {
-  const itemId = req.params.id;
+router.delete('/delete/:itemId', async (req, res) => {
+  const itemId = req.params.itemId;
 
   try {
-    // 1. Get the template from itemtemplate
-    const { rows } = await db.query('SELECT template FROM itemtemplate WHERE item_id = $1', [itemId]);
+    // Start transaction
+    await db.query('BEGIN');
+
+    // 1. Get the template for this itemId
+    const { rows } = await db.query(
+      'SELECT template FROM itemtemplate WHERE item_id = $1',
+      [itemId]
+    );
+
     if (rows.length === 0) {
+      await db.query('ROLLBACK');
       return res.status(404).json({ error: 'Item not found' });
     }
+
     const template = rows[0].template;
 
-    // 2. Delete from player_items and cat_items where template matches
-    await db.query('DELETE FROM player_items WHERE template = $1', [template]);
+    // 2. Delete from cat_items where template matches
     await db.query('DELETE FROM cat_items WHERE template = $1', [template]);
 
-    // 3. Delete from itemtemplate
+    // 3. Delete from player_items where template matches
+    await db.query('DELETE FROM player_items WHERE template = $1', [template]);
+
+    // 4. Delete from itemtemplate where item_id matches
     await db.query('DELETE FROM itemtemplate WHERE item_id = $1', [itemId]);
 
-    res.json({ message: 'Item and related player/cat items deleted successfully' });
+    // Commit transaction
+    await db.query('COMMIT');
+
+    res.json({ message: 'Item and related references deleted successfully' });
   } catch (err) {
-    console.error('Error deleting item:', err);
+    console.error('Delete error:', err);
+    await db.query('ROLLBACK');
     res.status(500).json({ error: 'Failed to delete the item' });
   }
 });
-
 
 
 // PATCH /api/shop/edit/:id
