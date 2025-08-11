@@ -536,13 +536,13 @@ router.post('/catadd', async (req, res) => {
 //   }
 // });
 
+// DELETE cat by ID (safe, respects FK constraint)
 router.delete("/delete/:catId", async (req, res) => {
   const { catId } = req.params;
 
   try {
     await pool.query("BEGIN");
 
-    // Find the template for this cat_id
     const templateResult = await pool.query(
       `SELECT template FROM cat_templates WHERE cat_id = $1`,
       [catId]
@@ -555,31 +555,25 @@ router.delete("/delete/:catId", async (req, res) => {
 
     const template = templateResult.rows[0].template;
 
-    // Delete from player_cats first (foreign key dependency)
     await pool.query(
       `DELETE FROM player_cats WHERE template = $1`,
       [template]
     );
 
-    // Delete from cat_templates
     await pool.query(
       `DELETE FROM cat_templates WHERE cat_id = $1`,
       [catId]
     );
 
     await pool.query("COMMIT");
-
     res.json({ message: "Cat deleted successfully" });
+
   } catch (err) {
     await pool.query("ROLLBACK");
     console.error("Error deleting cat:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
-
-
 
 
 export default router;
