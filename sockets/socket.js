@@ -304,6 +304,8 @@ export default function setupSocket(io) {
 
     // Player registers and joins all their open ticket rooms
     socket.on('registerPlayer', async (userId) => {
+      socket.join(`user_${userId}`);
+
       playerSockets.set(userId, socket.id);
       console.log(`Registered player ${userId} with socket ${socket.id}`);
 
