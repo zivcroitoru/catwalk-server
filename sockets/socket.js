@@ -275,6 +275,36 @@ export default function setupSocket(io) {
     // EXISTING TICKET SYSTEM HANDLERS (UNCHANGED)
     // ═══════════════════════════════════════════════════════════════
 
+
+      //broadcast/////////////
+
+      // Admin sends a broadcast to all players
+socket.on('adminBroadcast', async ({ message }) => {
+  console.log(`Admin broadcast: ${message}`);
+
+  try {
+    // Get all players from DB
+    const result = await DB.query(`SELECT id FROM players`);
+    const players = result.rows;
+
+    // Send to all connected player sockets
+    players.forEach(player => {
+      const playerSocketId = playerSockets.get(player.id);
+      if (playerSocketId) {
+        io.to(playerSocketId).emit('broadcastMessage', {
+          from: 'ADMIN',
+          content: message
+        });
+      }
+    });
+
+    console.log(`Broadcast sent to ${players.length} players`);
+  } catch (err) {
+    console.error('Error sending broadcast:', err);
+    socket.emit('errorMessage', { message: 'Failed to send broadcast.' });
+  }
+});
+
     // Admin registers
     socket.on('registerAdmin', () => {
       adminSockets.add(socket.id);
