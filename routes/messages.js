@@ -1,3 +1,5 @@
+//eoutes/messages.js
+
 import express from 'express';
 import DB from '../db.js';
 
@@ -97,6 +99,19 @@ router.post('/send', async (req, res) => {
   }
 });
 
+
+
+router.get('/broadcast/', async (req, res) => {
+  try {
+    const result = await DB.query(
+      `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Failed to fetch broadcasts:', err);
+    res.status(500).json({ error: 'Failed to fetch broadcasts' });
+  }
+});
 
 
 
