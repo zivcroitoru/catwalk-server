@@ -277,37 +277,21 @@ export default function setupSocket(io) {
 
     //broadcast/////////////
 
-    socket.on("adminBroadcast", async ({ message, adminId }) => {
-  try {
-    // 1️⃣ Save broadcast in DB
-    const insertResult = await DB.query(
-      `INSERT INTO broadcasts (admin_id, body) VALUES ($1, $2) RETURNING *`,
-      [adminId, message]
-    );
+    socket.on("adminBroadcast", async ({ message }) => {
+      try {
+        const result = await DB.query("SELECT id FROM players");
+        result.rows.forEach(row => {
+          io.to(`user_${row.id}`).emit("broadcastMessage", { message });
+        });
 
-    const savedBroadcast = insertResult.rows[0];
+        // Also notify all admins that broadcast was sent
+        io.to("admins").emit("broadcastSent", { message, count: result.rows.length });
 
-    // 2️⃣ Get all player IDs
-    const result = await DB.query("SELECT id FROM players");
-
-    // 3️⃣ Send broadcast to each player
-    result.rows.forEach(row => {
-      io.to(`user_${row.id}`).emit("adminBroadcast", {
-        message: savedBroadcast.body,
-        date: savedBroadcast.sent_at
-      });
+      } catch (err) {
+        console.error("Error sending broadcast:", err);
+      }
     });
 
-    // 4️⃣ Notify all admins that broadcast was sent
-    io.to("admins").emit("broadcastSent", { message: savedBroadcast.body, count: result.rows.length });
-
-  } catch (err) {
-    console.error("Error sending broadcast:", err);
-    socket.emit("errorMessage", { message: "Failed to send broadcast." });
-  }
-});
-
-////////////////////////
 
 
     // Admin registers
