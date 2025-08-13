@@ -236,15 +236,14 @@ export default function setupSocket(io) {
 
         console.log(`👥 Fashion Show - Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
 
-        // Fill with dummies for testing
-        while (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM) {
-          waitingRoom.participants.push(generateDummyParticipant());
-        }
+        // REMOVED: Auto-fill with dummies for testing
+        // We want real players only in the waiting room
 
         broadcastWaitingRoomUpdate();
 
+        // Only launch game room when we have exactly 5 REAL participants
         if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-          console.log('🚀 Fashion Show - Launching game room');
+          console.log('🚀 Fashion Show - Launching game room with 5 real players');
           const gameRoom = new GameRoom([...waitingRoom.participants]);
 
           waitingRoom.participants.forEach(p => {
@@ -458,4 +457,3 @@ export default function setupSocket(io) {
     });
   });
 }
-
