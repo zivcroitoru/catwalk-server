@@ -1,0 +1,82 @@
+import './utils.js';
+import express from 'express';
+import cors from 'cors';
+import DB from './db.js';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import setupSocket from './sockets/socket.js'; // ⬅ import your socket setup
+
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+const httpServer = http.createServer(app);
+
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://catwalk.onrender.com',
+  'https://catwalk-server-eu.onrender.com', // Add this line - your actual server domain
+  process.env.FRONTEND_URL
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, origin);
+    } else {
+      callback(new Error('Not allowed by CORS: ' + origin));
+    }
+  },
+  credentials: true
+}));
+
+app.use(express.json());
+
+// ───────────── Routes ─────────────
+import authRoutes from './routes/auth.js';
+import messagesRoutes from './routes/messages.js';
+import catsRoutes from './routes/cats.js';
+import playersRoutes from './routes/players.js';
+import shopRoutes from './routes/shop.js';
+import adminRoutes from './routes/admins.js';
+import player_itemsRoutes from './routes/player_items.js';
+import catItemsRoutes from './routes/cat_items.js';
+import mailboxRoutes from './routes/mailbox.js';
+import ticketsRoutes from './routes/tickets.js';
+
+app.use('/auth', authRoutes);
+app.use('/api/cats', catsRoutes);
+app.use('/api/cat_items', catItemsRoutes);
+app.use('/api/players', playersRoutes);
+app.use('/api/shop', shopRoutes);
+app.use('/api/admins', adminRoutes);
+app.use('/api/playerItems', player_itemsRoutes);
+app.use('/api/messages', messagesRoutes);
+app.use('/api/mailbox', mailboxRoutes);
+app.use('/api/tickets', ticketsRoutes);
+
+// Test route
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const result = await DB.query('SELECT NOW()');
+    res.json({ now: result.rows[0] });
+  } catch (error) {
+    console.error('DB test error:', error);
+    res.status(500).send('DB error');
+  }
+});
+
+const io = new SocketIOServer(httpServer, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true
+  }
+});
+
+// 🔹 Initialize socket events
+setupSocket(io);
+
+httpServer.listen(PORT, () => {
+  console.log(`catwalk-server running on http://localhost:${PORT}`);
+  console.log('🔧 Allowed CORS origins:', allowedOrigins); // Add this debug log
+});
