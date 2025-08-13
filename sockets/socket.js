@@ -278,19 +278,32 @@ export default function setupSocket(io) {
     //broadcast/////////////
 
     socket.on("adminBroadcast", async ({ message }) => {
-      try {
-        const result = await DB.query("SELECT id FROM players");
-        result.rows.forEach(row => {
-          io.to(`user_${row.id}`).emit("broadcastMessage", { message });
-        });
+  try {
+    // 1️⃣ Save broadcast in DB
+    const insertResult = await DB.query(
+      `INSERT INTO broadcasts (body) VALUES ($1) RETURNING *`,
+      [message]
+    );
+    const broadcast = insertResult.rows[0]; // saved broadcast row
 
-        // Also notify all admins that broadcast was sent
-        io.to("admins").emit("broadcastSent", { message, count: result.rows.length });
+    // 2️⃣ Fetch all players
+    const result = await DB.query("SELECT id FROM players");
 
-      } catch (err) {
-        console.error("Error sending broadcast:", err);
-      }
+    // 3️⃣ Send broadcast to all players
+    result.rows.forEach(row => {
+      io.to(`user_${row.id}`).emit("adminBroadcast", {
+        message: broadcast.body,
+        sent_at: broadcast.sent_at
+      });
     });
+
+    // 4️⃣ Optionally notify all admins
+    io.to("admins").emit("broadcastSent", { message: broadcast.body, count: result.rows.length });
+
+  } catch (err) {
+    console.error("Error sending broadcast:", err);
+  }
+});
 
 
 
