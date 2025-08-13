@@ -278,7 +278,7 @@ export default function setupSocket(io) {
 
       //broadcast/////////////
 
-      // Admin sends a broadcast to all players
+      // Admin sends broadcast to all players
 socket.on('adminBroadcast', async ({ message }) => {
   console.log(`Admin broadcast: ${message}`);
 
@@ -292,7 +292,7 @@ socket.on('adminBroadcast', async ({ message }) => {
       const playerSocketId = playerSockets.get(player.id);
       if (playerSocketId) {
         io.to(playerSocketId).emit('broadcastMessage', {
-          from: 'ADMIN',
+          from: 'Admin',
           content: message
         });
       }
