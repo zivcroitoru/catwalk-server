@@ -210,7 +210,7 @@ export default function setupSocket(io) {
     // ═══════════════════════════════════════════════════════════════
     // FASHION SHOW SOCKET HANDLERS (NEW)
     // ═══════════════════════════════════════════════════════════════
-    
+
     let currentRoom = null;
     let participant = null;
 
@@ -276,12 +276,29 @@ export default function setupSocket(io) {
     // ═══════════════════════════════════════════════════════════════
 
 
-      //broadcast/////////////
-      
+    //broadcast/////////////
+
+    socket.on("adminBroadcast", async ({ message }) => {
+      try {
+        const result = await DB.query("SELECT id FROM players");
+        result.rows.forEach(row => {
+          io.to(`user_${row.id}`).emit("broadcastMessage", { message });
+        });
+
+        // Also notify all admins that broadcast was sent
+        io.to("admins").emit("broadcastSent", { message, count: result.rows.length });
+
+      } catch (err) {
+        console.error("Error sending broadcast:", err);
+      }
+    });
+
+
+
     // Admin registers
     socket.on('registerAdmin', () => {
       adminSockets.add(socket.id);
-      socket.join('admins'); 
+      socket.join('admins');
       console.log(`Admin registered and joined admins room: ${socket.id}`);
     });
 
@@ -428,7 +445,7 @@ export default function setupSocket(io) {
 
       // Existing admin socket cleanup
       adminSockets.delete(socket.id);
-      
+
       // Existing player socket cleanup
       for (const [userId, socketId] of playerSockets.entries()) {
         if (socketId === socket.id) {
