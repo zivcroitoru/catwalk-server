@@ -1,82 +1,501 @@
-import './utils.js';
-import express from 'express';
-import cors from 'cors';
-import DB from './db.js';
-import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import setupSocket from './sockets/socket.js'; // ⬅ import your socket setup
+import DB from '../db.js';
 
+// ═══════════════════════════════════════════════════════════════
+// FASHION SHOW LOGIC (DEBUG VERSION)
+// ═══════════════════════════════════════════════════════════════
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+// Constants
+const PARTICIPANTS_IN_ROOM = 5;
+const VOTING_TIMER = 60;
 
-const httpServer = http.createServer(app);
+// Global waiting room singleton
+let waitingRoom = {
+  participants: [],
+  isVoting: false
+};
 
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://catwalk.onrender.com',
-  'https://catwalk-server-eu.onrender.com', // Add this line - your actual server domain
-  process.env.FRONTEND_URL
-];
+// DEBUG: Track all active connections
+const activeConnections = new Map(); // socketId -> {playerId, catId, timestamp}
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin);
-    } else {
-      callback(new Error('Not allowed by CORS: ' + origin));
+// ─────────────── Game Room Class ───────────────
+class GameRoom {
+  constructor(participants) {
+    this.participants = participants;
+    this.isVoting = true;
+    this.votingStartTime = Date.now();
+    this.isFinalized = false;
+    this.votingTimer = null;
+
+    console.log('🗳️ GameRoom created with participants:', this.participants.map(p => `${p.playerId}(cat:${p.catId})`));
+    this.startVotingPhase();
+  }
+
+  startVotingPhase() {
+    console.log('⏳ Voting phase started');
+
+    this.participants.forEach(participant => {
+      if (participant.socket?.connected) {
+        participant.socket.emit('voting_phase', {
+          type: 'voting_phase',
+          participants: this.getParticipantsForClient(),
+          timerSeconds: VOTING_TIMER
+        });
+        console.log(`📤 Sent voting_phase to ${participant.playerId}`);
+      }
+    });
+
+    this.participants.forEach(participant => {
+      if (participant.isDummy) {
+        this.makeDummyVote(participant);
+      }
+    });
+
+    this.votingTimer = setTimeout(() => {
+      console.log('⏰ Voting timeout reached');
+      this.handleVotingTimeout();
+    }, VOTING_TIMER * 1000);
+  }
+
+  makeDummyVote(dummy) {
+    const availableCats = this.participants.filter(p => p.catId !== dummy.catId).map(p => p.catId);
+    if (availableCats.length > 0) {
+      const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
+      console.log(`🤖 Dummy ${dummy.playerId} voting for ${choice}`);
+      this.handleVote(dummy, choice);
     }
-  },
-  credentials: true
-}));
-
-app.use(express.json());
-
-// ───────────── Routes ─────────────
-import authRoutes from './routes/auth.js';
-import messagesRoutes from './routes/messages.js';
-import catsRoutes from './routes/cats.js';
-import playersRoutes from './routes/players.js';
-import shopRoutes from './routes/shop.js';
-import adminRoutes from './routes/admins.js';
-import player_itemsRoutes from './routes/player_items.js';
-import catItemsRoutes from './routes/cat_items.js';
-import mailboxRoutes from './routes/mailbox.js';
-import ticketsRoutes from './routes/tickets.js';
-
-app.use('/auth', authRoutes);
-app.use('/api/cats', catsRoutes);
-app.use('/api/cat_items', catItemsRoutes);
-app.use('/api/players', playersRoutes);
-app.use('/api/shop', shopRoutes);
-app.use('/api/admins', adminRoutes);
-app.use('/api/playerItems', player_itemsRoutes);
-app.use('/api/messages', messagesRoutes);
-app.use('/api/mailbox', mailboxRoutes);
-app.use('/api/tickets', ticketsRoutes);
-
-// Test route
-app.get('/api/test-db', async (req, res) => {
-  try {
-    const result = await DB.query('SELECT NOW()');
-    res.json({ now: result.rows[0] });
-  } catch (error) {
-    console.error('DB test error:', error);
-    res.status(500).send('DB error');
   }
-});
 
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
+  handleVote(voter, votedCatId) {
+    if (this.isFinalized || votedCatId === voter.catId) return;
+
+    voter.votedCatId = votedCatId;
+    console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
+
+    this.broadcastVotingUpdate();
+
+    const allVoted = this.participants.every(p => p.votedCatId);
+    if (allVoted) {
+      console.log('✅ All participants voted. Finalizing...');
+      this.finalizeVoting();
+    }
   }
-});
 
-// 🔹 Initialize socket events
-setupSocket(io);
+  handleVotingTimeout() {
+    if (this.isFinalized) return;
 
-httpServer.listen(PORT, () => {
-  console.log(`catwalk-server running on http://localhost:${PORT}`);
-  console.log('🔧 Allowed CORS origins:', allowedOrigins); // Add this debug log
-});
+    this.participants.forEach(participant => {
+      if (!participant.votedCatId) {
+        const availableCats = this.participants.filter(p => p.catId !== participant.catId).map(p => p.catId);
+        if (availableCats.length > 0) {
+          const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
+          participant.votedCatId = choice;
+          console.log(`⚠️ Timeout vote for ${participant.playerId}: voted ${choice}`);
+        }
+      }
+    });
+
+    this.finalizeVoting();
+  }
+
+  finalizeVoting() {
+    if (this.isFinalized) return;
+    this.isFinalized = true;
+
+    if (this.votingTimer) clearTimeout(this.votingTimer);
+
+    this.calculateResults();
+
+    this.participants.forEach(participant => {
+      if (participant.socket?.connected) {
+        participant.socket.emit('results', {
+          type: 'results',
+          participants: this.getParticipantsForClient()
+        });
+        console.log(`📤 Sent results to ${participant.playerId}`);
+      }
+    });
+  }
+
+  calculateResults() {
+    const votes = {};
+    this.participants.forEach(p => {
+      if (p.votedCatId) {
+        votes[p.votedCatId] = (votes[p.votedCatId] || 0) + 1;
+      }
+    });
+
+    this.participants.forEach(p => {
+      p.votesReceived = votes[p.catId] || 0;
+      p.coinsEarned = p.votesReceived * 25;
+      console.log(`💰 ${p.playerId} earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
+    });
+  }
+
+  broadcastVotingUpdate() {
+    this.participants.forEach(p => {
+      if (p.socket?.connected) {
+        p.socket.emit('voting_update', {
+          type: 'voting_update',
+          participants: this.getParticipantsForClient()
+        });
+        console.log(`🔄 Sent voting update to ${p.playerId}`);
+      }
+    });
+  }
+
+  getParticipantsForClient() {
+    return this.participants.map(p => ({
+      playerId: p.playerId,
+      catId: p.catId,
+      votedCatId: p.votedCatId,
+      votesReceived: p.votesReceived || 0,
+      coinsEarned: p.coinsEarned || 0
+    }));
+  }
+
+  handleParticipantDisconnect(p) {
+    if (this.isFinalized) return;
+
+    if (!p.votedCatId) {
+      const options = this.participants.filter(x => x.catId !== p.catId).map(x => x.catId);
+      if (options.length > 0) {
+        const vote = options[Math.floor(Math.random() * options.length)];
+        p.votedCatId = vote;
+        console.log(`⚠️ ${p.playerId} disconnected - voting randomly for ${vote}`);
+        const allVoted = this.participants.every(p => p.votedCatId);
+        allVoted ? this.finalizeVoting() : this.broadcastVotingUpdate();
+      }
+    }
+  }
+}
+
+// ─────────────── Fashion Show Utilities ───────────────
+function generateDummyParticipant() {
+  const id = Math.random().toString(36).substr(2, 9);
+  const dummy = {
+    playerId: `dummy_${id}`,
+    catId: `cat_${id}`,
+    isDummy: true,
+    socket: null
+  };
+  console.log(`👻 Generated dummy: ${dummy.playerId}`);
+  return dummy;
+}
+
+function debugWaitingRoom() {
+  console.log('🔍 DEBUG - Current waiting room state:');
+  console.log(`  Participants count: ${waitingRoom.participants.length}`);
+  console.log(`  Is voting: ${waitingRoom.isVoting}`);
+  waitingRoom.participants.forEach((p, i) => {
+    console.log(`  ${i + 1}. Player: ${p.playerId}, Cat: ${p.catId}, Socket: ${p.socket?.id || 'null'}, Dummy: ${p.isDummy || false}`);
+  });
+  
+  console.log('🔍 DEBUG - Active connections:');
+  activeConnections.forEach((data, socketId) => {
+    console.log(`  Socket: ${socketId}, Player: ${data.playerId}, Cat: ${data.catId}, Time: ${new Date(data.timestamp).toISOString()}`);
+  });
+}
+
+function broadcastWaitingRoomUpdate() {
+  debugWaitingRoom(); // Debug before broadcast
+  
+  waitingRoom.participants.forEach(p => {
+    if (p.socket?.connected) {
+      const participantData = waitingRoom.participants.map(participant => ({
+        playerId: participant.playerId,
+        catId: participant.catId
+      }));
+      
+      p.socket.emit('participant_update', {
+        type: 'participant_update',
+        participants: participantData,
+        maxCount: PARTICIPANTS_IN_ROOM
+      });
+      console.log(`📤 Sent waiting room update to ${p.playerId} (socket: ${p.socket.id})`);
+      console.log(`📤 Data sent:`, participantData);
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN SOCKET SETUP FUNCTION (COMPLETE DEBUG VERSION)
+// ═══════════════════════════════════════════════════════════════
+
+export default function setupSocket(io) {
+  // Track player and admin sockets (EXISTING TICKET LOGIC)
+  const playerSockets = new Map();
+  const adminSockets = new Set();
+
+  io.on('connection', (socket) => {
+    console.log(`🔌 User connected: ${socket.id}`);
+
+    // ═══════════════════════════════════════════════════════════════
+    // FASHION SHOW SOCKET HANDLERS (COMPLETE DEBUG VERSION)
+    // ═══════════════════════════════════════════════════════════════
+    
+    let currentRoom = null;
+    let participant = null;
+
+    socket.on('join', (message) => {
+      console.log(`🎭 [${socket.id}] Fashion Show - Received join message:`, message);
+
+      if (!message.playerId || !message.catId) {
+        console.warn(`⚠️ [${socket.id}] Fashion Show - Missing playerId or catId. Disconnecting.`);
+        return socket.disconnect();
+      }
+
+      // DEBUG: Track this connection
+      activeConnections.set(socket.id, {
+        playerId: message.playerId,
+        catId: message.catId,
+        timestamp: Date.now()
+      });
+
+      console.log(`🔍 [${socket.id}] DEBUG - Before join processing:`);
+      debugWaitingRoom();
+
+      // Clean up any existing participants from this socket first
+      waitingRoom.participants = waitingRoom.participants.filter(p => p.socket?.id !== socket.id);
+      console.log(`🧹 [${socket.id}] Cleaned up any existing participants from this socket`);
+
+      // Check if this player is already in the room (different socket)
+      const existingParticipantIndex = waitingRoom.participants.findIndex(p => p.playerId === message.playerId);
+      
+      if (existingParticipantIndex !== -1) {
+        console.log(`🔄 [${socket.id}] Player ${message.playerId} already in waiting room. Replacing their entry.`);
+        
+        // Remove the old participant
+        const oldParticipant = waitingRoom.participants[existingParticipantIndex];
+        console.log(`🗑️ [${socket.id}] Removing old participant: Player ${oldParticipant.playerId}, Cat ${oldParticipant.catId}, Socket: ${oldParticipant.socket?.id}`);
+        waitingRoom.participants.splice(existingParticipantIndex, 1);
+      }
+
+      // Create new participant
+      participant = {
+        playerId: message.playerId,
+        catId: message.catId,
+        socket,
+        isDummy: false
+      };
+      
+      console.log(`✅ [${socket.id}] Creating new participant: Player ${participant.playerId}, Cat ${participant.catId}`);
+
+      // Check room capacity
+      if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
+        waitingRoom.participants.push(participant);
+        currentRoom = waitingRoom;
+        
+        console.log(`✅ [${socket.id}] Added participant to waiting room`);
+      } else {
+        console.warn(`❌ [${socket.id}] Waiting room full or voting. Disconnecting.`);
+        socket.disconnect();
+        return;
+      }
+
+      console.log(`🔍 [${socket.id}] DEBUG - After join processing:`);
+      debugWaitingRoom();
+
+      broadcastWaitingRoomUpdate();
+
+      // Check if room is full (simple version for now)
+      if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
+        console.log(`🚀 [${socket.id}] Launching game room with ${PARTICIPANTS_IN_ROOM} participants`);
+        const gameRoom = new GameRoom([...waitingRoom.participants]);
+
+        waitingRoom.participants.forEach(p => {
+          if (!p.isDummy && p.socket) p.socket.gameRoom = gameRoom;
+        });
+
+        currentRoom = gameRoom;
+
+        // Reset waiting room
+        waitingRoom = {
+          participants: [],
+          isVoting: false
+        };
+        console.log(`🔄 [${socket.id}] Reset waiting room for next group`);
+      }
+    });
+
+    socket.on('vote', (message) => {
+      console.log(`🗳️ [${socket.id}] Fashion Show - Received vote:`, message);
+      if (currentRoom instanceof GameRoom && participant) {
+        currentRoom.handleVote(participant, message.votedCatId);
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // EXISTING TICKET SYSTEM HANDLERS (UNCHANGED)
+    // ═══════════════════════════════════════════════════════════════
+
+    // Admin registers
+    socket.on('registerAdmin', () => {
+      adminSockets.add(socket.id);
+      socket.join('admins'); 
+      console.log(`Admin registered and joined admins room: ${socket.id}`);
+    });
+
+    // Player registers and joins all their open ticket rooms
+    socket.on('registerPlayer', async (userId) => {
+      playerSockets.set(userId, socket.id);
+      console.log(`Registered player ${userId} with socket ${socket.id}`);
+
+      try {
+        const result = await DB.query(
+          `SELECT ticket_id FROM tickets_table WHERE user_id = $1 AND status = 'open'`,
+          [userId]
+        );
+        result.rows.forEach(row => {
+          const ticketRoom = `ticket_${row.ticket_id}`;
+          socket.join(ticketRoom);
+          console.log(`Player socket joined ticket room: ${ticketRoom}`);
+        });
+      } catch (err) {
+        console.error('Failed to get player tickets:', err);
+      }
+    });
+
+    // Admin joins a ticket room
+    socket.on('joinTicketRoom', ({ ticketId }) => {
+      const roomName = `ticket_${ticketId}`;
+      socket.join(roomName);
+      console.log(`Admin socket ${socket.id} joined ticket room: ${roomName}`);
+    });
+
+    // Player sends message
+    socket.on('playerMessage', async ({ ticketId, userId, text }) => {
+      const roomName = `ticket_${ticketId}`;
+      console.log(`Player ${userId} sent message for ticket ${ticketId}: ${text}`);
+
+      try {
+        await DB.query(
+          `INSERT INTO messages_table (ticket_id, sender, content, timestamp) VALUES ($1, 'user', $2, NOW())`,
+          [ticketId, text]
+        );
+      } catch (err) {
+        console.error('Error saving message:', err);
+      }
+
+      io.to(roomName).emit('newMessage', {
+        sender: 'user',
+        content: text,
+        ticketId,
+        userId
+      });
+    });
+
+    // Player opens ticket
+    socket.on('openTicketRequest', async ({ userId }, callback) => {
+      try {
+        const result = await DB.query(
+          `SELECT * FROM tickets_table WHERE user_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 1`,
+          [userId]
+        );
+
+        if (result.rows.length > 0) {
+          callback({ ticket: result.rows[0] });
+        } else {
+          const insertResult = await DB.query(
+            `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
+            [userId]
+          );
+
+          const newTicket = insertResult.rows[0];
+
+          // To notify all admins of new ticket
+          io.to('admins').emit('newTicketCreated', newTicket);
+
+          callback({ ticket: newTicket });
+        }
+      } catch (err) {
+        console.error('Error in openTicketRequest:', err);
+        callback({ error: 'Failed to open or create ticket' });
+      }
+    });
+
+    // Admin sends message
+    socket.on('adminMessage', async ({ ticketId, text }) => {
+      const roomName = `ticket_${ticketId}`;
+      console.log(`Admin sent message to ticket ${ticketId}: ${text}`);
+
+      try {
+        await DB.query(
+          `INSERT INTO messages_table (ticket_id, sender, content, timestamp) VALUES ($1, 'admin', $2, NOW())`,
+          [ticketId, text]
+        );
+      } catch (err) {
+        console.error('Error saving message:', err);
+      }
+
+      io.to(roomName).emit('newMessage', {
+        sender: 'admin',
+        content: text,
+        ticketId
+      });
+    });
+
+    // Admin closes ticket via socket
+    socket.on('closeTicket', async ({ ticketId }) => {
+      try {
+        // Update DB
+        await DB.query(
+          `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1`,
+          [ticketId]
+        );
+
+        console.log(`Ticket ${ticketId} closed by admin.`);
+
+        // Broadcast to all in that ticket room
+        io.to(`ticket_${ticketId}`).emit('ticketClosed', { ticketId });
+
+      } catch (err) {
+        console.error('Error closing ticket:', err);
+        socket.emit('errorMessage', { message: 'Failed to close ticket.' });
+      }
+    });
+
+    // ═══════════════════════════════════════════════════════════════
+    // DISCONNECT HANDLER (DEBUG VERSION)
+    // ═══════════════════════════════════════════════════════════════
+
+    socket.on('disconnect', () => {
+      console.log(`🔌 [${socket.id}] User disconnected`);
+
+      // DEBUG: Remove from active connections
+      const connectionData = activeConnections.get(socket.id);
+      if (connectionData) {
+        console.log(`🗑️ [${socket.id}] Removing connection: Player ${connectionData.playerId}, Cat ${connectionData.catId}`);
+        activeConnections.delete(socket.id);
+      }
+
+      // Handle fashion show disconnect
+      if (participant) {
+        if (currentRoom === waitingRoom) {
+          const idx = waitingRoom.participants.indexOf(participant);
+          if (idx > -1) {
+            waitingRoom.participants.splice(idx, 1);
+            console.log(`👤 [${socket.id}] ${participant.playerId} left waiting room`);
+            broadcastWaitingRoomUpdate();
+          }
+        } else if (currentRoom instanceof GameRoom) {
+          currentRoom.handleParticipantDisconnect(participant);
+          console.log(`👤 [${socket.id}] ${participant.playerId} disconnected during game`);
+        }
+      }
+
+      // Existing admin socket cleanup
+      adminSockets.delete(socket.id);
+      
+      // Existing player socket cleanup
+      for (const [userId, socketId] of playerSockets.entries()) {
+        if (socketId === socket.id) {
+          playerSockets.delete(userId);
+          break;
+        }
+      }
+
+      console.log(`🔍 [${socket.id}] DEBUG - After disconnect:`);
+      debugWaitingRoom();
+    });
+  });
+}
