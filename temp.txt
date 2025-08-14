@@ -1,0 +1,25 @@
+function broadcastWaitingRoomUpdate() {
+  console.log(`📤 STEP 1E - Broadcasting waiting room update to ${waitingRoom.participants.length} participants`);
+  
+  const participantsForClient = waitingRoom.participants.map(p => ({
+    playerId: p.playerId,
+    catId: p.catId,
+    username: p.username,        // ← ADD these fields
+    catName: p.catName,          // ← ADD these fields  
+    catSpriteUrl: p.catSpriteUrl, // ← ADD these fields
+    wornItems: p.wornItems       // ← ADD these fields
+  }));
+  
+  console.log(`📤 STEP 1E - Enhanced participants data:`, participantsForClient);
+
+  waitingRoom.participants.forEach(p => {
+    if (p.socket?.connected) {
+      p.socket.emit('participant_update', {
+        type: 'participant_update',
+        participants: participantsForClient,
+        maxCount: PARTICIPANTS_IN_ROOM
+      });
+      console.log(`📤 Sent enhanced waiting room update to ${p.playerId}`);
+    }
+  });
+}
