@@ -125,7 +125,7 @@ router.post('/broadcast', async (req, res) => {
     );
 
     // Emit to all connected players
-    io.emit('adminBroadcast', { message: result.rows[0].message, date: result.rows[0].sent_at });
+    io.emit('adminBroadcast', { message: result.rows[0].body, date: result.rows[0].sent_at });
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
