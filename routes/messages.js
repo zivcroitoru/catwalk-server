@@ -101,7 +101,7 @@ router.post('/send', async (req, res) => {
 
 
 
-router.get('/broadcast', async (req, res) => {
+router.get('/broadcasts', async (req, res) => {
   try {
     const result = await DB.query(
       `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
@@ -114,7 +114,7 @@ router.get('/broadcast', async (req, res) => {
 });
 
 // Save a broadcast
-router.post('/broadcast', async (req, res) => {
+router.post('/broadcasts', async (req, res) => {
   try {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
