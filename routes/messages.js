@@ -101,7 +101,7 @@ router.post('/send', async (req, res) => {
 
 
 
-router.get('/broadcasts', async (req, res) => {
+router.get('/broadcasts', async (_, res) => {
   console.log("GET /broadcasts route hit");
   try {
     const result = await DB.query(
