@@ -107,7 +107,7 @@ router.get('/broadcasts', async (req, res) => {
       `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
     );
     console.log('DB rows:', result.rows);    // <-- check what the DB returns
-    res.json(result.rows);
+    return res.status(201).json(result.rows);
   } catch (err) {
     console.error('Failed to fetch broadcasts:', err);
     res.status(500).json({ error: 'Failed to fetch broadcasts' });
@@ -136,6 +136,12 @@ router.post('/broadcasts', async (req, res) => {
     console.error('Error saving broadcast:', err);
     return res.status(500).json({ error: 'Failed to save broadcast' });
   }
+});
+
+
+router.get('/test', (req, res) => {
+  console.log("GET /test hit");
+  res.json({ ok: true });
 });
 
 
