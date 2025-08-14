@@ -101,7 +101,7 @@ router.post('/send', async (req, res) => {
 
 
 
-router.get('/broadcast/', async (req, res) => {
+router.get('/broadcast', async (req, res) => {
   try {
     const result = await DB.query(
       `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
