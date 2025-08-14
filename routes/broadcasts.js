@@ -18,27 +18,27 @@ router.get('/broadcasts', async (req, res) => {
 
 // Save a broadcast
 router.post('/broadcasts', async (req, res) => {
-    const { message } = req.body;
-    try {
-        const result = await DB.query(
-            `INSERT INTO broadcasts(body) VALUES($1) RETURNING id, body, sent_at`,
-            [message]
-        );
-        const savedBroadcast = result.rows[0];
+  const { message } = req.body;
+  console.log('Incoming broadcast message:', message);
+  try {
+    const result = await DB.query(
+      `INSERT INTO broadcasts(body) VALUES($1) RETURNING id, body, sent_at`,
+      [message]
+    );
+    console.log('Broadcast saved:', result.rows[0]);
+    const savedBroadcast = result.rows[0];
 
-        // Emit to all connected sockets (or join a 'players' room)
-        io.emit('adminBroadcast', {
-            message: savedBroadcast.body,
-            date: savedBroadcast.sent_at
-        });
+    io.emit('adminBroadcast', { 
+      message: savedBroadcast.body,
+      date: savedBroadcast.sent_at 
+    });
 
-        res.status(201).json(savedBroadcast);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to save broadcast' });
-    }
+    res.status(201).json(savedBroadcast);
+  } catch (err) {
+    console.error('Error saving broadcast:', err);
+    res.status(500).json({ error: 'Failed to save broadcast' });
+  }
 });
-
 
 
 
