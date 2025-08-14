@@ -102,16 +102,20 @@ router.post('/send', async (req, res) => {
 
 
 router.get('/broadcasts', async (req, res) => {
+  console.log("GET /broadcasts route hit");
   try {
     const result = await DB.query(
       `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
     );
+    console.log('DB rows:', result.rows);
     res.json(result.rows);
   } catch (err) {
     console.error('Failed to fetch broadcasts:', err);
     res.status(500).json({ error: 'Failed to fetch broadcasts' });
   }
 });
+
+
 
 // Save a broadcast
 router.post('/broadcasts', async (req, res) => {
