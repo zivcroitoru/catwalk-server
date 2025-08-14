@@ -100,14 +100,13 @@ router.post('/send', async (req, res) => {
 });
 
 
-
-router.get('/broadcasts', async (_, res) => {
-  console.log("GET /broadcasts route hit");
+router.get('/broadcasts', async (req, res) => {
+  console.log("GET /broadcasts route hit");   // <-- check if this prints
   try {
     const result = await DB.query(
       `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
     );
-    console.log('DB rows:', result.rows);
+    console.log('DB rows:', result.rows);    // <-- check what the DB returns
     res.json(result.rows);
   } catch (err) {
     console.error('Failed to fetch broadcasts:', err);
