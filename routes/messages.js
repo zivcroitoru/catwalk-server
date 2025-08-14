@@ -104,10 +104,9 @@ router.get('/broadcasts', async (req, res) => {
   console.log("GET /broadcasts route hit");   // <-- check if this prints
   try {
     const result = await DB.query(
-      `SELECT id, body, sent_at FROM broadcasts ORDER BY sent_at ASC`
+      `SELECT * FROM broadcasts`
     );
     console.log('DB rows:', result.rows);    // <-- check what the DB returns
-    return res.status(201).json(result.rows);
   } catch (err) {
     console.error('Failed to fetch broadcasts:', err);
     res.status(500).json({ error: 'Failed to fetch broadcasts' });
