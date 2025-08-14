@@ -195,56 +195,137 @@ class GameRoom {
   handleVotingTimeout() {
     if (this.isFinalized) return;
 
-    // Assign random votes to non-voters
-    this.participants.forEach(participant => {
-      if (!participant.votedCatId) {
-        const availableCats = this.participants.filter(p => p.catId !== participant.catId).map(p => p.catId);
-        if (availableCats.length > 0) {
-          const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
-          participant.votedCatId = choice;
-          console.log(`⚠️ Timeout vote for ${participant.playerId}: voted ${choice}`);
-        }
-      }
-    });
+  console.log('⏰ VOTING TIMEOUT REACHED - Beginning vote calculation process');
+  console.log(`📊 Room status before timeout:`, {
+    participantCount: this.participants.length,
+    votingStartTime: new Date(this.votingStartTime).toISOString(),
+    timeElapsed: ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + 's'
+  });
 
+  // Log current voting state
+  console.log('🗳️ Current voting state:');
+  this.participants.forEach((participant, index) => {
+    console.log(`  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`);
+    console.log(`     Voted for: ${participant.votedCatId || 'NO VOTE YET'}`);
+    console.log(`     Is dummy: ${participant.isDummy || false}`);
+  });
+
+    // Assign random votes to non-voters
+  console.log('🎲 Assigning random votes to participants who haven\'t voted:');
+  let autoVotesAssigned = 0;
+
+  this.participants.forEach(participant => {
+    if (!participant.votedCatId) {
+      const availableCats = this.participants
+        .filter(p => p.catId !== participant.catId)
+        .map(p => p.catId);
+      
+      if (availableCats.length > 0) {
+        const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
+        participant.votedCatId = choice;
+        autoVotesAssigned++;
+
+        const votedForParticipant = this.participants.find(p => p.catId === choice);
+        console.log(`  ⚡ Auto-vote: ${participant.username} → ${votedForParticipant?.catName || choice}`);
+      }
+    }
+  });
+
+    console.log(`✅ Assigned ${autoVotesAssigned} automatic votes`);
     this.finalizeVoting();
   }
 
-  finalizeVoting() {
-    if (this.isFinalized) return;
-    this.isFinalized = true;
+finalizeVoting() {
+  if (this.isFinalized) return;
+  this.isFinalized = true;
 
-    if (this.votingTimer) clearTimeout(this.votingTimer);
+  console.log('🏁 FINALIZING VOTING - No more changes allowed');
 
-    this.calculateResults();
+  if (this.votingTimer) {
+    clearTimeout(this.votingTimer);
+    console.log('⏹️ Voting timer cleared');
+  }
 
-    // Send results to all participants
+  this.calculateResults();
+
+  // Show announcement before results
+  console.log('📺 Sending "calculating votes" announcement to participants');
+  this.participants.forEach(participant => {
+    if (participant.socket?.connected) {
+      participant.socket.emit('calculating_announcement', {
+        type: 'calculating_announcement',
+        message: 'CALCULATING VOTES, PLEASE WAIT . . .'
+      });
+    }
+  });
+
+  // Wait 3 seconds then send results
+  setTimeout(() => {
+    console.log('📤 Sending final results to all participants');
     this.participants.forEach(participant => {
       if (participant.socket?.connected) {
         participant.socket.emit('results', {
           type: 'results',
           participants: this.getParticipantsForClient()
         });
-        console.log(`📤 Sent results to ${participant.playerId}`);
+        console.log(`  ✅ Results sent to ${participant.username}`);
+      } else {
+        console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
       }
     });
-  }
+    
+    console.log('🎉 GAME ROOM COMPLETE - All results distributed');
+  }, 3000);
+}
 
-  calculateResults() {
-    // Count votes
+calculateResults() {
+  console.log('🧮 CALCULATING VOTE RESULTS');
+  console.log('=' .repeat(50));
+
+  // Count votes
     const votes = {};
-    this.participants.forEach(p => {
-      if (p.votedCatId) {
-        votes[p.votedCatId] = (votes[p.votedCatId] || 0) + 1;
-      }
-    });
+  console.log('📊 Counting votes:');
+  
+  this.participants.forEach(voter => {
+    if (voter.votedCatId) {
+      votes[voter.votedCatId] = (votes[voter.votedCatId] || 0) + 1;
+      
+      const votedForParticipant = this.participants.find(p => p.catId === voter.votedCatId);
+      console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId}`);
+    }
+  });
+
+  console.log('📈 Vote tallies:');
+  Object.entries(votes).forEach(([catId, voteCount]) => {
+    const participant = this.participants.find(p => p.catId.toString() === catId.toString());
+    console.log(`  ${participant?.catName || catId}: ${voteCount} vote(s)`);
+  });
 
     // Calculate rewards
+    console.log('💰 Calculating coin rewards:');
+    let totalCoinsDistributed = 0;
+    
     this.participants.forEach(p => {
       p.votesReceived = votes[p.catId] || 0;
       p.coinsEarned = p.votesReceived * 25;
-      console.log(`💰 ${p.playerId} earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
+      totalCoinsDistributed += p.coinsEarned;
+      
+      console.log(`  💎 ${p.catName} (${p.username}): ${p.votesReceived} votes = ${p.coinsEarned} coins`);
     });
+
+    console.log(`🏆 RESULTS SUMMARY:`);
+    console.log(`   Total votes cast: ${Object.values(votes).reduce((a, b) => a + b, 0)}`);
+    console.log(`   Total coins distributed: ${totalCoinsDistributed}`);
+    
+    // Sort by votes for ranking display
+    const sortedParticipants = [...this.participants].sort((a, b) => b.votesReceived - a.votesReceived);
+    console.log(`🥇 Final rankings:`);
+    sortedParticipants.forEach((p, index) => {
+      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+      console.log(`   ${medal} ${index + 1}. ${p.catName} - ${p.votesReceived} votes (${p.coinsEarned} coins)`);
+    });
+
+    console.log('=' .repeat(50));
   }
 
   broadcastVotingUpdate() {

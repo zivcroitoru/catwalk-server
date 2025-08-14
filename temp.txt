@@ -1,5 +1,9 @@
 import DB from '../db.js';
 
+// ═══════════════════════════════════════════════════════════════
+// FASHION SHOW LOGIC (NEW)
+// ═══════════════════════════════════════════════════════════════
+
 // Fashion Show Constants
 const PARTICIPANTS_IN_ROOM = 4;
 const VOTING_TIMER = 60;
@@ -10,7 +14,7 @@ let waitingRoom = {
   isVoting: false
 };
 
-// Enhanced participant creation with database queries
+// ─────────────── Enhanced participant creation with database queries ───────────────
 async function createParticipant(playerId, catId, socket) {
   console.log(`🔍 Fetching complete data for player ${playerId}, cat ${catId}`);
   
@@ -121,7 +125,7 @@ async function createParticipant(playerId, catId, socket) {
   return participant;
 }
 
-// Game Room Class
+// ─────────────── Game Room Class ───────────────
 class GameRoom {
   constructor(participants) {
     this.participants = participants;
@@ -191,18 +195,43 @@ class GameRoom {
   handleVotingTimeout() {
     if (this.isFinalized) return;
 
+    console.log('⏰ VOTING TIMEOUT REACHED - Beginning vote calculation process');
+    console.log(`📊 Room status before timeout:`, {
+      participantCount: this.participants.length,
+      votingStartTime: new Date(this.votingStartTime).toISOString(),
+      timeElapsed: ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + 's'
+    });
+
+    // Log current voting state
+    console.log('🗳️ Current voting state:');
+    this.participants.forEach((participant, index) => {
+      console.log(`  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`);
+      console.log(`     Voted for: ${participant.votedCatId || 'NO VOTE YET'}`);
+      console.log(`     Is dummy: ${participant.isDummy || false}`);
+    });
+
     // Assign random votes to non-voters
+    console.log('🎲 Assigning random votes to participants who haven\'t voted:');
+    let autoVotesAssigned = 0;
+    
     this.participants.forEach(participant => {
       if (!participant.votedCatId) {
-        const availableCats = this.participants.filter(p => p.catId !== participant.catId).map(p => p.catId);
+        const availableCats = this.participants
+          .filter(p => p.catId !== participant.catId)
+          .map(p => p.catId);
+        
         if (availableCats.length > 0) {
           const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
           participant.votedCatId = choice;
-          console.log(`⚠️ Timeout vote for ${participant.playerId}: voted ${choice}`);
+          autoVotesAssigned++;
+          
+          const votedForParticipant = this.participants.find(p => p.catId === choice);
+          console.log(`  ⚡ Auto-vote: ${participant.username} → ${votedForParticipant?.catName || choice}`);
         }
       }
     });
 
+    console.log(`✅ Assigned ${autoVotesAssigned} automatic votes`);
     this.finalizeVoting();
   }
 
@@ -210,37 +239,93 @@ class GameRoom {
     if (this.isFinalized) return;
     this.isFinalized = true;
 
-    if (this.votingTimer) clearTimeout(this.votingTimer);
+    console.log('🏁 FINALIZING VOTING - No more changes allowed');
+
+    if (this.votingTimer) {
+      clearTimeout(this.votingTimer);
+      console.log('⏹️ Voting timer cleared');
+    }
 
     this.calculateResults();
 
-    // Send results to all participants
+    // Show announcement before results
+    console.log('📺 Sending "calculating votes" announcement to participants');
     this.participants.forEach(participant => {
       if (participant.socket?.connected) {
-        participant.socket.emit('results', {
-          type: 'results',
-          participants: this.getParticipantsForClient()
+        participant.socket.emit('calculating_announcement', {
+          type: 'calculating_announcement',
+          message: 'CALCULATING VOTES, PLEASE WAIT . . .'
         });
-        console.log(`📤 Sent results to ${participant.playerId}`);
       }
     });
+
+    // Wait 3 seconds then send results
+    setTimeout(() => {
+      console.log('📤 Sending final results to all participants');
+      this.participants.forEach(participant => {
+        if (participant.socket?.connected) {
+          participant.socket.emit('results', {
+            type: 'results',
+            participants: this.getParticipantsForClient()
+          });
+          console.log(`  ✅ Results sent to ${participant.username}`);
+        } else {
+          console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
+        }
+      });
+      
+      console.log('🎉 GAME ROOM COMPLETE - All results distributed');
+    }, 3000);
   }
 
   calculateResults() {
+    console.log('🧮 CALCULATING VOTE RESULTS');
+    console.log('=' .repeat(50));
+
     // Count votes
     const votes = {};
-    this.participants.forEach(p => {
-      if (p.votedCatId) {
-        votes[p.votedCatId] = (votes[p.votedCatId] || 0) + 1;
+    console.log('📊 Counting votes:');
+    
+    this.participants.forEach(voter => {
+      if (voter.votedCatId) {
+        votes[voter.votedCatId] = (votes[voter.votedCatId] || 0) + 1;
+        
+        const votedForParticipant = this.participants.find(p => p.catId === voter.votedCatId);
+        console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId}`);
       }
     });
 
+    console.log('📈 Vote tallies:');
+    Object.entries(votes).forEach(([catId, voteCount]) => {
+      const participant = this.participants.find(p => p.catId.toString() === catId.toString());
+      console.log(`  ${participant?.catName || catId}: ${voteCount} vote(s)`);
+    });
+
     // Calculate rewards
+    console.log('💰 Calculating coin rewards:');
+    let totalCoinsDistributed = 0;
+    
     this.participants.forEach(p => {
       p.votesReceived = votes[p.catId] || 0;
       p.coinsEarned = p.votesReceived * 25;
-      console.log(`💰 ${p.playerId} earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
+      totalCoinsDistributed += p.coinsEarned;
+      
+      console.log(`  💎 ${p.catName} (${p.username}): ${p.votesReceived} votes = ${p.coinsEarned} coins`);
     });
+
+    console.log(`🏆 RESULTS SUMMARY:`);
+    console.log(`   Total votes cast: ${Object.values(votes).reduce((a, b) => a + b, 0)}`);
+    console.log(`   Total coins distributed: ${totalCoinsDistributed}`);
+    
+    // Sort by votes for ranking display
+    const sortedParticipants = [...this.participants].sort((a, b) => b.votesReceived - a.votesReceived);
+    console.log(`🥇 Final rankings:`);
+    sortedParticipants.forEach((p, index) => {
+      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+      console.log(`   ${medal} ${index + 1}. ${p.catName} - ${p.votesReceived} votes (${p.coinsEarned} coins)`);
+    });
+
+    console.log('=' .repeat(50));
   }
 
   broadcastVotingUpdate() {
@@ -278,7 +363,7 @@ class GameRoom {
         const vote = options[Math.floor(Math.random() * options.length)];
         p.votedCatId = vote;
         console.log(`⚠️ ${p.playerId} disconnected - voting randomly for ${vote}`);
-        
+
         const allVoted = this.participants.every(p => p.votedCatId);
         if (allVoted) {
           this.finalizeVoting();
@@ -290,7 +375,7 @@ class GameRoom {
   }
 }
 
-// Broadcast waiting room updates
+// ─────────────── Broadcast waiting room updates ───────────────
 function broadcastWaitingRoomUpdate() {
   console.log(`📤 Broadcasting waiting room update to ${waitingRoom.participants.length} participants`);
   
@@ -314,7 +399,10 @@ function broadcastWaitingRoomUpdate() {
   });
 }
 
-// Main socket setup function
+// ═══════════════════════════════════════════════════════════════
+// MAIN SOCKET SETUP FUNCTION 
+// ═══════════════════════════════════════════════════════════════
+
 export default function setupSocket(io) {
   const playerSockets = new Map();
   const adminSockets = new Set();
@@ -322,7 +410,10 @@ export default function setupSocket(io) {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // Fashion Show handlers
+    // ═══════════════════════════════════════════════════════════════
+    // FASHION SHOW SOCKET HANDLERS 
+    // ═══════════════════════════════════════════════════════════════
+
     let currentRoom = null;
     let participant = null;
 
@@ -354,6 +445,7 @@ export default function setupSocket(io) {
           });
 
           currentRoom = gameRoom;
+
           waitingRoom = { participants: [], isVoting: false };
         }
       } else {
@@ -369,15 +461,22 @@ export default function setupSocket(io) {
       }
     });
 
-    // Existing ticket system handlers (unchanged)
+    // ═══════════════════════════════════════════════════════════════
+    // EXISTING TICKET SYSTEM HANDLERS (UNCHANGED)
+    // ═══════════════════════════════════════════════════════════════
+
+    // Admin sends a broadcast
     socket.on("adminBroadcast", async ({ message }) => {
       try {
+        // 1. Save broadcast to DB
         const insertResult = await DB.query(
           `INSERT INTO broadcasts (body) VALUES ($1) RETURNING *`,
           [message]
         );
+
         const broadcast = insertResult.rows[0];
 
+        // 2. Emit broadcast to all players
         const playersResult = await DB.query("SELECT id FROM players");
         playersResult.rows.forEach(row => {
           io.to(`user_${row.id}`).emit("adminBroadcast", {
@@ -386,27 +485,32 @@ export default function setupSocket(io) {
           });
         });
 
+        // 3. Notify all admins that broadcast was sent
         io.to("admins").emit("broadcastSent", {
           message: broadcast.body,
           date: broadcast.sent_at,
           count: playersResult.rows.length
         });
+
       } catch (err) {
         console.error("Error sending broadcast:", err);
         socket.emit("errorMessage", { message: "Failed to send broadcast." });
       }
     });
 
+    // Admin registers
     socket.on('registerAdmin', () => {
       adminSockets.add(socket.id);
       socket.join('admins');
-      console.log(`Admin registered: ${socket.id}`);
+      console.log(`Admin registered and joined admins room: ${socket.id}`);
     });
 
+    // Player registers and joins all their open ticket rooms
     socket.on('registerPlayer', async (userId) => {
       socket.join(`user_${userId}`);
+
       playerSockets.set(userId, socket.id);
-      console.log(`Registered player ${userId}`);
+      console.log(`Registered player ${userId} with socket ${socket.id}`);
 
       try {
         const result = await DB.query(
@@ -416,22 +520,24 @@ export default function setupSocket(io) {
         result.rows.forEach(row => {
           const ticketRoom = `ticket_${row.ticket_id}`;
           socket.join(ticketRoom);
-          console.log(`Player joined ticket room: ${ticketRoom}`);
+          console.log(`Player socket joined ticket room: ${ticketRoom}`);
         });
       } catch (err) {
         console.error('Failed to get player tickets:', err);
       }
     });
 
+    // Admin joins a ticket room
     socket.on('joinTicketRoom', ({ ticketId }) => {
       const roomName = `ticket_${ticketId}`;
       socket.join(roomName);
-      console.log(`Admin joined ticket room: ${roomName}`);
+      console.log(`Admin socket ${socket.id} joined ticket room: ${roomName}`);
     });
 
+    // Player sends message
     socket.on('playerMessage', async ({ ticketId, userId, text }) => {
       const roomName = `ticket_${ticketId}`;
-      console.log(`Player ${userId} message for ticket ${ticketId}: ${text}`);
+      console.log(`Player ${userId} sent message for ticket ${ticketId}: ${text}`);
 
       try {
         await DB.query(
@@ -450,6 +556,7 @@ export default function setupSocket(io) {
       });
     });
 
+    // Player opens ticket
     socket.on('openTicketRequest', async ({ userId }, callback) => {
       try {
         const result = await DB.query(
@@ -464,8 +571,12 @@ export default function setupSocket(io) {
             `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
             [userId]
           );
+
           const newTicket = insertResult.rows[0];
+
+          // To notify all admins of new ticket
           io.to('admins').emit('newTicketCreated', newTicket);
+
           callback({ ticket: newTicket });
         }
       } catch (err) {
@@ -474,9 +585,10 @@ export default function setupSocket(io) {
       }
     });
 
+    // Admin sends message
     socket.on('adminMessage', async ({ ticketId, text }) => {
       const roomName = `ticket_${ticketId}`;
-      console.log(`Admin message to ticket ${ticketId}: ${text}`);
+      console.log(`Admin sent message to ticket ${ticketId}: ${text}`);
 
       try {
         await DB.query(
@@ -494,21 +606,30 @@ export default function setupSocket(io) {
       });
     });
 
+    // Admin closes ticket via socket
     socket.on('closeTicket', async ({ ticketId }) => {
       try {
+        // Update DB
         await DB.query(
           `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1`,
           [ticketId]
         );
-        console.log(`Ticket ${ticketId} closed by admin`);
+
+        console.log(`Ticket ${ticketId} closed by admin.`);
+
+        // Broadcast to all in that ticket room
         io.to(`ticket_${ticketId}`).emit('ticketClosed', { ticketId });
+
       } catch (err) {
         console.error('Error closing ticket:', err);
         socket.emit('errorMessage', { message: 'Failed to close ticket.' });
       }
     });
 
-    // Disconnect handler
+    // ═══════════════════════════════════════════════════════════════
+    // DISCONNECT HANDLER (UPDATED TO HANDLE BOTH SYSTEMS)
+    // ═══════════════════════════════════════════════════════════════
+
     socket.on('disconnect', () => {
       console.log('User disconnected:', socket.id);
 
