@@ -120,7 +120,7 @@ router.post('/broadcast', async (req, res) => {
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     const result = await DB.query(
-      'INSERT INTO broadcasts (message) VALUES ($1) RETURNING *',
+      'INSERT INTO broadcasts (body) VALUES ($1) RETURNING *',
       [message]
     );
 
