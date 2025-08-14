@@ -1,12 +1,9 @@
 //eoutes/messages.js
-import { io } from '../socket.js';
 
 import express from 'express';
 import DB from '../db.js';
 
 const router = express.Router();
-
-
 
 // Get all messages for a room
 router.get('/:roomId/messages', async (req, res) => {
@@ -120,20 +117,21 @@ router.get('/broadcasts', async (req, res) => {
 router.post('/broadcasts', async (req, res) => {
   try {
     const { message } = req.body;
-    if (!message) return res.status(400).json({ error: 'Message is required' });
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
 
     const result = await DB.query(
       'INSERT INTO broadcasts (body) VALUES ($1) RETURNING *',
       [message]
     );
 
-    // Emit to all connected players
-    io.emit('adminBroadcast', { message: result.rows[0].body, date: result.rows[0].sent_at });
+    // Just return the inserted row, no Socket.IO emit
+    return res.status(201).json(result.rows[0]);
 
-    res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to save broadcast' });
+    console.error('Error saving broadcast:', err);
+    return res.status(500).json({ error: 'Failed to save broadcast' });
   }
 });
 

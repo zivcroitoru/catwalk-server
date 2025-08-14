@@ -1,16 +1,11 @@
 import DB from '../db.js';
-// socket.js
-export let io;
-export function init(server) {
-  io = new Server(server);
-}
 
 // ═══════════════════════════════════════════════════════════════
-// FASHION SHOW LOGIC (ENHANCED)
+// FASHION SHOW LOGIC (NEW)
 // ═══════════════════════════════════════════════════════════════
 
 // Constants
-const PARTICIPANTS_IN_ROOM = 2;
+const PARTICIPANTS_IN_ROOM = 5;
 const VOTING_TIMER = 60;
 
 // Global waiting room singleton
@@ -19,99 +14,7 @@ let waitingRoom = {
   isVoting: false
 };
 
-// ─────────────── Enhanced Participant Creation ───────────────
-async function createParticipant(playerId, catId, socket) {
-  console.log(`🔍 STEP 1A - Fetching data for player ${playerId}, cat ${catId}`);
-  
-  // Start with basic participant structure
-  const participant = {
-    playerId,
-    catId,
-    socket,
-    isDummy: false,
-    username: `Player_${playerId}`, // fallback
-    catName: `Cat_${catId}` // fallback
-  };
-
-  try {
-    // STEP 1A-1: Fetch player data from database
-    console.log(`🔍 STEP 1A-1 - Querying players table for id=${playerId}`);
-    const playerResult = await DB.query(
-      'SELECT id, username FROM players WHERE id = $1',
-      [playerId]
-    );
-    
-    console.log(`🔍 STEP 1A-1 - Player query result:`, playerResult.rows);
-    
-    if (playerResult.rows.length > 0) {
-      const playerRow = playerResult.rows[0];
-      if (playerRow.username) {
-        participant.username = playerRow.username;
-        console.log(`✅ STEP 1A-1 - Found username: ${participant.username}`);
-      } else {
-        console.log(`⚠️ STEP 1A-1 - Player ${playerId} has null/empty username, using fallback`);
-      }
-    } else {
-      console.log(`⚠️ STEP 1A-1 - No player found with id ${playerId}, using fallback`);
-    }
-
-    // STEP 1A-2: Fetch cat data from database
-    console.log(`🔍 STEP 1A-2 - Querying player_cats table for cat_id=${catId}, player_id=${playerId}`);
-    const catResult = await DB.query(
-      'SELECT cat_id, player_id, name, template FROM player_cats WHERE cat_id = $1 AND player_id = $2',
-      [catId, playerId]
-    );
-    
-    console.log(`🔍 STEP 1A-2 - Cat query result:`, catResult.rows);
-    
-    if (catResult.rows.length > 0) {
-      const catRow = catResult.rows[0];
-      if (catRow.name) {
-        participant.catName = catRow.name;
-        console.log(`✅ STEP 1A-2 - Found cat name: ${participant.catName}`);
-      } else {
-        console.log(`⚠️ STEP 1A-2 - Cat ${catId} has null/empty name, using fallback`);
-      }
-      console.log(`📊 STEP 1A-2 - Cat details: template=${catRow.template}`);
-    } else {
-      console.log(`⚠️ STEP 1A-2 - No cat found with cat_id=${catId} and player_id=${playerId}`);
-      
-      // DEBUG: Let's see what cats this player actually has
-      console.log(`🔍 STEP 1A-2 DEBUG - Checking all cats for player ${playerId}:`);
-      const debugResult = await DB.query(
-        'SELECT cat_id, player_id, name, template FROM player_cats WHERE player_id = $1',
-        [playerId]
-      );
-      console.log(`🔍 STEP 1A-2 DEBUG - Found ${debugResult.rows.length} cats:`, debugResult.rows);
-      
-      // Additional debug: Check if the cat exists at all
-      console.log(`🔍 STEP 1A-2 DEBUG - Checking if cat ${catId} exists anywhere:`);
-      const catExistsResult = await DB.query(
-        'SELECT cat_id, player_id, name FROM player_cats WHERE cat_id = $1',
-        [catId]
-      );
-      console.log(`🔍 STEP 1A-2 DEBUG - Cat ${catId} exists:`, catExistsResult.rows);
-    }
-
-  } catch (err) {
-    console.error(`❌ STEP 1A ERROR - Failed to fetch data for player ${playerId}, cat ${catId}:`, err);
-    console.error(`❌ STEP 1A ERROR - Error details:`, err.message);
-    // Keep using fallback values
-  }
-
-  // STEP 1A-3: Final participant summary
-  console.log(`✅ STEP 1A-3 - Final participant created:`, {
-    playerId: participant.playerId,
-    catId: participant.catId,
-    username: participant.username,
-    catName: participant.catName,
-    isDummy: participant.isDummy
-  });
-
-  return participant;
-}
-
-// ─────────────── Game Room Class (Enhanced) ───────────────
+// ─────────────── Game Room Class ───────────────
 class GameRoom {
   constructor(participants) {
     this.participants = participants;
@@ -120,7 +23,7 @@ class GameRoom {
     this.isFinalized = false;
     this.votingTimer = null;
 
-    console.log('🗳️ GameRoom created with participants:', this.participants.map(p => `${p.username} (${p.catName})`));
+    console.log('🗳️ GameRoom created with participants:', this.participants.map(p => p.playerId));
     this.startVotingPhase();
   }
 
@@ -134,7 +37,7 @@ class GameRoom {
           participants: this.getParticipantsForClient(),
           timerSeconds: VOTING_TIMER
         });
-        console.log(`📤 Sent voting_phase to ${participant.username}`);
+        console.log(`📤 Sent voting_phase to ${participant.playerId}`);
       }
     });
 
@@ -154,7 +57,7 @@ class GameRoom {
     const availableCats = this.participants.filter(p => p.catId !== dummy.catId).map(p => p.catId);
     if (availableCats.length > 0) {
       const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
-      console.log(`🤖 Dummy ${dummy.username} voting for cat ${choice}`);
+      console.log(`🤖 Dummy ${dummy.playerId} voting for ${choice}`);
       this.handleVote(dummy, choice);
     }
   }
@@ -163,7 +66,7 @@ class GameRoom {
     if (this.isFinalized || votedCatId === voter.catId) return;
 
     voter.votedCatId = votedCatId;
-    console.log(`🗳️ ${voter.username} voted for cat ${votedCatId}`);
+    console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
 
     this.broadcastVotingUpdate();
 
@@ -183,7 +86,7 @@ class GameRoom {
         if (availableCats.length > 0) {
           const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
           participant.votedCatId = choice;
-          console.log(`⚠️ Timeout vote for ${participant.username}: voted for cat ${choice}`);
+          console.log(`⚠️ Timeout vote for ${participant.playerId}: voted ${choice}`);
         }
       }
     });
@@ -205,7 +108,7 @@ class GameRoom {
           type: 'results',
           participants: this.getParticipantsForClient()
         });
-        console.log(`📤 Sent results to ${participant.username}`);
+        console.log(`📤 Sent results to ${participant.playerId}`);
       }
     });
   }
@@ -221,7 +124,7 @@ class GameRoom {
     this.participants.forEach(p => {
       p.votesReceived = votes[p.catId] || 0;
       p.coinsEarned = p.votesReceived * 25;
-      console.log(`💰 ${p.username} (${p.catName}) earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
+      console.log(`💰 ${p.playerId} earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
     });
   }
 
@@ -232,7 +135,7 @@ class GameRoom {
           type: 'voting_update',
           participants: this.getParticipantsForClient()
         });
-        console.log(`🔄 Sent voting update to ${p.username}`);
+        console.log(`🔄 Sent voting update to ${p.playerId}`);
       }
     });
   }
@@ -241,8 +144,6 @@ class GameRoom {
     return this.participants.map(p => ({
       playerId: p.playerId,
       catId: p.catId,
-      username: p.username,      // ← Now included!
-      catName: p.catName,        // ← Now included!
       votedCatId: p.votedCatId,
       votesReceived: p.votesReceived || 0,
       coinsEarned: p.coinsEarned || 0
@@ -257,7 +158,7 @@ class GameRoom {
       if (options.length > 0) {
         const vote = options[Math.floor(Math.random() * options.length)];
         p.votedCatId = vote;
-        console.log(`⚠️ ${p.username} disconnected - voting randomly for cat ${vote}`);
+        console.log(`⚠️ ${p.playerId} disconnected - voting randomly for ${vote}`);
         const allVoted = this.participants.every(p => p.votedCatId);
         allVoted ? this.finalizeVoting() : this.broadcastVotingUpdate();
       }
@@ -271,50 +172,31 @@ function generateDummyParticipant() {
   const dummy = {
     playerId: `dummy_${id}`,
     catId: `cat_${id}`,
-    username: `Dummy_${id}`,
-    catName: `DummyCat_${id}`,
     isDummy: true,
     socket: null
   };
-  console.log(`👻 Generated dummy: ${dummy.username} (${dummy.catName})`);
+  console.log(`👻 Generated dummy: ${dummy.playerId}`);
   return dummy;
 }
 
 function broadcastWaitingRoomUpdate() {
-  console.log(`📤 STEP 1E - Broadcasting waiting room update to ${waitingRoom.participants.length} participants`);
-  
-  // Prepare the data to send to clients
-  const participantsForClient = waitingRoom.participants.map(p => ({
-    playerId: p.playerId,
-    catId: p.catId,
-    username: p.username,    // ← Now included!
-    catName: p.catName       // ← Now included!
-  }));
-  
-  console.log(`📤 STEP 1E - Participants data being sent to clients:`, participantsForClient);
-  
-  const updateMessage = {
-    type: 'participant_update',
-    participants: participantsForClient,
-    maxCount: PARTICIPANTS_IN_ROOM
-  };
-  
-  console.log(`📤 STEP 1E - Complete update message:`, updateMessage);
-
-  waitingRoom.participants.forEach((participant, index) => {
-    if (participant.socket?.connected) {
-      console.log(`📤 STEP 1E - Sending update to participant ${index + 1}: ${participant.username} (socket: ${participant.socket.id})`);
-      participant.socket.emit('participant_update', updateMessage);
-    } else {
-      console.warn(`⚠️ STEP 1E - Participant ${index + 1} (${participant.username}) has no connected socket`);
+  waitingRoom.participants.forEach(p => {
+    if (p.socket?.connected) {
+      p.socket.emit('participant_update', {
+        type: 'participant_update',
+        participants: waitingRoom.participants.map(p => ({
+          playerId: p.playerId,
+          catId: p.catId
+        })),
+        maxCount: PARTICIPANTS_IN_ROOM
+      });
+      console.log(`📤 Sent waiting room update to ${p.playerId}`);
     }
   });
-  
-  console.log(`✅ STEP 1E - Waiting room update broadcast complete`);
 }
 
 // ═══════════════════════════════════════════════════════════════
-// MAIN SOCKET SETUP FUNCTION (ENHANCED)
+// MAIN SOCKET SETUP FUNCTION (UPDATED)
 // ═══════════════════════════════════════════════════════════════
 
 export default function setupSocket(io) {
@@ -326,63 +208,42 @@ export default function setupSocket(io) {
     console.log('User connected:', socket.id);
 
     // ═══════════════════════════════════════════════════════════════
-    // FASHION SHOW SOCKET HANDLERS (ENHANCED)
+    // FASHION SHOW SOCKET HANDLERS (NEW)
     // ═══════════════════════════════════════════════════════════════
 
     let currentRoom = null;
     let participant = null;
 
-    // ─────────────── ENHANCED Join Handler ───────────────
-    socket.on('join', async (message) => {
-      console.log('🎭 STEP 1B - Fashion Show received join message:', message);
+    socket.on('join', (message) => {
+      console.log('🎭 Fashion Show - Received join message:', message);
 
       if (!message.playerId || !message.catId) {
-        console.warn('⚠️ STEP 1B - Missing playerId or catId. Disconnecting.');
-        console.warn('⚠️ STEP 1B - Received:', { playerId: message.playerId, catId: message.catId });
+        console.warn('⚠️ Fashion Show - Missing playerId or catId. Disconnecting.');
         return socket.disconnect();
       }
 
-      console.log(`🎯 STEP 1B - Valid join request: playerId=${message.playerId}, catId=${message.catId}`);
+      participant = {
+        playerId: message.playerId,
+        catId: message.catId,
+        socket,
+        isDummy: false
+      };
+      console.log(`✅ Fashion Show - Registered: ${participant.playerId} (${participant.catId})`);
 
-      // STEP 1A: Create enhanced participant with full data from database
-      console.log(`🔄 STEP 1A - Creating participant for player ${message.playerId} with cat ${message.catId}`);
-      participant = await createParticipant(message.playerId, message.catId, socket);
-      
-      console.log(`✅ STEP 1A - Participant created successfully:`, {
-        playerId: participant.playerId,
-        catId: participant.catId,
-        username: participant.username,
-        catName: participant.catName
-      });
-
-      // STEP 1C: Check if waiting room is available
-      console.log(`🔍 STEP 1C - Checking waiting room status:`);
-      console.log(`🔍 STEP 1C - Current participants: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
-      console.log(`🔍 STEP 1C - Is voting: ${waitingRoom.isVoting}`);
-      
       if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
-        // STEP 1D: Add to waiting room
         waitingRoom.participants.push(participant);
         currentRoom = waitingRoom;
 
-        console.log(`👥 STEP 1D - Added to waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
-        console.log(`👥 STEP 1D - Current participants in room:`);
-        waitingRoom.participants.forEach((p, index) => {
-          console.log(`  ${index + 1}. ${p.username} (playerId: ${p.playerId}) with ${p.catName} (catId: ${p.catId})${p.isDummy ? ' [DUMMY]' : ''}`);
-        });
+        console.log(`👥 Fashion Show - Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
 
-        // STEP 1E: Broadcast waiting room update
-        console.log(`📤 STEP 1E - Broadcasting waiting room update to all participants`);
+        // REMOVED: Auto-fill with dummies for testing
+        // We want real players only in the waiting room
+
         broadcastWaitingRoomUpdate();
 
-        // STEP 1F: Check if room is full and ready for voting
+        // Only launch game room when we have exactly 5 REAL participants
         if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-          console.log(`🚀 STEP 1F - Room is full! Launching game room with ${PARTICIPANTS_IN_ROOM} players`);
-          console.log(`🚀 STEP 1F - Final participant list:`);
-          waitingRoom.participants.forEach((p, index) => {
-            console.log(`  ${index + 1}. ${p.username} with ${p.catName}${p.isDummy ? ' [DUMMY]' : ''}`);
-          });
-          
+          console.log('🚀 Fashion Show - Launching game room with 5 real players');
           const gameRoom = new GameRoom([...waitingRoom.participants]);
 
           waitingRoom.participants.forEach(p => {
@@ -391,20 +252,13 @@ export default function setupSocket(io) {
 
           currentRoom = gameRoom;
 
-          // Reset waiting room for next round
           waitingRoom = {
             participants: [],
             isVoting: false
           };
-          console.log(`🔄 STEP 1F - Waiting room reset for next round`);
         }
       } else {
-        console.warn('❌ STEP 1C - Cannot join: Waiting room full or voting in progress');
-        console.warn('❌ STEP 1C - Current state:', {
-          participantCount: waitingRoom.participants.length,
-          maxParticipants: PARTICIPANTS_IN_ROOM,
-          isVoting: waitingRoom.isVoting
-        });
+        console.warn('❌ Fashion Show - Waiting room full or voting. Disconnecting.');
         socket.disconnect();
       }
     });
@@ -599,11 +453,11 @@ socket.on("adminBroadcast", async ({ message }) => {
           if (idx > -1) {
             waitingRoom.participants.splice(idx, 1);
             broadcastWaitingRoomUpdate();
-            console.log(`👤 Fashion Show - ${participant.username} left waiting room`);
+            console.log(`👤 Fashion Show - ${participant.playerId} left waiting room`);
           }
         } else if (currentRoom instanceof GameRoom) {
           currentRoom.handleParticipantDisconnect(participant);
-          console.log(`👤 Fashion Show - ${participant.username} disconnected during game`);
+          console.log(`👤 Fashion Show - ${participant.playerId} disconnected during game`);
         }
       }
 
