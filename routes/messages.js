@@ -103,7 +103,7 @@ router.post('/send', async (req, res) => {
 router.get('/broadcasts', async (req, res) => {
   console.log("GET /broadcasts route hit");   // <-- check if this prints
   try {
-    const result = await DB.query('SELECT * FROM broadcasts');
+    const result = await DB.query('SELECT * FROM public.broadcasts');
     res.status(200).json(result.rows);
     console.log('DB rows:', result.rows);    // <-- check what the DB returns
   } catch (err) {
