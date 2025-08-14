@@ -8,7 +8,7 @@ export default function createBroadcastRouter(io) {
   router.get('/broadcasts', async (req, res) => {
     console.log("GET /broadcasts route hit");
     try {
-      const result = await DB.query('SELECT * FROM public.broadcasts');
+      const result = await DB.query('SELECT * FROM public.broadcasts ORDER BY sent_at DESC');
       res.status(200).json(result.rows);
     } catch (err) {
       console.error('Failed to fetch broadcasts:', err);
