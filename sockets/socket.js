@@ -1,4 +1,9 @@
 import DB from '../db.js';
+// socket.js
+export let io;
+export function init(server) {
+  io = new Server(server);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // FASHION SHOW LOGIC (NEW)

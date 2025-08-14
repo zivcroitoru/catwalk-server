@@ -1,9 +1,12 @@
 //eoutes/messages.js
+import { io } from '../socket.js';
 
 import express from 'express';
 import DB from '../db.js';
 
 const router = express.Router();
+
+
 
 // Get all messages for a room
 router.get('/:roomId/messages', async (req, res) => {
