@@ -114,27 +114,27 @@ router.post('/send', async (req, res) => {
 
 
 
-// Save a broadcast
-router.post('/broadcasts', async (req, res) => {
-  try {
-    const { message } = req.body;
-    if (!message) {
-      return res.status(400).json({ error: 'Message is required' });
-    }
+// // Save a broadcast
+// router.post('/broadcasts', async (req, res) => {
+//   try {
+//     const { message } = req.body;
+//     if (!message) {
+//       return res.status(400).json({ error: 'Message is required' });
+//     }
 
-    const result = await DB.query(
-      'INSERT INTO broadcasts (body) VALUES ($1) RETURNING *',
-      [message]
-    );
+//     const result = await DB.query(
+//       'INSERT INTO broadcasts (body) VALUES ($1) RETURNING *',
+//       [message]
+//     );
 
-    // Just return the inserted row, no Socket.IO emit
-    return res.status(201).json(result.rows[0]);
+//     // Just return the inserted row, no Socket.IO emit
+//     return res.status(201).json(result.rows[0]);
 
-  } catch (err) {
-    console.error('Error saving broadcast:', err);
-    return res.status(500).json({ error: 'Failed to save broadcast' });
-  }
-});
+//   } catch (err) {
+//     console.error('Error saving broadcast:', err);
+//     return res.status(500).json({ error: 'Failed to save broadcast' });
+//   }
+// });
 
 
 router.get('/test', (req, res) => {

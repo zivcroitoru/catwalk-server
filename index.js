@@ -43,6 +43,8 @@ import player_itemsRoutes from './routes/player_items.js';
 import catItemsRoutes from './routes/cat_items.js';
 import mailboxRoutes from './routes/mailbox.js';
 import ticketsRoutes from './routes/tickets.js';
+import broadcastRoutes from './routes/broadcasts.js';
+
 
 app.use('/auth', authRoutes);
 app.use('/api/cats', catsRoutes);
@@ -54,6 +56,7 @@ app.use('/api/playerItems', player_itemsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/mailbox', mailboxRoutes);
 app.use('/api/tickets', ticketsRoutes);
+app.use('/api/broadcasts', broadcastRoutes);
 
 // Test route
 app.get('/api/test-db', async (req, res) => {
