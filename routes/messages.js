@@ -113,6 +113,26 @@ router.get('/broadcast/', async (req, res) => {
   }
 });
 
+// Save a broadcast
+router.post('/broadcast', async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) return res.status(400).json({ error: 'Message is required' });
+
+    const result = await DB.query(
+      'INSERT INTO broadcasts (message) VALUES ($1) RETURNING *',
+      [message]
+    );
+
+    // Emit to all connected players
+    io.emit('adminBroadcast', { message: result.rows[0].message, date: result.rows[0].sent_at });
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save broadcast' });
+  }
+});
 
 
 
