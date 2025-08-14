@@ -469,17 +469,19 @@ export default function setupSocket(io) {
     //broadcast/////////////
 
 // Admin sends a broadcast
+// Admin sends a broadcast
 socket.on("adminBroadcast", async ({ message }) => {
   try {
-    // 1. Save broadcast to DB
+    // 1. Save broadcast to DB with current timestamp
     const insertResult = await DB.query(
-      `INSERT INTO broadcasts (body) VALUES ($1) RETURNING *`,
+      `INSERT INTO broadcasts (body, sent_at) VALUES ($1, NOW()) RETURNING *`,
       [message]
     );
 
     const broadcast = insertResult.rows[0];
 
-    // 2. Emit broadcast to all players
+    // 2. Emit to all registered players instantly
+    // (We already track rooms for each player in registerPlayer)
     const playersResult = await DB.query("SELECT id FROM players");
     playersResult.rows.forEach(row => {
       io.to(`user_${row.id}`).emit("adminBroadcast", {
@@ -488,18 +490,21 @@ socket.on("adminBroadcast", async ({ message }) => {
       });
     });
 
-    // 3. Notify all admins that broadcast was sent
+    // 3. Notify all admins that a broadcast was sent
     io.to("admins").emit("broadcastSent", {
       message: broadcast.body,
       date: broadcast.sent_at,
       count: playersResult.rows.length
     });
 
+    console.log(`📢 Broadcast sent to ${playersResult.rows.length} players: "${broadcast.body}"`);
+
   } catch (err) {
     console.error("Error sending broadcast:", err);
     socket.emit("errorMessage", { message: "Failed to send broadcast." });
   }
 });
+
 
 
     // Admin registers
