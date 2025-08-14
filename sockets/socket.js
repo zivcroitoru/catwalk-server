@@ -16,7 +16,7 @@ let waitingRoom = {
 
 // ─────────────── Enhanced Participant Creation ───────────────
 async function createParticipant(playerId, catId, socket) {
-  console.log(`🔍 STEP 1A - Fetching data for player ${playerId}, cat ${catId}`);
+  console.log(`🔍 STEP 1A - Fetching complete data for player ${playerId}, cat ${catId}`);
   
   // Start with basic participant structure
   const participant = {
@@ -25,7 +25,9 @@ async function createParticipant(playerId, catId, socket) {
     socket,
     isDummy: false,
     username: `Player_${playerId}`, // fallback
-    catName: `Cat_${catId}` // fallback
+    catName: `Cat_${catId}`, // fallback
+    catSpriteUrl: null, // NEW: cat base sprite
+    wornItems: [] // NEW: items worn by cat
   };
 
   try {
@@ -50,24 +52,42 @@ async function createParticipant(playerId, catId, socket) {
       console.log(`⚠️ STEP 1A-1 - No player found with id ${playerId}, using fallback`);
     }
 
-    // STEP 1A-2: Fetch cat data from database
-    console.log(`🔍 STEP 1A-2 - Querying player_cats table for cat_id=${catId}, player_id=${playerId}`);
-    const catResult = await DB.query(
-      'SELECT cat_id, player_id, name, template FROM player_cats WHERE cat_id = $1 AND player_id = $2',
-      [catId, playerId]
-    );
+    // STEP 1A-2: Fetch cat data with sprite URL from joined tables
+    console.log(`🔍 STEP 1A-2 - Querying cat data with sprite URL for cat_id=${catId}, player_id=${playerId}`);
+    const catResult = await DB.query(`
+      SELECT 
+        pc.cat_id, 
+        pc.player_id, 
+        pc.name, 
+        pc.template,
+        ct.sprite_url
+      FROM player_cats pc
+      LEFT JOIN cat_templates ct ON pc.template = ct.template
+      WHERE pc.cat_id = $1 AND pc.player_id = $2
+    `, [catId, playerId]);
     
     console.log(`🔍 STEP 1A-2 - Cat query result:`, catResult.rows);
     
     if (catResult.rows.length > 0) {
       const catRow = catResult.rows[0];
+
+      // Set cat name
       if (catRow.name) {
         participant.catName = catRow.name;
         console.log(`✅ STEP 1A-2 - Found cat name: ${participant.catName}`);
       } else {
         console.log(`⚠️ STEP 1A-2 - Cat ${catId} has null/empty name, using fallback`);
       }
-      console.log(`📊 STEP 1A-2 - Cat details: template=${catRow.template}`);
+
+      // Set cat sprite URL
+      if (catRow.sprite_url) {
+        participant.catSpriteUrl = catRow.sprite_url;
+        console.log(`✅ STEP 1A-2 - Found cat sprite URL: ${participant.catSpriteUrl}`);
+      } else {
+        console.log(`⚠️ STEP 1A-2 - No sprite URL found for cat ${catId}`);
+      }
+      
+      console.log(`📊 STEP 1A-2 - Cat details: template=${catRow.template}, sprite_url=${catRow.sprite_url}`);
     } else {
       console.log(`⚠️ STEP 1A-2 - No cat found with cat_id=${catId} and player_id=${playerId}`);
       
@@ -78,14 +98,31 @@ async function createParticipant(playerId, catId, socket) {
         [playerId]
       );
       console.log(`🔍 STEP 1A-2 DEBUG - Found ${debugResult.rows.length} cats:`, debugResult.rows);
-      
-      // Additional debug: Check if the cat exists at all
-      console.log(`🔍 STEP 1A-2 DEBUG - Checking if cat ${catId} exists anywhere:`);
-      const catExistsResult = await DB.query(
-        'SELECT cat_id, player_id, name FROM player_cats WHERE cat_id = $1',
-        [catId]
-      );
-      console.log(`🔍 STEP 1A-2 DEBUG - Cat ${catId} exists:`, catExistsResult.rows);
+    }
+
+    // STEP 1A-3: Fetch worn items for this cat
+    console.log(`🔍 STEP 1A-3 - Querying worn items for cat_id=${catId}`);
+    const itemsResult = await DB.query(`
+      SELECT 
+        ci.template,
+        ci.category,
+        it.sprite_url as item_sprite_url
+      FROM cat_items ci
+      LEFT JOIN itemtemplate it ON ci.template = it.template
+      WHERE ci.cat_id = $1
+    `, [catId]);
+    
+    console.log(`🔍 STEP 1A-3 - Items query result:`, itemsResult.rows);
+    
+    if (itemsResult.rows.length > 0) {
+      participant.wornItems = itemsResult.rows.map(item => ({
+        template: item.template,
+        category: item.category,
+        spriteUrl: item.item_sprite_url
+      }));
+      console.log(`✅ STEP 1A-3 - Found ${participant.wornItems.length} worn items:`, participant.wornItems);
+    } else {
+      console.log(`ℹ️ STEP 1A-3 - No worn items found for cat ${catId} (this is normal)`);
     }
 
   } catch (err) {
@@ -94,12 +131,14 @@ async function createParticipant(playerId, catId, socket) {
     // Keep using fallback values
   }
 
-  // STEP 1A-3: Final participant summary
-  console.log(`✅ STEP 1A-3 - Final participant created:`, {
+  // STEP 1A-4: Final participant summary
+  console.log(`✅ STEP 1A-4 - Final participant created:`, {
     playerId: participant.playerId,
     catId: participant.catId,
     username: participant.username,
     catName: participant.catName,
+    catSpriteUrl: participant.catSpriteUrl,
+    wornItemsCount: participant.wornItems.length,
     isDummy: participant.isDummy
   });
 
@@ -232,17 +271,22 @@ class GameRoom {
     });
   }
 
-  getParticipantsForClient() {
-    return this.participants.map(p => ({
-      playerId: p.playerId,
-      catId: p.catId,
-      username: p.username,      // ← Now included!
-      catName: p.catName,        // ← Now included!
-      votedCatId: p.votedCatId,
-      votesReceived: p.votesReceived || 0,
-      coinsEarned: p.coinsEarned || 0
-    }));
-  }
+  
+// ALSO UPDATE the getParticipantsForClient method in GameRoom class:
+getParticipantsForClient() {
+  return this.participants.map(p => ({
+    playerId: p.playerId,
+    catId: p.catId,
+    username: p.username,
+    catName: p.catName,
+    catSpriteUrl: p.catSpriteUrl,        // NEW: cat base sprite URL
+    wornItems: p.wornItems,              // NEW: array of worn item data
+    votedCatId: p.votedCatId,
+    votesReceived: p.votesReceived || 0,
+    coinsEarned: p.coinsEarned || 0
+  }));
+}
+
 
   handleParticipantDisconnect(p) {
     if (this.isFinalized) return;
@@ -274,17 +318,27 @@ function generateDummyParticipant() {
 }
 
 function broadcastWaitingRoomUpdate() {
+  console.log(`📤 STEP 1E - Broadcasting waiting room update to ${waitingRoom.participants.length} participants`);
+  
+  const participantsForClient = waitingRoom.participants.map(p => ({
+    playerId: p.playerId,
+    catId: p.catId,
+    username: p.username,        // ← ADD these fields
+    catName: p.catName,          // ← ADD these fields  
+    catSpriteUrl: p.catSpriteUrl, // ← ADD these fields
+    wornItems: p.wornItems       // ← ADD these fields
+  }));
+  
+  console.log(`📤 STEP 1E - Enhanced participants data:`, participantsForClient);
+
   waitingRoom.participants.forEach(p => {
     if (p.socket?.connected) {
       p.socket.emit('participant_update', {
         type: 'participant_update',
-        participants: waitingRoom.participants.map(p => ({
-          playerId: p.playerId,
-          catId: p.catId
-        })),
+        participants: participantsForClient,
         maxCount: PARTICIPANTS_IN_ROOM
       });
-      console.log(`📤 Sent waiting room update to ${p.playerId}`);
+      console.log(`📤 Sent enhanced waiting room update to ${p.playerId}`);
     }
   });
 }
@@ -308,7 +362,7 @@ export default function setupSocket(io) {
     let currentRoom = null;
     let participant = null;
 
-    socket.on('join', (message) => {
+socket.on('join', async (message) => {  // ← ADD 'async'
       console.log('🎭 Fashion Show - Received join message:', message);
 
       if (!message.playerId || !message.catId) {
@@ -316,13 +370,8 @@ export default function setupSocket(io) {
         return socket.disconnect();
       }
 
-      participant = {
-        playerId: message.playerId,
-        catId: message.catId,
-        socket,
-        isDummy: false
-      };
-      console.log(`✅ Fashion Show - Registered: ${participant.playerId} (${participant.catId})`);
+      participant = await createParticipant(message.playerId, message.catId, socket);
+      console.log(`✅ Fashion Show - Enhanced participant created:`, participant);
 
       if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
         waitingRoom.participants.push(participant);
@@ -330,14 +379,10 @@ export default function setupSocket(io) {
 
         console.log(`👥 Fashion Show - Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
 
-        // REMOVED: Auto-fill with dummies for testing
-        // We want real players only in the waiting room
-
         broadcastWaitingRoomUpdate();
 
-        // Only launch game room when we have exactly 5 REAL participants
         if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-          console.log('🚀 Fashion Show - Launching game room with 5 real players');
+      console.log('🚀 Fashion Show - Launching game room with enhanced participants');
           const gameRoom = new GameRoom([...waitingRoom.participants]);
 
           waitingRoom.participants.forEach(p => {
