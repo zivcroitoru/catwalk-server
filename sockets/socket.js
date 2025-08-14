@@ -5,7 +5,7 @@ import DB from '../db.js';
 // ═══════════════════════════════════════════════════════════════
 
 // Constants
-const PARTICIPANTS_IN_ROOM = 5;
+const PARTICIPANTS_IN_ROOM = 4;
 const VOTING_TIMER = 60;
 
 // Global waiting room singleton
@@ -14,7 +14,99 @@ let waitingRoom = {
   isVoting: false
 };
 
-// ─────────────── Game Room Class ───────────────
+// ─────────────── Enhanced Participant Creation ───────────────
+async function createParticipant(playerId, catId, socket) {
+  console.log(`🔍 STEP 1A - Fetching data for player ${playerId}, cat ${catId}`);
+  
+  // Start with basic participant structure
+  const participant = {
+    playerId,
+    catId,
+    socket,
+    isDummy: false,
+    username: `Player_${playerId}`, // fallback
+    catName: `Cat_${catId}` // fallback
+  };
+
+  try {
+    // STEP 1A-1: Fetch player data from database
+    console.log(`🔍 STEP 1A-1 - Querying players table for id=${playerId}`);
+    const playerResult = await DB.query(
+      'SELECT id, username FROM players WHERE id = $1',
+      [playerId]
+    );
+    
+    console.log(`🔍 STEP 1A-1 - Player query result:`, playerResult.rows);
+    
+    if (playerResult.rows.length > 0) {
+      const playerRow = playerResult.rows[0];
+      if (playerRow.username) {
+        participant.username = playerRow.username;
+        console.log(`✅ STEP 1A-1 - Found username: ${participant.username}`);
+      } else {
+        console.log(`⚠️ STEP 1A-1 - Player ${playerId} has null/empty username, using fallback`);
+      }
+    } else {
+      console.log(`⚠️ STEP 1A-1 - No player found with id ${playerId}, using fallback`);
+    }
+
+    // STEP 1A-2: Fetch cat data from database
+    console.log(`🔍 STEP 1A-2 - Querying player_cats table for cat_id=${catId}, player_id=${playerId}`);
+    const catResult = await DB.query(
+      'SELECT cat_id, player_id, name, template FROM player_cats WHERE cat_id = $1 AND player_id = $2',
+      [catId, playerId]
+    );
+    
+    console.log(`🔍 STEP 1A-2 - Cat query result:`, catResult.rows);
+    
+    if (catResult.rows.length > 0) {
+      const catRow = catResult.rows[0];
+      if (catRow.name) {
+        participant.catName = catRow.name;
+        console.log(`✅ STEP 1A-2 - Found cat name: ${participant.catName}`);
+      } else {
+        console.log(`⚠️ STEP 1A-2 - Cat ${catId} has null/empty name, using fallback`);
+      }
+      console.log(`📊 STEP 1A-2 - Cat details: template=${catRow.template}`);
+    } else {
+      console.log(`⚠️ STEP 1A-2 - No cat found with cat_id=${catId} and player_id=${playerId}`);
+      
+      // DEBUG: Let's see what cats this player actually has
+      console.log(`🔍 STEP 1A-2 DEBUG - Checking all cats for player ${playerId}:`);
+      const debugResult = await DB.query(
+        'SELECT cat_id, player_id, name, template FROM player_cats WHERE player_id = $1',
+        [playerId]
+      );
+      console.log(`🔍 STEP 1A-2 DEBUG - Found ${debugResult.rows.length} cats:`, debugResult.rows);
+      
+      // Additional debug: Check if the cat exists at all
+      console.log(`🔍 STEP 1A-2 DEBUG - Checking if cat ${catId} exists anywhere:`);
+      const catExistsResult = await DB.query(
+        'SELECT cat_id, player_id, name FROM player_cats WHERE cat_id = $1',
+        [catId]
+      );
+      console.log(`🔍 STEP 1A-2 DEBUG - Cat ${catId} exists:`, catExistsResult.rows);
+    }
+
+  } catch (err) {
+    console.error(`❌ STEP 1A ERROR - Failed to fetch data for player ${playerId}, cat ${catId}:`, err);
+    console.error(`❌ STEP 1A ERROR - Error details:`, err.message);
+    // Keep using fallback values
+  }
+
+  // STEP 1A-3: Final participant summary
+  console.log(`✅ STEP 1A-3 - Final participant created:`, {
+    playerId: participant.playerId,
+    catId: participant.catId,
+    username: participant.username,
+    catName: participant.catName,
+    isDummy: participant.isDummy
+  });
+
+  return participant;
+}
+
+// ─────────────── Game Room Class (Enhanced) ───────────────
 class GameRoom {
   constructor(participants) {
     this.participants = participants;
@@ -144,6 +236,8 @@ class GameRoom {
     return this.participants.map(p => ({
       playerId: p.playerId,
       catId: p.catId,
+      username: p.username,      // ← Now included!
+      catName: p.catName,        // ← Now included!
       votedCatId: p.votedCatId,
       votesReceived: p.votesReceived || 0,
       coinsEarned: p.coinsEarned || 0
