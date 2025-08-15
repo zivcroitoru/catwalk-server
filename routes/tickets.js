@@ -98,19 +98,39 @@ router.get('/user/:userId/open', async (req, res) => {
     }
 });
 
+// GET ticket by ID (with username)
+router.get('/:ticketId', async (req, res) => {
+  const ticketId = parseInt(req.params.ticketId, 10);
+  if (isNaN(ticketId)) return res.status(400).json({ error: 'Invalid ticket ID' });
 
-
-router.get('/broadcasts', async (req, res) => {
-  console.log("GET /broadcasts route hit");   // <-- check if this prints
   try {
-    const result = await DB.query('SELECT * FROM public.broadcasts');
-    res.status(200).json(result.rows);
-    console.log('DB rows:', result.rows);    // <-- check what the DB returns
+    const result = await DB.query(`
+      SELECT t.ticket_id, t.user_id, t.status, t.created_at, u.username
+      FROM tickets_table t
+      JOIN players u ON t.user_id = u.id
+      WHERE t.ticket_id = $1
+    `, [ticketId]);
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Ticket not found' });
+    res.json(result.rows[0]);
   } catch (err) {
-    console.error('Failed to fetch broadcasts:', err);
-    res.status(500).json({ error: 'Failed to fetch broadcasts' });
+    console.error('Error fetching ticket by ID:', err);
+    res.status(500).json({ error: 'Failed to fetch ticket' });
   }
 });
+
+
+// router.get('/broadcasts', async (req, res) => {
+//   console.log("GET /broadcasts route hit");   // <-- check if this prints
+//   try {
+//     const result = await DB.query('SELECT * FROM public.broadcasts');
+//     res.status(200).json(result.rows);
+//     console.log('DB rows:', result.rows);    // <-- check what the DB returns
+//   } catch (err) {
+//     console.error('Failed to fetch broadcasts:', err);
+//     res.status(500).json({ error: 'Failed to fetch broadcasts' });
+//   }
+// });
 
 
 
