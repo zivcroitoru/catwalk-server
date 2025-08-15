@@ -179,31 +179,55 @@ class GameRoom {
   handleVote(voter, votedCatId) {
     if (this.isFinalized || votedCatId === voter.catId) return;
 
+    const previousVote = voter.votedCatId;
     voter.votedCatId = votedCatId;
-    console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
+    
+    if (previousVote) {
+      console.log(`🔄 ${voter.playerId} changed vote from ${previousVote} to ${votedCatId}`);
+    } else {
+      console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
+    }
 
     this.broadcastVotingUpdate();
 
-    // Check if all voted
+    // Check if all voted for early end
     const allVoted = this.participants.every(p => p.votedCatId);
+    const votedCount = this.participants.filter(p => p.votedCatId).length;
+    const totalCount = this.participants.length;
+    
+    console.log(`📊 Voting progress: ${votedCount}/${totalCount} participants have voted`);
+    
     if (allVoted) {
-      console.log('✅ All participants voted. Finalizing...');
-      this.finalizeVoting();
+      console.log('🚀 ALL PARTICIPANTS VOTED - Ending voting early!');
+      console.log('⏰ Early voting end triggered - canceling timer');
+      
+      // Clear the voting timer since we're ending early
+      if (this.votingTimer) {
+        clearTimeout(this.votingTimer);
+        this.votingTimer = null;
+        console.log('⏹️ Voting timer canceled due to early completion');
+      }
+      
+      // Add small delay for better UX (let players see their final selection)
+      setTimeout(() => {
+        console.log('✅ Finalizing voting after early completion');
+        this.finalizeVoting();
+      }, 1500); // 1.5 second delay
     }
   }
 
   handleVotingTimeout() {
     if (this.isFinalized) return;
 
-    console.log('⏰ VOTING TIMEOUT REACHED - Beginning vote calculation process');
-    console.log(`📊 Room status before timeout:`, {
+    console.log('⏰ VOTING TIMEOUT REACHED (60 seconds) - Beginning vote calculation process');
+    console.log(`📊 Room status at timeout:`, {
       participantCount: this.participants.length,
       votingStartTime: new Date(this.votingStartTime).toISOString(),
       timeElapsed: ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + 's'
     });
 
     // Log current voting state
-    console.log('🗳️ Current voting state:');
+    console.log('🗳️ Current voting state at timeout:');
     this.participants.forEach((participant, index) => {
       console.log(`  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`);
       console.log(`     Voted for: ${participant.votedCatId || 'NO VOTE YET'}`);
@@ -231,18 +255,24 @@ class GameRoom {
       }
     });
 
-    console.log(`✅ Assigned ${autoVotesAssigned} automatic votes`);
+    console.log(`✅ Assigned ${autoVotesAssigned} automatic votes due to timeout`);
     this.finalizeVoting();
   }
-
+  
   finalizeVoting() {
     if (this.isFinalized) return;
     this.isFinalized = true;
 
     console.log('🏁 FINALIZING VOTING - No more changes allowed');
+    
+    // Record finalization time for analytics
+    const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(1);
+    console.log(`⏱️ Voting lasted ${votingDuration} seconds`);
 
+    // Clear timer if still running
     if (this.votingTimer) {
       clearTimeout(this.votingTimer);
+      this.votingTimer = null;
       console.log('⏹️ Voting timer cleared');
     }
 
