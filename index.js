@@ -76,12 +76,12 @@ const io = new SocketIOServer(httpServer, {
   }
 });
 
-// 🔹 Initialize socket events
+// Initialize socket events
 setupSocket(io);
 
 httpServer.listen(PORT, () => {
   console.log(`catwalk-server running on http://localhost:${PORT}`);
-  console.log('🔧 Allowed CORS origins:', allowedOrigins); // Add this debug log
+  console.log(' Allowed CORS origins:', allowedOrigins); // Add this debug log
 });
 
 
