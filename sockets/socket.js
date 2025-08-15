@@ -5,7 +5,7 @@ import DB from '../db.js';
 // ═══════════════════════════════════════════════════════════════
 
 // Fashion Show Constants
-const PARTICIPANTS_IN_ROOM = 4;
+const PARTICIPANTS_IN_ROOM = 3;
 const VOTING_TIMER = 60;
 
 // Global waiting room
@@ -460,6 +460,8 @@ export default function setupSocket(io) {
         currentRoom.handleVote(participant, message.votedCatId);
       }
     });
+
+    
 
     // ═══════════════════════════════════════════════════════════════
     // EXISTING TICKET SYSTEM HANDLERS (UNCHANGED)
