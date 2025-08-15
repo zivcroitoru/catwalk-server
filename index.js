@@ -14,6 +14,7 @@ const httpServer = http.createServer(app);
 
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'https://catwalk.onrender.com',
   'https://catwalk-server-eu.onrender.com', // Add this line - your actual server domain
   process.env.FRONTEND_URL
