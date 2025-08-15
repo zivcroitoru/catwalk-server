@@ -17,7 +17,7 @@ let waitingRoom = {
 // ─────────────── Enhanced participant creation with database queries ───────────────
 async function createParticipant(playerId, catId, socket) {
   console.log(`🔍 Fetching complete data for player ${playerId}, cat ${catId}`);
-  
+
   const participant = {
     playerId,
     catId,
@@ -35,7 +35,7 @@ async function createParticipant(playerId, catId, socket) {
       'SELECT id, username FROM players WHERE id = $1',
       [playerId]
     );
-    
+
     if (playerResult.rows.length > 0) {
       const playerRow = playerResult.rows[0];
       if (playerRow.username) {
@@ -60,17 +60,17 @@ async function createParticipant(playerId, catId, socket) {
       LEFT JOIN cat_templates ct ON pc.template = ct.template
       WHERE pc.cat_id = $1 AND pc.player_id = $2
     `, [catId, playerId]);
-    
+
     if (catResult.rows.length > 0) {
       const catRow = catResult.rows[0];
-      
+
       if (catRow.name) {
         participant.catName = catRow.name;
         console.log(`✅ Found cat name: ${participant.catName}`);
       } else {
         console.log(`⚠️ Cat ${catId} has null name, using fallback`);
       }
-      
+
       if (catRow.sprite_url) {
         participant.catSpriteUrl = catRow.sprite_url;
         console.log(`✅ Found cat sprite URL`);
@@ -79,7 +79,7 @@ async function createParticipant(playerId, catId, socket) {
       }
     } else {
       console.log(`⚠️ No cat found with cat_id=${catId} and player_id=${playerId}`);
-      
+
       // Debug: Check what cats this player has
       const debugResult = await DB.query(
         'SELECT cat_id, player_id, name, template FROM player_cats WHERE player_id = $1',
@@ -98,7 +98,7 @@ async function createParticipant(playerId, catId, socket) {
       LEFT JOIN itemtemplate it ON ci.template = it.template
       WHERE ci.cat_id = $1
     `, [catId]);
-    
+
     if (itemsResult.rows.length > 0) {
       participant.wornItems = itemsResult.rows.map(item => ({
         template: item.template,
@@ -195,128 +195,128 @@ class GameRoom {
   handleVotingTimeout() {
     if (this.isFinalized) return;
 
-  console.log('⏰ VOTING TIMEOUT REACHED - Beginning vote calculation process');
-  console.log(`📊 Room status before timeout:`, {
-    participantCount: this.participants.length,
-    votingStartTime: new Date(this.votingStartTime).toISOString(),
-    timeElapsed: ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + 's'
-  });
+    console.log('⏰ VOTING TIMEOUT REACHED - Beginning vote calculation process');
+    console.log(`📊 Room status before timeout:`, {
+      participantCount: this.participants.length,
+      votingStartTime: new Date(this.votingStartTime).toISOString(),
+      timeElapsed: ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + 's'
+    });
 
-  // Log current voting state
-  console.log('🗳️ Current voting state:');
-  this.participants.forEach((participant, index) => {
-    console.log(`  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`);
-    console.log(`     Voted for: ${participant.votedCatId || 'NO VOTE YET'}`);
-    console.log(`     Is dummy: ${participant.isDummy || false}`);
-  });
+    // Log current voting state
+    console.log('🗳️ Current voting state:');
+    this.participants.forEach((participant, index) => {
+      console.log(`  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`);
+      console.log(`     Voted for: ${participant.votedCatId || 'NO VOTE YET'}`);
+      console.log(`     Is dummy: ${participant.isDummy || false}`);
+    });
 
     // Assign random votes to non-voters
-  console.log('🎲 Assigning random votes to participants who haven\'t voted:');
-  let autoVotesAssigned = 0;
+    console.log('🎲 Assigning random votes to participants who haven\'t voted:');
+    let autoVotesAssigned = 0;
 
-  this.participants.forEach(participant => {
-    if (!participant.votedCatId) {
-      const availableCats = this.participants
-        .filter(p => p.catId !== participant.catId)
-        .map(p => p.catId);
-      
-      if (availableCats.length > 0) {
-        const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
-        participant.votedCatId = choice;
-        autoVotesAssigned++;
+    this.participants.forEach(participant => {
+      if (!participant.votedCatId) {
+        const availableCats = this.participants
+          .filter(p => p.catId !== participant.catId)
+          .map(p => p.catId);
 
-        const votedForParticipant = this.participants.find(p => p.catId === choice);
-        console.log(`  ⚡ Auto-vote: ${participant.username} → ${votedForParticipant?.catName || choice}`);
+        if (availableCats.length > 0) {
+          const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
+          participant.votedCatId = choice;
+          autoVotesAssigned++;
+
+          const votedForParticipant = this.participants.find(p => p.catId === choice);
+          console.log(`  ⚡ Auto-vote: ${participant.username} → ${votedForParticipant?.catName || choice}`);
+        }
       }
-    }
-  });
+    });
 
     console.log(`✅ Assigned ${autoVotesAssigned} automatic votes`);
     this.finalizeVoting();
   }
 
-finalizeVoting() {
-  if (this.isFinalized) return;
-  this.isFinalized = true;
+  finalizeVoting() {
+    if (this.isFinalized) return;
+    this.isFinalized = true;
 
-  console.log('🏁 FINALIZING VOTING - No more changes allowed');
+    console.log('🏁 FINALIZING VOTING - No more changes allowed');
 
-  if (this.votingTimer) {
-    clearTimeout(this.votingTimer);
-    console.log('⏹️ Voting timer cleared');
-  }
-
-  this.calculateResults();
-
-  // Show announcement before results
-  console.log('📺 Sending "calculating votes" announcement to participants');
-  this.participants.forEach(participant => {
-    if (participant.socket?.connected) {
-      participant.socket.emit('calculating_announcement', {
-        type: 'calculating_announcement',
-        message: 'CALCULATING VOTES, PLEASE WAIT . . .'
-      });
+    if (this.votingTimer) {
+      clearTimeout(this.votingTimer);
+      console.log('⏹️ Voting timer cleared');
     }
-  });
 
-  // Wait 3 seconds then send results
-  setTimeout(() => {
-    console.log('📤 Sending final results to all participants');
+    this.calculateResults();
+
+    // Show announcement before results
+    console.log('📺 Sending "calculating votes" announcement to participants');
     this.participants.forEach(participant => {
       if (participant.socket?.connected) {
-        participant.socket.emit('results', {
-          type: 'results',
-          participants: this.getParticipantsForClient()
+        participant.socket.emit('calculating_announcement', {
+          type: 'calculating_announcement',
+          message: 'CALCULATING VOTES, PLEASE WAIT . . .'
         });
-        console.log(`  ✅ Results sent to ${participant.username}`);
-      } else {
-        console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
       }
     });
-    
-    console.log('🎉 GAME ROOM COMPLETE - All results distributed');
-  }, 3000);
-}
 
-calculateResults() {
-  console.log('🧮 CALCULATING VOTE RESULTS');
-  console.log('=' .repeat(50));
+    // Wait 3 seconds then send results
+    setTimeout(() => {
+      console.log('📤 Sending final results to all participants');
+      this.participants.forEach(participant => {
+        if (participant.socket?.connected) {
+          participant.socket.emit('results', {
+            type: 'results',
+            participants: this.getParticipantsForClient()
+          });
+          console.log(`  ✅ Results sent to ${participant.username}`);
+        } else {
+          console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
+        }
+      });
 
-  // Count votes
+      console.log('🎉 GAME ROOM COMPLETE - All results distributed');
+    }, 3000);
+  }
+
+  calculateResults() {
+    console.log('🧮 CALCULATING VOTE RESULTS');
+    console.log('='.repeat(50));
+
+    // Count votes
     const votes = {};
-  console.log('📊 Counting votes:');
-  
-  this.participants.forEach(voter => {
-    if (voter.votedCatId) {
-      votes[voter.votedCatId] = (votes[voter.votedCatId] || 0) + 1;
-      
-      const votedForParticipant = this.participants.find(p => p.catId === voter.votedCatId);
-      console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId}`);
-    }
-  });
+    console.log('📊 Counting votes:');
 
-  console.log('📈 Vote tallies:');
-  Object.entries(votes).forEach(([catId, voteCount]) => {
-    const participant = this.participants.find(p => p.catId.toString() === catId.toString());
-    console.log(`  ${participant?.catName || catId}: ${voteCount} vote(s)`);
-  });
+    this.participants.forEach(voter => {
+      if (voter.votedCatId) {
+        votes[voter.votedCatId] = (votes[voter.votedCatId] || 0) + 1;
+
+        const votedForParticipant = this.participants.find(p => p.catId === voter.votedCatId);
+        console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId}`);
+      }
+    });
+
+    console.log('📈 Vote tallies:');
+    Object.entries(votes).forEach(([catId, voteCount]) => {
+      const participant = this.participants.find(p => p.catId.toString() === catId.toString());
+      console.log(`  ${participant?.catName || catId}: ${voteCount} vote(s)`);
+    });
 
     // Calculate rewards
     console.log('💰 Calculating coin rewards:');
     let totalCoinsDistributed = 0;
-    
+
     this.participants.forEach(p => {
       p.votesReceived = votes[p.catId] || 0;
       p.coinsEarned = p.votesReceived * 25;
       totalCoinsDistributed += p.coinsEarned;
-      
+
       console.log(`  💎 ${p.catName} (${p.username}): ${p.votesReceived} votes = ${p.coinsEarned} coins`);
     });
 
     console.log(`🏆 RESULTS SUMMARY:`);
     console.log(`   Total votes cast: ${Object.values(votes).reduce((a, b) => a + b, 0)}`);
     console.log(`   Total coins distributed: ${totalCoinsDistributed}`);
-    
+
     // Sort by votes for ranking display
     const sortedParticipants = [...this.participants].sort((a, b) => b.votesReceived - a.votesReceived);
     console.log(`🥇 Final rankings:`);
@@ -325,7 +325,7 @@ calculateResults() {
       console.log(`   ${medal} ${index + 1}. ${p.catName} - ${p.votesReceived} votes (${p.coinsEarned} coins)`);
     });
 
-    console.log('=' .repeat(50));
+    console.log('='.repeat(50));
   }
 
   broadcastVotingUpdate() {
@@ -340,18 +340,18 @@ calculateResults() {
   }
 
   getParticipantsForClient() {
-  return this.participants.map(p => ({
-    playerId: p.playerId,
-    catId: p.catId,
-    username: p.username,
-    catName: p.catName,
-    catSpriteUrl: p.catSpriteUrl,
-    wornItems: p.wornItems,
-    votedCatId: p.votedCatId,
-    votesReceived: p.votesReceived || 0,
-    coinsEarned: p.coinsEarned || 0
-  }));
-}
+    return this.participants.map(p => ({
+      playerId: p.playerId,
+      catId: p.catId,
+      username: p.username,
+      catName: p.catName,
+      catSpriteUrl: p.catSpriteUrl,
+      wornItems: p.wornItems,
+      votedCatId: p.votedCatId,
+      votesReceived: p.votesReceived || 0,
+      coinsEarned: p.coinsEarned || 0
+    }));
+  }
 
   handleParticipantDisconnect(p) {
     if (this.isFinalized) return;
@@ -378,7 +378,7 @@ calculateResults() {
 // ─────────────── Broadcast waiting room updates ───────────────
 function broadcastWaitingRoomUpdate() {
   console.log(`📤 Broadcasting waiting room update to ${waitingRoom.participants.length} participants`);
-  
+
   const participantsForClient = waitingRoom.participants.map(p => ({
     playerId: p.playerId,
     catId: p.catId,
@@ -468,38 +468,38 @@ export default function setupSocket(io) {
 
     //broadcast/////////////
 
-// Admin sends a broadcast
-// Admin sends a broadcast
-socket.on('adminBroadcast', async ({ message }) => {
-  try {
-    // Save to DB
-    const insertResult = await DB.query(
-      `INSERT INTO broadcasts(body, sent_at) VALUES($1, NOW()) RETURNING *`,
-      [message]
-    );
-    const broadcast = insertResult.rows[0];
+    // Admin sends a broadcast
+    // Admin sends a broadcast
+    socket.on('adminBroadcast', async ({ message }) => {
+      try {
+        // Save to DB
+        const insertResult = await DB.query(
+          `INSERT INTO broadcasts(body, sent_at) VALUES($1, NOW()) RETURNING *`,
+          [message]
+        );
+        const broadcast = insertResult.rows[0];
 
-    // Emit to all connected users
-    const usersResult = await DB.query("SELECT id FROM players");
-    usersResult.rows.forEach(row => {
-      io.to(`user_${row.id}`).emit('adminBroadcast', {
-        message: broadcast.body,
-        date: broadcast.sent_at
-      });
+        // Emit to all connected users
+        const usersResult = await DB.query("SELECT id FROM players");
+        usersResult.rows.forEach(row => {
+          io.to(`user_${row.id}`).emit('adminBroadcast', {
+            message: broadcast.body,
+            date: broadcast.sent_at
+          });
+        });
+
+        // Notify admins
+        io.to('admins').emit('broadcastSent', {
+          message: broadcast.body,
+          date: broadcast.sent_at,
+          count: usersResult.rows.length
+        });
+
+      } catch (err) {
+        console.error("Error sending broadcast:", err);
+        socket.emit('errorMessage', { message: 'Failed to send broadcast.' });
+      }
     });
-
-    // Notify admins
-    io.to('admins').emit('broadcastSent', {
-      message: broadcast.body,
-      date: broadcast.sent_at,
-      count: usersResult.rows.length
-    });
-
-  } catch (err) {
-    console.error("Error sending broadcast:", err);
-    socket.emit('errorMessage', { message: 'Failed to send broadcast.' });
-  }
-});
 
 
     // Admin registers
