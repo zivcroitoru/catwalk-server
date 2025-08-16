@@ -179,14 +179,29 @@ class GameRoom {
   handleVote(voter, votedCatId) {
     if (this.isFinalized || votedCatId === voter.catId) return;
 
+  // 🔧 FIX: Ensure consistent data types for catId comparison
+  const normalizedVotedCatId = parseInt(votedCatId);
+  const normalizedVoterCatId = parseInt(voter.catId);
+  
+  // Prevent self-voting (server-side validation)
+  if (normalizedVotedCatId === normalizedVoterCatId) {
+    console.log(`🚫 ${voter.playerId} attempted to vote for own cat ${normalizedVoterCatId}`);
+    return;
+  }
+
     const previousVote = voter.votedCatId;
-    voter.votedCatId = votedCatId;
+
+  // 🔧 F  IX: Store vote as integer for consistency
+  voter.votedCatId = normalizedVotedCatId;
     
     if (previousVote) {
-      console.log(`🔄 ${voter.playerId} changed vote from ${previousVote} to ${votedCatId}`);
-    } else {
-      console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
+    console.log(`🔄 ${voter.playerId} changed vote from ${previousVote} to ${normalizedVotedCatId}`);
+  } else {
+    console.log(`🗳️ ${voter.playerId} voted for ${normalizedVotedCatId}`);
     }
+
+  // 🔧 DEBUG: Log the participant's current state
+  console.log(`📊 Vote stored: participant ${voter.playerId} has votedCatId = ${voter.votedCatId} (type: ${typeof voter.votedCatId})`);
 
     this.broadcastVotingUpdate();
 
@@ -196,6 +211,12 @@ class GameRoom {
     const totalCount = this.participants.length;
     
     console.log(`📊 Voting progress: ${votedCount}/${totalCount} participants have voted`);
+  
+    // 🔧 DEBUG: Log all current votes
+    console.log('🗳️ Current vote state:');
+    this.participants.forEach((p, idx) => {
+      console.log(`  ${idx + 1}. ${p.username} (${p.playerId}) voted for: ${p.votedCatId || 'NO VOTE'}`);
+    });
     
     if (allVoted) {
       console.log('🚀 ALL PARTICIPANTS VOTED - Ending voting early!');
@@ -226,38 +247,52 @@ class GameRoom {
       timeElapsed: ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + 's'
     });
 
-    // Log current voting state
-    console.log('🗳️ Current voting state at timeout:');
+  // 🔧 DEBUG: Log voting state BEFORE timeout processing
+  console.log('🗳️ Vote state BEFORE timeout processing:');
     this.participants.forEach((participant, index) => {
       console.log(`  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`);
-      console.log(`     Voted for: ${participant.votedCatId || 'NO VOTE YET'}`);
+    console.log(`     Current vote: ${participant.votedCatId || 'NO VOTE'} (type: ${typeof participant.votedCatId})`);
       console.log(`     Is dummy: ${participant.isDummy || false}`);
     });
 
     // Assign random votes to non-voters
-    console.log('🎲 Assigning random votes to participants who haven\'t voted:');
+  console.log('🎲 Checking for participants who need random votes:');
     let autoVotesAssigned = 0;
 
-    this.participants.forEach(participant => {
-      if (!participant.votedCatId) {
-        const availableCats = this.participants
-          .filter(p => p.catId !== participant.catId)
-          .map(p => p.catId);
+  this.participants.forEach(participant => {
+    // 🔧 FIX: Be more explicit about vote checking
+    const hasVoted = participant.votedCatId !== null && 
+                     participant.votedCatId !== undefined && 
+                     !isNaN(participant.votedCatId);
+    
+    if (!hasVoted) {
+      const availableCats = this.participants
+        .filter(p => parseInt(p.catId) !== parseInt(participant.catId))
+        .map(p => parseInt(p.catId));
 
-        if (availableCats.length > 0) {
+      if (availableCats.length > 0) {
           const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
           participant.votedCatId = choice;
           autoVotesAssigned++;
 
-          const votedForParticipant = this.participants.find(p => p.catId === choice);
+        const votedForParticipant = this.participants.find(p => parseInt(p.catId) === choice);
           console.log(`  ⚡ Auto-vote: ${participant.username} → ${votedForParticipant?.catName || choice}`);
         }
+    } else {
+      console.log(`  ✅ ${participant.username} already voted for ${participant.votedCatId}`);
       }
     });
 
-    console.log(`✅ Assigned ${autoVotesAssigned} automatic votes due to timeout`);
-    this.finalizeVoting();
-  }
+  console.log(`✅ Assigned ${autoVotesAssigned} automatic votes due to timeout`);
+  
+  // 🔧 DEBUG: Log voting state AFTER timeout processing
+  console.log('🗳️ Vote state AFTER timeout processing:');
+  this.participants.forEach((participant, index) => {
+    console.log(`  ${index + 1}. ${participant.username} → voted for ${participant.votedCatId}`);
+  });
+  
+  this.finalizeVoting();
+}
   
   finalizeVoting() {
     if (this.isFinalized) return;
@@ -312,31 +347,43 @@ class GameRoom {
     console.log('🧮 CALCULATING VOTE RESULTS');
     console.log('='.repeat(50));
 
-    // Count votes
+  // 🔧 DEBUG: Log all participants and their votes before counting
+  console.log('📊 All participants and their votes:');
+  this.participants.forEach((p, idx) => {
+    console.log(`  ${idx + 1}. ${p.username} (playerId: ${p.playerId}, catId: ${p.catId}) voted for: ${p.votedCatId}`);
+  });
+
+  // Count votes with explicit type handling
     const votes = {};
     console.log('📊 Counting votes:');
 
-    this.participants.forEach(voter => {
-      if (voter.votedCatId) {
-        votes[voter.votedCatId] = (votes[voter.votedCatId] || 0) + 1;
+  this.participants.forEach(voter => {
+    if (voter.votedCatId !== null && voter.votedCatId !== undefined) {
+      // 🔧 FIX: Ensure consistent key types for vote counting
+      const voteKey = parseInt(voter.votedCatId).toString();
+      votes[voteKey] = (votes[voteKey] || 0) + 1;
 
-        const votedForParticipant = this.participants.find(p => p.catId === voter.votedCatId);
-        console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId}`);
-      }
-    });
+      const votedForParticipant = this.participants.find(p => parseInt(p.catId) === parseInt(voter.votedCatId));
+      console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId} (key: ${voteKey})`);
+    } else {
+      console.log(`  ❌ ${voter.username} has invalid vote: ${voter.votedCatId}`);
+    }
+  });
 
-    console.log('📈 Vote tallies:');
-    Object.entries(votes).forEach(([catId, voteCount]) => {
-      const participant = this.participants.find(p => p.catId.toString() === catId.toString());
-      console.log(`  ${participant?.catName || catId}: ${voteCount} vote(s)`);
-    });
+  console.log('📈 Vote tallies by catId:');
+  Object.entries(votes).forEach(([catIdStr, voteCount]) => {
+    const participant = this.participants.find(p => parseInt(p.catId).toString() === catIdStr);
+    console.log(`  catId ${catIdStr} (${participant?.catName || 'Unknown'}): ${voteCount} vote(s)`);
+  });
 
     // Calculate rewards
     console.log('💰 Calculating coin rewards:');
     let totalCoinsDistributed = 0;
 
     this.participants.forEach(p => {
-      p.votesReceived = votes[p.catId] || 0;
+    // 🔧 FIX: Ensure consistent key lookup for vote counting
+    const catIdKey = parseInt(p.catId).toString();
+    p.votesReceived = votes[catIdKey] || 0;
       p.coinsEarned = p.votesReceived * 25;
       totalCoinsDistributed += p.coinsEarned;
 
