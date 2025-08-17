@@ -176,6 +176,59 @@ class GameRoom {
     }
   }
 
+  // Phase 1: Add updatePlayerCoins function to GameRoom class
+async updatePlayerCoins(participant, coinsToAdd) {
+  if (participant.isDummy) {
+    console.log(`🤖 Skipping coin update for dummy participant ${participant.playerId}`);
+    return { success: true, skipped: true, reason: 'dummy_participant' };
+  }
+
+  if (coinsToAdd === 0) {
+    console.log(`💰 Player ${participant.username} (${participant.playerId}) earned 0 coins - skipping DB update`);
+    return { success: true, skipped: true, reason: 'zero_coins' };
+  }
+
+  try {
+    console.log(`💰 Updating coins for ${participant.username} (${participant.playerId}): +${coinsToAdd} coins`);
+
+    // Execute the SQL UPDATE query
+    const result = await DB.query(
+      'UPDATE players SET coins = coins + $1 WHERE id = $2 RETURNING id, coins',
+      [coinsToAdd, participant.playerId]
+    );
+
+    if (result.rows.length === 0) {
+      console.error(`❌ Player ${participant.playerId} not found in database`);
+      return { 
+        success: false, 
+        error: 'player_not_found',
+        playerId: participant.playerId 
+      };
+    }
+
+    const updatedPlayer = result.rows[0];
+    console.log(`✅ Successfully updated ${participant.username}: +${coinsToAdd} coins (new total: ${updatedPlayer.coins})`);
+
+    return {
+      success: true,
+      skipped: false,
+      playerId: participant.playerId,
+      username: participant.username,
+      coinsAdded: coinsToAdd,
+      newTotal: updatedPlayer.coins
+    };
+
+  } catch (error) {
+    console.error(`❌ Database error updating coins for player ${participant.playerId}:`, error.message);
+    return {
+      success: false,
+      error: 'database_error',
+      playerId: participant.playerId,
+      details: error.message
+    };
+  }
+}
+
   // 🔧 FIXED handleVote method for GameRoom class
   handleVote(voter, votedCatId) {
     if (this.isFinalized) {
@@ -385,7 +438,7 @@ class GameRoom {
     }, 3000);
   }
 
-  calculateResults() {
+  async calculateResults() {
     console.log('🧮 CALCULATING VOTE RESULTS');
     console.log('='.repeat(50));
 
@@ -448,8 +501,70 @@ class GameRoom {
       console.log(`   ${medal} ${index + 1}. ${p.catName} - ${p.votesReceived} votes (${p.coinsEarned} coins)`);
     });
 
-    console.log('='.repeat(50));
+  console.log('💳 UPDATING PLAYER COIN BALANCES IN DATABASE');
+  console.log('─'.repeat(40));
+
+  // 2B: Filter out dummy participants and track DB update results
+  const realParticipants = this.participants.filter(p => !p.isDummy);
+  const dbUpdateResults = [];
+  let successfulUpdates = 0;
+  let failedUpdates = 0;
+  let skippedUpdates = 0;
+
+  // 2C: Update each participant's coins individually with error handling
+  for (const participant of this.participants) {
+    const updateResult = await this.updatePlayerCoins(participant, participant.coinsEarned);
+    dbUpdateResults.push({
+      playerId: participant.playerId,
+      username: participant.username,
+      coinsEarned: participant.coinsEarned,
+      updateResult
+    });
+
+    if (updateResult.success) {
+      if (updateResult.skipped) {
+        skippedUpdates++;
+      } else {
+        successfulUpdates++;
+      }
+    } else {
+      failedUpdates++;
+    }
   }
+
+  // 3A-3D: Log comprehensive update summary
+  console.log('💳 DATABASE UPDATE SUMMARY:');
+  console.log(`   ✅ Successful updates: ${successfulUpdates}`);
+  console.log(`   ⏭️ Skipped updates: ${skippedUpdates}`);
+  console.log(`   ❌ Failed updates: ${failedUpdates}`);
+  console.log(`   📊 Total processed: ${dbUpdateResults.length}`);
+
+  // Log detailed results for each participant
+  dbUpdateResults.forEach(result => {
+    const { playerId, username, coinsEarned, updateResult } = result;
+    
+    if (updateResult.success && !updateResult.skipped) {
+      console.log(`   💰 ${username} (${playerId}): +${coinsEarned} coins → total: ${updateResult.newTotal}`);
+    } else if (updateResult.skipped) {
+      console.log(`   ⏭️ ${username} (${playerId}): skipped (${updateResult.reason})`);
+    } else {
+      console.log(`   ❌ ${username} (${playerId}): FAILED - ${updateResult.error}`);
+    }
+  });
+
+  // Log any critical failures that might need attention
+  if (failedUpdates > 0) {
+    console.warn(`⚠️ WARNING: ${failedUpdates} database updates failed - players may not have received coins!`);
+    const failedParticipants = dbUpdateResults.filter(r => !r.updateResult.success);
+    failedParticipants.forEach(failed => {
+      console.warn(`   ⚠️ Failed update: ${failed.username} (${failed.playerId}) - ${failed.coinsEarned} coins not awarded`);
+    });
+  }
+
+  console.log('─'.repeat(40));
+  console.log('✅ DATABASE UPDATES COMPLETE - Results ready to send to clients');
+  console.log('='.repeat(50));
+}
 
   broadcastVotingUpdate() {
     this.participants.forEach(p => {
@@ -478,6 +593,10 @@ class GameRoom {
 
   handleParticipantDisconnect(p) {
     if (this.isFinalized) return;
+
+    // Mark participant as dummy when they disconnect
+    p.isDummy = true;
+    console.log(`👤 ${p.username} (${p.playerId}) disconnected - marked as dummy (no coin rewards)`);
 
     // Assign random vote if they haven't voted
     if (!p.votedCatId) {
