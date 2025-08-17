@@ -5,8 +5,8 @@ import DB from '../db.js';
 // ═══════════════════════════════════════════════════════════════
 
 // Fashion Show Constants
-const PARTICIPANTS_IN_ROOM = 3;
-const VOTING_TIMER = 60;
+const PARTICIPANTS_IN_ROOM = 5;
+const VOTING_TIMER = 30;
 
 // Global waiting room
 let waitingRoom = {
@@ -176,66 +176,108 @@ class GameRoom {
     }
   }
 
+  // 🔧 FIXED handleVote method for GameRoom class
   handleVote(voter, votedCatId) {
-    if (this.isFinalized || votedCatId === voter.catId) return;
+    if (this.isFinalized) {
+      console.log(`🚫 Voting already finalized - ignoring vote from ${voter.playerId}`);
+      return;
+    }
 
-  // 🔧 FIX: Ensure consistent data types for catId comparison
+  // 🔧 FIX 1: Validate voter is actually in this game room
+  const voterInRoom = this.participants.find(p => 
+    p.playerId === voter.playerId && p.catId === voter.catId
+  );
+  
+  if (!voterInRoom) {
+    console.log(`🚫 ${voter.playerId} not found in game room participants - ignoring vote`);
+    return;
+  }
+
+  // 🔧 FIX 2: Ensure consistent data types for catId comparison
   const normalizedVotedCatId = parseInt(votedCatId);
   const normalizedVoterCatId = parseInt(voter.catId);
   
-  // Prevent self-voting (server-side validation)
+  if (isNaN(normalizedVotedCatId) || isNaN(normalizedVoterCatId)) {
+    console.log(`🚫 Invalid catId format - voter: ${voter.catId}, voted: ${votedCatId}`);
+    return;
+  }
+
+  // 🔧 FIX 3: Find target participant with better logging
+  console.log(`🔍 Looking for target participant with catId: ${normalizedVotedCatId}`);
+  console.log(`🔍 Available participants:`, this.participants.map(p => ({
+    playerId: p.playerId,
+    catId: p.catId,
+    catName: p.catName,
+    catIdParsed: parseInt(p.catId)
+  })));
+  
+  const targetParticipant = this.participants.find(p => {
+    const participantCatId = parseInt(p.catId);
+    return participantCatId === normalizedVotedCatId;
+  });
+  
+  if (!targetParticipant) {
+    console.log(`🚫 ${voter.playerId} voted for non-existent cat ${normalizedVotedCatId}`);
+    console.log(`🚫 Available catIds: ${this.participants.map(p => parseInt(p.catId)).join(', ')}`);
+    return;
+  }
+  
+  // 🔧 FIX 4: Prevent self-voting (server-side validation)
   if (normalizedVotedCatId === normalizedVoterCatId) {
     console.log(`🚫 ${voter.playerId} attempted to vote for own cat ${normalizedVoterCatId}`);
     return;
   }
 
-    const previousVote = voter.votedCatId;
+  const previousVote = voterInRoom.votedCatId; // Use the participant from the room, not the parameter
 
-  // 🔧 F  IX: Store vote as integer for consistency
-  voter.votedCatId = normalizedVotedCatId;
+  // 🔧 FIX 5: Store vote on the actual room participant, not the parameter
+  voterInRoom.votedCatId = normalizedVotedCatId;
     
-    if (previousVote) {
-    console.log(`🔄 ${voter.playerId} changed vote from ${previousVote} to ${normalizedVotedCatId}`);
+  if (previousVote) {
+    console.log(`🔄 ${voterInRoom.playerId} (${voterInRoom.username}) changed vote from ${previousVote} to ${normalizedVotedCatId} (${targetParticipant.catName})`);
   } else {
-    console.log(`🗳️ ${voter.playerId} voted for ${normalizedVotedCatId}`);
-    }
-
-  // 🔧 DEBUG: Log the participant's current state
-  console.log(`📊 Vote stored: participant ${voter.playerId} has votedCatId = ${voter.votedCatId} (type: ${typeof voter.votedCatId})`);
-
-    this.broadcastVotingUpdate();
-
-    // Check if all voted for early end
-    const allVoted = this.participants.every(p => p.votedCatId);
-    const votedCount = this.participants.filter(p => p.votedCatId).length;
-    const totalCount = this.participants.length;
-    
-    console.log(`📊 Voting progress: ${votedCount}/${totalCount} participants have voted`);
-  
-    // 🔧 DEBUG: Log all current votes
-    console.log('🗳️ Current vote state:');
-    this.participants.forEach((p, idx) => {
-      console.log(`  ${idx + 1}. ${p.username} (${p.playerId}) voted for: ${p.votedCatId || 'NO VOTE'}`);
-    });
-    
-    if (allVoted) {
-      console.log('🚀 ALL PARTICIPANTS VOTED - Ending voting early!');
-      console.log('⏰ Early voting end triggered - canceling timer');
-      
-      // Clear the voting timer since we're ending early
-      if (this.votingTimer) {
-        clearTimeout(this.votingTimer);
-        this.votingTimer = null;
-        console.log('⏹️ Voting timer canceled due to early completion');
-      }
-      
-      // Add small delay for better UX (let players see their final selection)
-      setTimeout(() => {
-        console.log('✅ Finalizing voting after early completion');
-        this.finalizeVoting();
-      }, 1500); // 1.5 second delay
-    }
+    console.log(`🗳️ ${voterInRoom.playerId} (${voterInRoom.username}) voted for ${normalizedVotedCatId} (${targetParticipant.catName})`);
   }
+
+  // 🔧 FIX 6: Verify the vote was stored correctly
+  console.log(`📊 Vote confirmation: ${voterInRoom.username} now has votedCatId = ${voterInRoom.votedCatId} (type: ${typeof voterInRoom.votedCatId})`);
+
+  this.broadcastVotingUpdate();
+
+  // Check if all voted for early end
+  const allVoted = this.participants.every(p => p.votedCatId !== null && p.votedCatId !== undefined);
+  const votedCount = this.participants.filter(p => p.votedCatId !== null && p.votedCatId !== undefined).length;
+  const totalCount = this.participants.length;
+  
+  console.log(`📊 Voting progress: ${votedCount}/${totalCount} participants have voted`);
+
+  // 🔧 FIX 7: Enhanced vote state logging
+  console.log('🗳️ Current vote state after vote:');
+  this.participants.forEach((p, idx) => {
+    const votedForParticipant = this.participants.find(target => parseInt(target.catId) === parseInt(p.votedCatId));
+    const voteDisplay = p.votedCatId ? `${p.votedCatId} (${votedForParticipant?.catName || 'unknown'})` : 'NO VOTE';
+    const uniqueId = `${p.playerId}-${p.catId}`;
+    console.log(`  ${idx + 1}. ${p.username} [${uniqueId}] voted for: ${voteDisplay}`);
+  });
+    
+  if (allVoted) {
+    console.log('🚀 ALL PARTICIPANTS VOTED - Ending voting early!');
+    console.log('⏰ Early voting end triggered - canceling timer');
+    
+    // Clear the voting timer since we're ending early
+    if (this.votingTimer) {
+      clearTimeout(this.votingTimer);
+      this.votingTimer = null;
+      console.log('⏹️ Voting timer canceled due to early completion');
+    }
+    
+    // Add small delay for better UX
+    setTimeout(() => {
+      console.log('✅ Finalizing voting after early completion');
+      this.finalizeVoting();
+    }, 1500);
+  }
+}
 
   handleVotingTimeout() {
     if (this.isFinalized) return;
@@ -350,7 +392,8 @@ class GameRoom {
   // 🔧 DEBUG: Log all participants and their votes before counting
   console.log('📊 All participants and their votes:');
   this.participants.forEach((p, idx) => {
-    console.log(`  ${idx + 1}. ${p.username} (playerId: ${p.playerId}, catId: ${p.catId}) voted for: ${p.votedCatId}`);
+    const hasVote = p.votedCatId !== null && p.votedCatId !== undefined;
+    console.log(`  ${idx + 1}. ${p.username} (playerId: ${p.playerId}, catId: ${p.catId}) voted for: ${hasVote ? p.votedCatId : 'NO VOTE'} (type: ${typeof p.votedCatId})`);
   });
 
   // Count votes with explicit type handling
@@ -358,21 +401,23 @@ class GameRoom {
     console.log('📊 Counting votes:');
 
   this.participants.forEach(voter => {
-    if (voter.votedCatId !== null && voter.votedCatId !== undefined) {
+    if (voter.votedCatId !== null && voter.votedCatId !== undefined && !isNaN(voter.votedCatId)) {
       // 🔧 FIX: Ensure consistent key types for vote counting
-      const voteKey = parseInt(voter.votedCatId).toString();
+      const votedCatId = parseInt(voter.votedCatId);
+      const voteKey = votedCatId.toString();
       votes[voteKey] = (votes[voteKey] || 0) + 1;
 
-      const votedForParticipant = this.participants.find(p => parseInt(p.catId) === parseInt(voter.votedCatId));
-      console.log(`  🗳️ ${voter.username} voted for ${votedForParticipant?.catName || voter.votedCatId} (key: ${voteKey})`);
+      const votedForParticipant = this.participants.find(p => parseInt(p.catId) === votedCatId);
+      console.log(`  🗳️ ${voter.username} voted for cat ${votedCatId} (${votedForParticipant?.catName || 'Unknown'}) - key: ${voteKey}`);
     } else {
-      console.log(`  ❌ ${voter.username} has invalid vote: ${voter.votedCatId}`);
+      console.log(`  ❌ ${voter.username} has invalid vote: ${voter.votedCatId} (type: ${typeof voter.votedCatId})`);
     }
   });
 
   console.log('📈 Vote tallies by catId:');
   Object.entries(votes).forEach(([catIdStr, voteCount]) => {
-    const participant = this.participants.find(p => parseInt(p.catId).toString() === catIdStr);
+    const catId = parseInt(catIdStr);
+    const participant = this.participants.find(p => parseInt(p.catId) === catId);
     console.log(`  catId ${catIdStr} (${participant?.catName || 'Unknown'}): ${voteCount} vote(s)`);
   });
 
@@ -382,7 +427,8 @@ class GameRoom {
 
     this.participants.forEach(p => {
     // 🔧 FIX: Ensure consistent key lookup for vote counting
-    const catIdKey = parseInt(p.catId).toString();
+    const catId = parseInt(p.catId);
+    const catIdKey = catId.toString();
     p.votesReceived = votes[catIdKey] || 0;
       p.coinsEarned = p.votesReceived * 25;
       totalCoinsDistributed += p.coinsEarned;
@@ -480,6 +526,9 @@ function broadcastWaitingRoomUpdate() {
 // MAIN SOCKET SETUP FUNCTION 
 // ═══════════════════════════════════════════════════════════════
 
+// ✅ FIXED VERSION - Add validation to prevent duplicates and invalid cats
+
+// 🔧 FIXED: Socket setup with proper room assignment
 export default function setupSocket(io) {
   const playerSockets = new Map();
   const adminSockets = new Set();
@@ -487,12 +536,9 @@ export default function setupSocket(io) {
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // ═══════════════════════════════════════════════════════════════
-    // FASHION SHOW SOCKET HANDLERS 
-    // ═══════════════════════════════════════════════════════════════
-
-    let currentRoom = null;
-    let participant = null;
+    // 🔧 FIX: Use a more reliable room tracking system
+    let currentParticipant = null;
+    let currentGameRoom = null;
 
     socket.on('join', async (message) => {
       console.log('🎭 Fashion Show - Received join:', message);
@@ -502,40 +548,131 @@ export default function setupSocket(io) {
         return socket.disconnect();
       }
 
-      participant = await createParticipant(message.playerId, message.catId, socket);
-      console.log(`✅ Enhanced participant created for ${participant.playerId}`);
+      // Validate cat ownership BEFORE creating participant
+      try {
+        const catValidation = await DB.query(
+          'SELECT cat_id FROM player_cats WHERE cat_id = $1 AND player_id = $2',
+          [message.catId, message.playerId]
+        );
+
+        if (catValidation.rows.length === 0) {
+          console.warn(`❌ Player ${message.playerId} does not own cat ${message.catId}. Disconnecting.`);
+          socket.emit('error', { message: 'Invalid cat selection' });
+          return socket.disconnect();
+        }
+      } catch (err) {
+        console.error('❌ Database error during cat validation:', err);
+        socket.emit('error', { message: 'Database error' });
+        return socket.disconnect();
+      }
+
+      // Check for duplicate participants
+      const isDuplicate = waitingRoom.participants.some(p => 
+        p.playerId === message.playerId || 
+        (p.playerId === message.playerId && p.catId === message.catId)
+      );
+
+      if (isDuplicate) {
+        console.warn(`❌ Player ${message.playerId} already in waiting room. Disconnecting duplicate.`);
+        socket.emit('error', { message: 'You are already in the waiting room' });
+        return socket.disconnect();
+      }
+
+      // Create participant
+      socket.participant = await createParticipant(message.playerId, message.catId, socket);
+      currentParticipant = socket.participant;
+      
+      // Validate participant was created successfully
+      if (!socket.participant || !socket.participant.catName || socket.participant.catName.startsWith('Cat_')) {
+        console.warn(`❌ Failed to create valid participant for player ${message.playerId}, cat ${message.catId}`);
+        socket.emit('error', { message: 'Failed to load cat data' });
+        return socket.disconnect();
+      }
+
+      console.log(`✅ Valid participant created for ${socket.participant.playerId}: ${socket.participant.catName}`);
 
       if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
-        waitingRoom.participants.push(participant);
-        currentRoom = waitingRoom;
+        waitingRoom.participants.push(socket.participant);
 
         console.log(`👥 Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
+        
+        // Debug: Log all participants to verify no duplicates
+        console.log('👥 Current waiting room participants:');
+        waitingRoom.participants.forEach((p, idx) => {
+          console.log(`  ${idx + 1}. Player ${p.playerId} with cat ${p.catId} (${p.catName})`);
+        });
+
         broadcastWaitingRoomUpdate();
 
         // Launch game room when full
         if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
           console.log('🚀 Launching game room');
-          const gameRoom = new GameRoom([...waitingRoom.participants]);
+          
+          // Final validation before game start
+          const uniqueParticipants = waitingRoom.participants.filter((p, index, arr) => 
+            arr.findIndex(other => other.playerId === p.playerId && other.catId === p.catId) === index
+          );
 
-          waitingRoom.participants.forEach(p => {
-            if (!p.isDummy && p.socket) p.socket.gameRoom = gameRoom;
+          if (uniqueParticipants.length !== PARTICIPANTS_IN_ROOM) {
+            console.error(`❌ Duplicate participants detected! Expected ${PARTICIPANTS_IN_ROOM}, got ${uniqueParticipants.length} unique`);
+            // Reset waiting room and disconnect all
+            waitingRoom.participants.forEach(p => {
+              if (p.socket?.connected) {
+                p.socket.emit('error', { message: 'Room error - please try again' });
+                p.socket.disconnect();
+              }
+            });
+            waitingRoom = { participants: [], isVoting: false };
+            return;
+          }
+
+          const gameRoom = new GameRoom([...uniqueParticipants]);
+
+          // 🔧 FIX: Properly assign game room to all participant sockets
+          uniqueParticipants.forEach(p => {
+            if (!p.isDummy && p.socket) {
+              p.socket.currentGameRoom = gameRoom; // Use a clear property name
+              console.log(`🔗 Assigned game room to ${p.username}'s socket`);
+            }
           });
 
-          currentRoom = gameRoom;
-
+          // Reset waiting room
           waitingRoom = { participants: [], isVoting: false };
         }
       } else {
         console.warn('❌ Waiting room full or voting. Disconnecting.');
+        socket.emit('error', { message: 'Room is full or voting in progress' });
         socket.disconnect();
       }
     });
 
+    // 🔧 FIXED: Vote handling with proper room validation
     socket.on('vote', (message) => {
       console.log('🗳️ Received vote:', message);
-      if (currentRoom instanceof GameRoom && participant) {
-        currentRoom.handleVote(participant, message.votedCatId);
+      
+      // Validate we have a participant and game room
+      if (!currentParticipant) {
+        console.warn('⚠️ Vote received but no participant on socket');
+        return;
       }
+
+      if (!socket.currentGameRoom) {
+        console.warn('⚠️ Vote received but no game room assigned to socket');
+        return;
+      }
+
+      if (!(socket.currentGameRoom instanceof GameRoom)) {
+        console.warn('⚠️ Vote received but currentGameRoom is not a GameRoom instance');
+        return;
+      }
+
+      if (socket.currentGameRoom.isFinalized) {
+        console.warn('⚠️ Vote received but game room is already finalized');
+        return;
+      }
+
+      console.log(`🗳️ Valid vote from ${currentParticipant.username} (${currentParticipant.playerId}) for cat ${message.votedCatId}`);
+      socket.currentGameRoom.handleVote(currentParticipant, message.votedCatId);
     });
 
     
@@ -706,17 +843,19 @@ export default function setupSocket(io) {
       console.log('User disconnected:', socket.id);
 
       // Handle fashion show disconnect
-      if (participant) {
-        if (currentRoom === waitingRoom) {
-          const idx = waitingRoom.participants.indexOf(participant);
-          if (idx > -1) {
-            waitingRoom.participants.splice(idx, 1);
-            broadcastWaitingRoomUpdate();
-            console.log(`👤 ${participant.playerId} left waiting room`);
-          }
-        } else if (currentRoom instanceof GameRoom) {
-          currentRoom.handleParticipantDisconnect(participant);
-          console.log(`👤 ${participant.playerId} disconnected during game`);
+      if (currentParticipant) {
+        // Check if they're in waiting room
+        const waitingRoomIdx = waitingRoom.participants.findIndex(p => 
+          p.playerId === currentParticipant.playerId && p.catId === currentParticipant.catId
+        );
+        
+        if (waitingRoomIdx > -1) {
+          waitingRoom.participants.splice(waitingRoomIdx, 1);
+          broadcastWaitingRoomUpdate();
+          console.log(`👤 ${currentParticipant.playerId} left waiting room`);
+        } else if (socket.currentGameRoom instanceof GameRoom) {
+          socket.currentGameRoom.handleParticipantDisconnect(currentParticipant);
+          console.log(`👤 ${currentParticipant.playerId} disconnected during game`);
         }
       }
 
