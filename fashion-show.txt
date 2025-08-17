@@ -1,286 +1,184 @@
-// // import { Server } from "socket.io";
+# TASKS
 
-// export function initFashionShowConfig(mainHttpServer) {
-//   const io = new Server(mainHttpServer, {
-//     cors: {
-//       origin: "*"
-//     }
-//   });
+## ✅ **WHAT WORKS - ACCOMPLISHED SO FAR:**
 
-//   console.log('🧵 Socket.io server initialized');
+### **Phase 1: Core Infrastructure** ✅ COMPLETE
+- ✅ Socket.IO connection between client and server
+- ✅ Waiting room system (participants join and leave)
+- ✅ Participant counter display (X/5 players)
+- ✅ Room cycling (when full, creates new game room + resets waiting room)
 
-//   io.on('connection', newIoCSocket);
-// }
+### **Phase 2: Enhanced Data & Visuals** ✅ COMPLETE  
+- ✅ Enhanced participant creation with database queries
+- ✅ Real cat sprite URLs fetched from `cat_templates` table
+- ✅ Real usernames fetched from `players` table  
+- ✅ Real cat names fetched from `player_cats` table
+- ✅ Worn items data fetched from `cat_items` + `itemtemplate` tables
+- ✅ Client displays real cat sprites (not placeholders)
+- ✅ Client displays worn items layered on cats
+- ✅ Transition from waiting room to voting phase UI
+- ✅ 30-second countdown timer display
 
-// // Constants
-// const PARTICIPANTS_IN_ROOM = 5;
-// const VOTING_TIMER = 60;
+### **Phase 3: Basic Voting Structure** ✅ COMPLETE
+- ✅ Server sends `voting_phase` message with participant data
+- ✅ Client shows voting interface with cat stages
+- ✅ Client countdown timer runs locally
+- ✅ Server has voting timeout handler (basic structure)
 
-// // Global waiting room singleton
-// let waitingRoom = {
-//   participants: [],
-//   isVoting: false
-// };
+### **Phase 4: Interactive Voting System** ✅ COMPLETE
+- ✅ **Enhanced Visual Feedback** - Purple hover/selection outlines with smooth animations
+- ✅ **Click Handlers** - Players can click cats to vote during voting phase
+- ✅ **Vote Message System** - Client sends vote messages to server
+- ✅ **Server Vote Tracking** - Server tracks votes per participant
+- ✅ **Vote Changes** - Players can change votes while timer running
+- ✅ **Own Cat Prevention** - Visual feedback and warnings for self-voting attempts
+- ✅ **CSS Animations** - Shake effects, glows, and smooth transitions
+- ✅ **Proper State Management** - Voting interactions enabled/disabled correctly
 
-// // ─────────────── Game Room Class ───────────────
-// class GameRoom {
-//   constructor(participants) {
-//     this.participants = participants;
-//     this.isVoting = true;
-//     this.votingStartTime = Date.now();
-//     this.isFinalized = false;
-//     this.votingTimer = null;
+### **Phase 5: Vote Calculation & Results Display** ✅ COMPLETE
+- ✅ **Timer-based calculation** triggers when 30 seconds end
+- ✅ **Auto-vote assignment** for participants who haven't voted
+- ✅ **Detailed logging** of vote counting process
+- ✅ **Coin reward calculation** (25 coins per vote received)
+- ✅ **Early voting end** when all participants vote (1.5s delay)
+- ✅ **Results display** with gold pedestals proportional to votes
+- ✅ **No repositioning** - cats stay in original stage positions
+- ✅ **Simple reward display** - "X coins" text in brown boxes
+- ✅ **Smooth animations** - gold base rise, cat positioning, text appearance
+- ✅ **Navigation buttons** - Play Again/Go Home functionality
 
-//     console.log('🗳️ GameRoom created with participants:', this.participants.map(p => p.playerId));
-//     this.startVotingPhase();
-//   }
+### **Phase 6: User Experience & Polish** ✅ COMPLETE
 
-//   startVotingPhase() {
-//     console.log('⏳ Voting phase started');
+#### **Step 6A: Visual Polish** ✅ COMPLETE
+- ✅ Removed medal emojis from results display
+- ✅ Clean coin reward text display in brown boxes
+- ✅ Fixed height calculation for gold pedestals (40px per vote + 20px minimum)
+- ✅ Preserved brown stage bases during results mode
+- ✅ Smooth animations for all result elements
 
-//     this.participants.forEach(participant => {
-//       if (participant.socket?.connected) {
-//         participant.socket.emit('voting_phase', {
-//           type: 'voting_phase',
-//           participants: this.getParticipantsForClient(),
-//           timerSeconds: VOTING_TIMER
-//         });
-//         console.log(`📤 Sent voting_phase to ${participant.playerId}`);
-//       }
-//     });
+#### **Step 6B: Exit Confirmation Dialog** ✅ COMPLETE  
+- ✅ **Phase-based back arrow behavior:**
+  - **Waiting Room:** Back arrow visible, direct navigation (no confirmation)
+  - **Voting Phase:** Back arrow visible, shows confirmation dialog
+  - **Results Phase:** Back arrow completely hidden
+- ✅ **Confirmation dialog features:**
+  - Gray transparent overlay blocks background interactions
+  - Cream dialog box with proper styling
+  - "Are you sure you want to exit this gameshow?" text
+  - "NO, I changed my mind" and "YES, I'm sure" buttons
+  - Click outside dialog to cancel
+- ✅ **Game phase management:**
+  - `setGamePhase()` function controls back arrow visibility
+  - Proper phase transitions during game flow
+  - Play Again button restores back arrow correctly
+- ✅ **Dialog cleanup on results:** Exit dialog automatically hidden when results phase starts
 
-//     this.participants.forEach(participant => {
-//       if (participant.isDummy) {
-//         this.makeDummyVote(participant);
-//       }
-//     });
+#### **Step 6C: Database Integration** ✅ COMPLETE
+- ✅ **Proper coin reward timing:** Coins awarded ONLY when results are displayed (pedestals visible)
+- ✅ **Enhanced validation:** Multiple layers of coin amount validation (multiples of 25 only)
+- ✅ **Comprehensive error handling:** Database failures logged without breaking game flow
+- ✅ **Dummy participant protection:** Disconnected players don't receive undeserved rewards
+- ✅ **Transaction integrity:** Database updates happen atomically before results display
+- ✅ **Detailed audit logging:** Full tracking of all coin transactions and failures
 
-//     this.votingTimer = setTimeout(() => {
-//       console.log('⏰ Voting timeout reached');
-//       this.handleVotingTimeout();
-//     }, VOTING_TIMER * 1000);
-//   }
+#### **Step 6D: Bug Fixes & Data Integrity** ✅ COMPLETE
+- ✅ **Coin calculation validation:** Fixed potential XX3 ending bug with comprehensive type checking
+- ✅ **Vote counting integrity:** Enhanced catId consistency validation and phantom vote detection
+- ✅ **Database consistency checks:** Before/after balance verification for all transactions
+- ✅ **Race condition protection:** Proper participant tracking and duplicate prevention
 
-//   makeDummyVote(dummy) {
-//     const availableCats = this.participants.filter(p => p.catId !== dummy.catId).map(p => p.catId);
-//     if (availableCats.length > 0) {
-//       const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
-//       console.log(`🤖 Dummy ${dummy.playerId} voting for ${choice}`);
-//       this.handleVote(dummy, choice);
-//     }
-//   }
+---
 
-//   handleVote(voter, votedCatId) {
-//     if (this.isFinalized || votedCatId === voter.catId) return;
+## 🎯 **CURRENT STEPS: Final Polish & Features**
 
-//     voter.votedCatId = votedCatId;
-//     console.log(`🗳️ ${voter.playerId} voted for ${votedCatId}`);
+### **Step 7A: Notification System** 🔄 NEXT
+**Goal:** Add Toastify notifications for key game events
 
-//     this.broadcastVotingUpdate();
+**Sub-steps:**
+1. **Coin Reward Toast:** Show "X coins added to account!" when database update succeeds
+2. **Early Quit Toast:** Show "You quit early - no rewards granted" when player leaves before results
+3. **Error Handling Toasts:** Notifications for connection issues, game errors, etc.
+4. **Toast Styling:** Match game's pixel art aesthetic and color scheme
+5. **Toast Timing:** Ensure toasts appear at correct moments and don't interfere with UI
 
-//     const allVoted = this.participants.every(p => p.votedCatId);
-//     if (allVoted) {
-//       console.log('✅ All participants voted. Finalizing...');
-//       this.finalizeVoting();
-//     }
-//   }
+### **Step 7B: Responsive Design** 🔄 NEXT
+**Goal:** Ensure fashion show works on different desktop/laptop screen sizes
 
-//   handleVotingTimeout() {
-//     if (this.isFinalized) return;
+**Sub-steps:**
+1. **Screen Size Analysis:** Test on 1366x768, 1440x900, 1920x1080, 2560x1440 resolutions
+2. **Layout Scaling:** Ensure cat display area, stage bases, and UI elements scale properly
+3. **Text Scaling:** Readable fonts across different screen densities
+4. **Button Positioning:** Consistent positioning of back arrow, timer, results buttons
+5. **Dialog Responsivity:** Exit confirmation dialog adapts to different screen sizes
 
-//     this.participants.forEach(participant => {
-//       if (!participant.votedCatId) {
-//         const availableCats = this.participants.filter(p => p.catId !== participant.catId).map(p => p.catId);
-//         if (availableCats.length > 0) {
-//           const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
-//           participant.votedCatId = choice;
-//           console.log(`⚠️ Timeout vote for ${participant.playerId}: voted ${choice}`);
-//         }
-//       }
-//     });
+### **Step 7C: Performance Optimization** 🔄 FUTURE
+**Goal:** Optimize for smooth performance across different hardware
 
-//     this.finalizeVoting();
-//   }
+**Sub-steps:**
+1. **Animation Performance:** Ensure 60fps animations on lower-end hardware
+2. **Memory Management:** Proper cleanup of event listeners and socket connections
+3. **Asset Optimization:** Efficient loading of cat sprites and worn items
+4. **Network Optimization:** Minimize socket message frequency and size
 
-//   finalizeVoting() {
-//     if (this.isFinalized) return;
-//     this.isFinalized = true;
+---
 
-//     if (this.votingTimer) clearTimeout(this.votingTimer);
+## 🎮 **COMPLETE GAME FLOW STATUS:**
 
-//     this.calculateResults();
+1. ✅ **Waiting Room** - Players join, see counter, back arrow for direct exit
+2. ✅ **Voting Phase Start** - Timer starts, cats displayed, back arrow with confirmation
+3. ✅ **Voting Interaction** - Purple outlines, click voting, self-vote prevention
+4. ✅ **Vote Calculation** - Timer/early end with detailed logging
+5. ✅ **Results Display** - Gold pedestals, coin rewards, no back arrow
+6. ✅ **Database Integration** - Coins awarded exactly when results displayed
+7. ✅ **Navigation** - Play Again (restores back arrow) / Go Home buttons
+8. ✅ **Exit Confirmation** - Phase-appropriate back arrow behavior with dialog cleanup
+9. ✅ **Data Integrity** - Comprehensive validation and error handling
 
-//     this.participants.forEach(participant => {
-//       if (participant.socket?.connected) {
-//         participant.socket.emit('results', {
-//           type: 'results',
-//           participants: this.getParticipantsForClient()
-//         });
-//         console.log(`📤 Sent results to ${participant.playerId}`);
-//       }
-//     });
-//   }
+---
 
-//   calculateResults() {
-//     const votes = {};
-//     this.participants.forEach(p => {
-//       if (p.votedCatId) {
-//         votes[p.votedCatId] = (votes[p.votedCatId] || 0) + 1;
-//       }
-//     });
+## 📋 **IMMEDIATE NEXT ACTIONS:**
 
-//     this.participants.forEach(p => {
-//       p.votesReceived = votes[p.catId] || 0;
-//       p.coinsEarned = p.votesReceived * 25;
-//       console.log(`💰 ${p.playerId} earned ${p.coinsEarned} coins with ${p.votesReceived} votes`);
-//     });
-//   }
+### **Priority 1: Notification System (Step 7A)**
+- Implement Toastify notifications for coin rewards and early quit scenarios
+- Style toasts to match game aesthetic
 
-//   broadcastVotingUpdate() {
-//     this.participants.forEach(p => {
-//       if (p.socket?.connected) {
-//         p.socket.emit('voting_update', {
-//           type: 'voting_update',
-//           participants: this.getParticipantsForClient()
-//         });
-//         console.log(`🔄 Sent voting update to ${p.playerId}`);
-//       }
-//     });
-//   }
+---
 
-//   getParticipantsForClient() {
-//     return this.participants.map(p => ({
-//       playerId: p.playerId,
-//       catId: p.catId,
-//       votedCatId: p.votedCatId,
-//       votesReceived: p.votesReceived || 0,
-//       coinsEarned: p.coinsEarned || 0
-//     }));
-//   }
+## 🎊 **MAJOR ACCOMPLISHMENTS:**
 
-//   handleParticipantDisconnect(p) {
-//     if (this.isFinalized) return;
+- ✅ **Complete multiplayer fashion show** from waiting room to results
+- ✅ **Real-time voting system** with interactive feedback and early completion
+- ✅ **Comprehensive database integration** with proper timing and validation
+- ✅ **Robust error handling** for disconnections, timeouts, and data corruption
+- ✅ **Smart exit confirmation** with phase-appropriate behavior and cleanup
+- ✅ **Polished user experience** with smooth animations and clean transitions
+- ✅ **Production-ready code** with extensive logging and debugging capabilities
+- ✅ **Data integrity protection** preventing coin calculation bugs and phantom votes
 
-//     if (!p.votedCatId) {
-//       const options = this.participants.filter(x => x.catId !== p.catId).map(x => x.catId);
-//       if (options.length > 0) {
-//         const vote = options[Math.floor(Math.random() * options.length)];
-//         p.votedCatId = vote;
-//         console.log(`⚠️ ${p.playerId} disconnected - voting randomly for ${vote}`);
-//         const allVoted = this.participants.every(p => p.votedCatId);
-//         allVoted ? this.finalizeVoting() : this.broadcastVotingUpdate();
-//       }
-//     }
-//   }
-// }
+**The fashion show game is now 100% functionally complete! Only polish features (notifications & responsivity) remaining.** 🎮✨💰🏆
 
-// // ─────────────── Utilities ───────────────
-// function generateDummyParticipant() {
-//   const id = Math.random().toString(36).substr(2, 9);
-//   const dummy = {
-//     playerId: `dummy_${id}`,
-//     catId: `cat_${id}`,
-//     isDummy: true,
-//     socket: null
-//   };
-//   console.log(`👻 Generated dummy: ${dummy.playerId}`);
-//   return dummy;
-// }
+---
 
-// function broadcastWaitingRoomUpdate() {
-//   waitingRoom.participants.forEach(p => {
-//     if (p.socket?.connected) {
-//       p.socket.emit('participant_update', {
-//         type: 'participant_update',
-//         participants: waitingRoom.participants.map(p => ({
-//           playerId: p.playerId,
-//           catId: p.catId
-//         })),
-//         maxCount: PARTICIPANTS_IN_ROOM
-//       });
-//       console.log(`📤 Sent waiting room update to ${p.playerId}`);
-//     }
-//   });
-// }
+## 🚀 **PRODUCTION READINESS:**
 
-// // ─────────────── Socket Handler ───────────────
-// function newIoCSocket(socket) {
-//   console.log('🔌 New client connected:', socket.id);
+### **Core Features:** 100% Complete ✅
+- Multiplayer matchmaking, voting, results, database integration
 
-//   let currentRoom = null;
-//   let participant = null;
+### **User Experience:** 95% Complete ✅
+- Smooth animations, error handling, exit confirmation
 
-//   socket.on('join', (message) => {
-//     console.log('📨 Received join message:', message);
+### **Polish Features:** 70% Complete 🔄
+- **Remaining:** Notification system, responsive design
 
-//     if (!message.playerId || !message.catId) {
-//       console.warn('⚠️ Missing playerId or catId. Disconnecting.');
-//       return socket.disconnect();
-//     }
+### **Stability:** 100% Complete ✅
+- Comprehensive error handling, data validation, race condition protection
 
-//     participant = {
-//       playerId: message.playerId,
-//       catId: message.catId,
-//       socket,
-//       isDummy: false
-//     };
-//     console.log(`✅ Registered: ${participant.playerId} (${participant.catId})`);
+**The fashion show is ready for production deployment with minor polish enhancements pending!** 🎉
 
-//     if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
-//       waitingRoom.participants.push(participant);
-//       currentRoom = waitingRoom;
+---
 
-//       console.log(`👥 Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
+Let's tackle Notification System (Step 7A).
 
-//       while (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM) {
-//         waitingRoom.participants.push(generateDummyParticipant());
-//       }
+I want you to approach this carefully, analyse the other attached files so you can better understand DB interactions (notify me if there are other files you need me to attach for better understanding).
 
-//       broadcastWaitingRoomUpdate();
-
-//       if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-//         console.log('🚀 Launching game room');
-//         const gameRoom = new GameRoom([...waitingRoom.participants]);
-
-//         waitingRoom.participants.forEach(p => {
-//           if (!p.isDummy && p.socket) p.socket.gameRoom = gameRoom;
-//         });
-
-//         currentRoom = gameRoom;
-
-//         waitingRoom = {
-//           participants: [],
-//           isVoting: false
-//         };
-//       }
-//     } else {
-//       console.warn('❌ Waiting room full or voting. Disconnecting.');
-//       socket.disconnect();
-//     }
-//   });
-
-//   socket.on('vote', (message) => {
-//     console.log('🗳️ Received vote:', message);
-//     if (currentRoom instanceof GameRoom && participant) {
-//       currentRoom.handleVote(participant, message.votedCatId);
-//     }
-//   });
-
-//   socket.on('disconnect', () => {
-//     console.log('🔌 Disconnected:', socket.id);
-
-//     if (participant) {
-//       if (currentRoom === waitingRoom) {
-//         const idx = waitingRoom.participants.indexOf(participant);
-//         if (idx > -1) {
-//           waitingRoom.participants.splice(idx, 1);
-//           broadcastWaitingRoomUpdate();
-//           console.log(`👤 ${participant.playerId} left waiting room`);
-//         }
-//       } else if (currentRoom instanceof GameRoom) {
-//         currentRoom.handleParticipantDisconnect(participant);
-//         console.log(`👤 ${participant.playerId} disconnected during game`);
-//       }
-//     }
-//   });
-// }
+Create a detailed step by step plan with sub steps, then carefully execute them one after the other.
