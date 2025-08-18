@@ -1,4 +1,4 @@
-import DB from '../../db';
+import DB from '../../db.js';
 
 // GET all broadcasts
 export const getAllBroadcasts = async (_req, res) => {

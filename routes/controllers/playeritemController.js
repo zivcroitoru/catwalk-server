@@ -1,5 +1,5 @@
 // controllers/playeritemController.js
-import DB from '../../db';
+import DB from '../../db.js';
 
 // ───────────── Get all items for the logged-in player ─────────────
 export const getPlayerItems = async (req, res) => {

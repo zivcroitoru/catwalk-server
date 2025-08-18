@@ -1,4 +1,4 @@
-import DB from '../../db';
+import DB from '../../db.js';
 
 // ───────────── GET: Player's Cats ─────────────
 export async function getPlayerCats(req, res) {

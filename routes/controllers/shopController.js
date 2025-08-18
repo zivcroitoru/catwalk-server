@@ -1,4 +1,4 @@
-import DB from '../../db';
+import DB from '../../db.js';
 
 // GET all shop items (client view)
 export async function getShopItems(_req, res) {
