@@ -151,5 +151,6 @@ export default {
   signup,
   login,
   logout,
-  getMe
+  getMe,
+  updateUser
 };
