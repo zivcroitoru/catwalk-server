@@ -39,10 +39,10 @@ router.patch("/user", JWT.requireLogin, authMiddleware.updateUser);
 
 
 //--------authControllers.js--------//
-router.post("/signup", authController.signup);
-router.post("/login", authController.login);
-router.post("/logout", authController.logout);
-router.get("/me", requireLogin, authController.getMe);
+router.post('/auth/signup', authController.signup);
+router.post('/auth/login', authController.login);
+router.post('/auth/logout', authController.logout);
+router.get('/auth/me', requireLogin, authController.getMe);
 
 //-------catsControllers.js--------//
 router.get('/api/cats', requireAuth, catController.getPlayerCats);
