@@ -4,7 +4,7 @@ const router = express.Router();
 
 
 // ───────────── Routes ─────────────
-// import authRoutes from './controllers/authController.js';
+import authController from './controllers/authController.js';
 import catController from './controllers/catsController.js';
 import playersController from './controllers/playersControllers.js';
 import shopController from './controllers/shopController.js';
@@ -19,6 +19,8 @@ import broadcastController from './controllers/broadcastController.js';
 // import adminRoutes from './routes/admins.js';
 
 //---------middleware--------//
+import authMiddleware from './middlewares/authMiddleware.js';
+router.patch("/user", JWT.requireLogin, authMiddleware.updateUser);
 
 
 
@@ -37,67 +39,67 @@ import broadcastController from './controllers/broadcastController.js';
 
 
 //--------authControllers.js--------//
-// router.post("/signup", authController.signup);
-// router.post("/login", authController.login);
-// router.post("/logout", authController.logout);
-// router.get("/me", requireLogin, authController.getMe);
+router.post("/signup", authController.signup);
+router.post("/login", authController.login);
+router.post("/logout", authController.logout);
+router.get("/me", requireLogin, authController.getMe);
 
 //-------catsControllers.js--------//
-router.get('/cats', requireAuth, catController.getPlayerCats);
-router.post('/cats', requireAuth, catController.createCat);
-router.patch('/cats/:id', requireAuth, catController.updateCat);
-router.delete('/cats/:id', requireAuth, catController.deleteCat);
-router.get('/cats/allcats', catController.getAllCats);
-router.get('/cats/template/:template', catController.getCatByTemplate);
-router.get('/cats/player/:playerId', catController.getCatsByPlayer);
-router.post('/cats/catadd', catController.addTemplate);
-router.patch('/cats/allcats/:id', catController.updateTemplateSprite);
-router.delete('/cats/delete/:catId', catController.deleteTemplate);
+router.get('/api/cats', requireAuth, catController.getPlayerCats);
+router.post('/api/cats', requireAuth, catController.createCat);
+router.patch('/api/cats/:id', requireAuth, catController.updateCat);
+router.delete('/api/cats/:id', requireAuth, catController.deleteCat);
+router.get('/api/cats/allcats', catController.getAllCats);
+router.get('/api/cats/template/:template', catController.getCatByTemplate);
+router.get('/api/cats/player/:playerId', catController.getCatsByPlayer);
+router.post('/api/cats/catadd', catController.addTemplate);
+router.patch('/api/cats/allcats/:id', catController.updateTemplateSprite);
+router.delete('/api/cats/delete/:catId', catController.deleteTemplate);
 
 //--------playersControllers.js--------//
-router.get('/players', playersController.getPlayers);
-router.post('/players', playersController.createPlayer);
-router.get('/players/:id', playersController.getPlayerById);
-router.put('/players/:id', playersController.updatePlayer);
-router.delete('/players/:id', playersController.deletePlayer);
-router.get('/players/:id/cats', playersController.getPlayerCats);
-router.get('/players/:id/items', playersController.getPlayerItems);
+router.get('/api/players', playersController.getPlayers);
+router.post('/api/players', playersController.createPlayer);
+router.get('/api/players/:id', playersController.getPlayerById);
+router.put('/api/players/:id', playersController.updatePlayer);
+router.delete('/api/players/:id', playersController.deletePlayer);
+router.get('/api/players/:id/cats', playersController.getPlayerCats);
+router.get('/api/players/:id/items', playersController.getPlayerItems);
 
 //--------shopControllers.js--------//
-router.get('/shop/shop-items', shopController.getShopItems);
-router.get('/shop/allclothes', shopController.getAllClothes);
-router.get('/shop', shopController.getShop);
-router.post('/shop', shopController.createShopItem);
-router.put('/shop/:id', shopController.updateShopItem);
-router.delete('/shop/:id', shopController.deleteShopItem);
-router.delete('/shop/delete/:itemId', shopController.deleteShopItemById);
-router.patch('/shop/edit/:id', shopController.patchShopItem);
-router.get('/shop/test', shopController.testShop);
-router.get('/shop/:template', shopController.getShopItemByTemplate);
-router.post('/shop/clothesadd', shopController.addClothesItem);
+router.get('/api/shop/shop-items', shopController.getShopItems);
+router.get('/api/shop/allclothes', shopController.getAllClothes);
+router.get('/api/shop', shopController.getShop);
+router.post('/api/shop', shopController.createShopItem);
+router.put('/api/shop/:id', shopController.updateShopItem);
+router.delete('/api/shop/:id', shopController.deleteShopItem);
+router.delete('/api/shop/delete/:itemId', shopController.deleteShopItemById);
+router.patch('/api/shop/edit/:id', shopController.patchShopItem);
+router.get('/api/shop/test', shopController.testShop);
+router.get('/api/shop/:template', shopController.getShopItemByTemplate);
+router.post('/api/shop/clothesadd', shopController.addClothesItem);
 
 //--------playeritemController.js--------//
-router.get('/playerItems', requireAuth, playerItemController.getPlayerItems);
-router.post('/playerItems/buy', requireAuth, playerItemController.buyPlayerItem);
+router.get('/api/playerItems', requireAuth, playerItemController.getPlayerItems);
+router.post('/api/playerItems/buy', requireAuth, playerItemController.buyPlayerItem);
 
 //--------catitemsControllers-------//
-router.patch('/cat_items/:catId', catItemsController.patchCatEquipment);
-router.get('/cat_items/:catId', catItemsController.getCatEquipment);
+router.patch('/api/cat_items/:catId', catItemsController.patchCatEquipment);
+router.get('/api/cat_items/:catId', catItemsController.getCatEquipment);
 
 //--------ticketsController.js--------//
-router.get('/tickets', ticketController.getAllTickets);
-router.post('/tickets', ticketController.createTicket);
-router.get('/tickets/test', ticketController.testTickets);
-router.get('/tickets/:ticketId', ticketController.getTicketById);
-router.get('/tickets/user/:userId/all', ticketController.getUserTickets);
-router.get('/tickets/user/:userId/open', ticketController.getUserOpenTicket);
-router.get('/tickets/:ticketId/messages', ticketController.getTicketMessages);
-router.post('/tickets/:ticketId/messages', ticketController.sendTicketMessage);
-router.patch('/tickets/:ticketId/close', ticketController.closeTicket);
+router.get('/api/tickets', ticketController.getAllTickets);
+router.post('/api/tickets', ticketController.createTicket);
+router.get('/api/tickets/test', ticketController.testTickets);
+router.get('/api/tickets/:ticketId', ticketController.getTicketById);
+router.get('/api/tickets/user/:userId/all', ticketController.getUserTickets);
+router.get('/api/tickets/user/:userId/open', ticketController.getUserOpenTicket);
+router.get('/api/tickets/:ticketId/messages', ticketController.getTicketMessages);
+router.post('/api/tickets/:ticketId/messages', ticketController.sendTicketMessage);
+router.patch('/api/tickets/:ticketId/close', ticketController.closeTicket);
 
 //--------broadcastController.js--------//
-router.get('/broadcasts', broadcastController.getAllBroadcasts);
-router.post('/broadcasts', broadcastController.createBroadcast);
+router.get('/api/broadcasts', broadcastController.getAllBroadcasts);
+router.post('/api/broadcasts', broadcastController.createBroadcast);
 
 
 

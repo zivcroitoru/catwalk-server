@@ -110,4 +110,9 @@ export function getMe(req, res) {
   });
 }
 
-export default router;
+export default {
+  signup,
+  login,
+  logout,
+  getMe
+};

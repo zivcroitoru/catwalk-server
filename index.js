@@ -35,7 +35,7 @@ app.use(express.json());
 
 // ───────────── Routes ─────────────
 import routerPath from './routes/router.js';
-app.use("/api", routerPath);
+app.use("/", routerPath);
 
 
 import authRoutes from './routes/auth.js';
