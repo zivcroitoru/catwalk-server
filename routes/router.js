@@ -27,7 +27,7 @@ router.get('/api/cats/allcats', catController.getAllCats);
 router.get('/api/cats/template/:template', catController.getCatByTemplate);
 router.get('/api/cats/player/:playerId', catController.getCatsByPlayer);
 router.post('/api/cats/catadd', catController.addTemplate);
-router.patch('/api/cats/allcats/:id', catController.updateTemplateSprite);
+router.patch('/api/cats/allcats/:id', catController.updateCatSprite);
 router.delete('/api/cats/delete/:catId', catController.deleteTemplate);
 
 // ───────────── Player Routes ─────────────
