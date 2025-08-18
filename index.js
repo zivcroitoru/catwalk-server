@@ -34,30 +34,34 @@ app.use(cors({
 app.use(express.json());
 
 // ───────────── Routes ─────────────
+import routerPath from './routes/router.js';
+app.use("/api", routerPath);
+
+
 import authRoutes from './routes/auth.js';
-import messagesRoutes from './routes/messages.js';
-import catsRoutes from './routes/cats.js';
-import playersRoutes from './routes/players.js';
-import shopRoutes from './routes/shop.js';
-import adminRoutes from './routes/admins.js';
-import player_itemsRoutes from './routes/player_items.js';
-import catItemsRoutes from './routes/cat_items.js';
-import mailboxRoutes from './routes/mailbox.js';
-import ticketsRoutes from './routes/tickets.js';
-import broadcastRoutes from './routes/broadcasts.js';
+// import messagesRoutes from './routes/messages.js';
+// import catsRoutes from './routes/cats.js';
+// import playersRoutes from './routes/players.js';
+// import shopRoutes from './routes/shop.js';
+// import adminRoutes from './routes/admins.js';
+// import player_itemsRoutes from './routes/player_items.js';
+// import catItemsRoutes from './routes/cat_items.js';
+// import mailboxRoutes from './routes/mailbox.js';
+// import ticketsRoutes from './routes/tickets.js';
+// import broadcastRoutes from './routes/broadcasts.js';
 
 
 app.use('/auth', authRoutes);
-app.use('/api/cats', catsRoutes);
-app.use('/api/cat_items', catItemsRoutes);
-app.use('/api/players', playersRoutes);
-app.use('/api/shop', shopRoutes);
-app.use('/api/admins', adminRoutes);
-app.use('/api/playerItems', player_itemsRoutes);
-app.use('/api/messages', messagesRoutes);
-app.use('/api/mailbox', mailboxRoutes);
-app.use('/api/tickets', ticketsRoutes);
-app.use('/api/broadcasts', broadcastRoutes);
+// app.use('/api/cats', catsRoutes);
+// app.use('/api/cat_items', catItemsRoutes);
+// app.use('/api/players', playersRoutes);
+// app.use('/api/shop', shopRoutes);
+// app.use('/api/admins', adminRoutes);
+// app.use('/api/playerItems', player_itemsRoutes);
+// app.use('/api/messages', messagesRoutes);
+// app.use('/api/mailbox', mailboxRoutes);
+// app.use('/api/tickets', ticketsRoutes);
+// app.use('/api/broadcasts', broadcastRoutes);
 
 // Test route
 app.get('/api/test-db', async (req, res) => {
