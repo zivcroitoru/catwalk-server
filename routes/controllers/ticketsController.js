@@ -167,7 +167,7 @@ export const testTickets = async (_req, res) => {
 };
 
 
-const ticketController = {
+export default {
   getAllTickets,
   createTicket,
   getTicketById,
@@ -178,5 +178,3 @@ const ticketController = {
   closeTicket,
   testTickets
 };
-
-export default ticketController;
