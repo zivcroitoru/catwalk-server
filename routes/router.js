@@ -13,7 +13,7 @@ import ticketController from './controllers/ticketsController.js';
 import broadcastController from './controllers/broadcastController.js';
 
 // ───────────── Middleware ─────────────
-import { signup, login, logout, getMe, updateUser, requireLogin } from './controllers/authController.js';
+import {signup, login, logout, getMe, updateUser, requireLogin } from './controllers/authController.js';
 
 // import { requireLogin } from './middlewares/authMiddleware.js';
 // // import { updateUser } from './controllers/authController.js';
