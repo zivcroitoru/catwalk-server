@@ -83,8 +83,8 @@ router.get('/api/playerItems', requireLogin, playerItemController.getPlayerItems
 router.post('/api/playerItems/buy', requireLogin, playerItemController.buyPlayerItem);
 
 //--------catitemsControllers-------//
-router.patch('/api/cat_items/:catId', catItemsController.patchCatEquipment);
-router.get('/api/cat_items/:catId', catItemsController.getCatEquipment);
+router.patch('/api/cat_items/:catId',requireLogin, catItemsController.patchCatEquipment);
+router.get('/api/cat_items/:catId',requireLogin, catItemsController.getCatEquipment);
 
 //--------ticketsController.js--------//
 router.get('/api/tickets', ticketController.getAllTickets);
