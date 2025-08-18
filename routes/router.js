@@ -30,10 +30,10 @@ router.patch('/auth/user', requireLogin, updateUser);
 
 
 // Auth
-router.post('/auth/signup', authController.signup);
-router.post('/auth/login', authController.login);
-router.post('/auth/logout', authController.logout);
-router.get('/auth/me', requireLogin, authController.getMe);
+// router.post('/auth/signup', authController.signup);
+// router.post('/auth/login', authController.login);
+// router.post('/auth/logout', authController.logout);
+// router.get('/auth/me', requireLogin, authController.getMe);
 // router.patch("/auth/user", requireLogin, authController.updateUser);
 
 // Cats
