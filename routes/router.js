@@ -45,10 +45,10 @@ router.post('/auth/logout', authController.logout);
 router.get('/auth/me', requireLogin, authController.getMe);
 
 //-------catsControllers.js--------//
-router.get('/api/cats', requireAuth, catController.getPlayerCats);
-router.post('/api/cats', requireAuth, catController.createCat);
-router.patch('/api/cats/:id', requireAuth, catController.updateCat);
-router.delete('/api/cats/:id', requireAuth, catController.deleteCat);
+router.get('/api/cats', requireLogin, catController.getPlayerCats);
+router.post('/api/cats', requireLogin, catController.createCat);
+router.patch('/api/cats/:id', requireLogin, catController.updateCat);
+router.delete('/api/cats/:id', requireLogin, catController.deleteCat);
 router.get('/api/cats/allcats', catController.getAllCats);
 router.get('/api/cats/template/:template', catController.getCatByTemplate);
 router.get('/api/cats/player/:playerId', catController.getCatsByPlayer);
@@ -79,8 +79,8 @@ router.get('/api/shop/:template', shopController.getShopItemByTemplate);
 router.post('/api/shop/clothesadd', shopController.addClothesItem);
 
 //--------playeritemController.js--------//
-router.get('/api/playerItems', requireAuth, playerItemController.getPlayerItems);
-router.post('/api/playerItems/buy', requireAuth, playerItemController.buyPlayerItem);
+router.get('/api/playerItems', requireLogin, playerItemController.getPlayerItems);
+router.post('/api/playerItems/buy', requireLogin, playerItemController.buyPlayerItem);
 
 //--------catitemsControllers-------//
 router.patch('/api/cat_items/:catId', catItemsController.patchCatEquipment);
