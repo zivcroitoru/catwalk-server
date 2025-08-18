@@ -1,3 +1,4 @@
+// authMiddleware.js
 import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -17,5 +18,4 @@ export function requireLogin(req, res, next) {
   }
 }
 
-
-export default { requireLogin };
+// no default export needed
