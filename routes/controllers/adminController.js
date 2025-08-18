@@ -1,5 +1,5 @@
 // controllers/adminController.js
-import DB from '../db.js';
+import DB from '../../db/js';
 import bcrypt from 'bcrypt';
 
 // ───────────── LOGIN ─────────────
