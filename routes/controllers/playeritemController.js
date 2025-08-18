@@ -77,6 +77,8 @@ export const buyPlayerItem = async (req, res) => {
 
 // ───────────── Update a player item (PATCH) ─────────────
 export const updatePlayerItem = async (req, res) => {
+  console.log('PATCH /playerItems body:', req.body);
+
   const playerId = req.user.id;
   const { player_item_id, newTemplate } = req.body;
 
