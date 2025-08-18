@@ -14,6 +14,8 @@ import broadcastController from './controllers/broadcastController.js';
 
 // ───────────── Middleware ─────────────
 import { requireLogin } from './middlewares/authMiddleware.js';
+import { updateUser } from './controllers/authController.js';
+router.patch("/auth/user", requireLogin, updateUser);
 
 // ───────────── Routes ─────────────
 
@@ -22,7 +24,7 @@ router.post('/auth/signup', authController.signup);
 router.post('/auth/login', authController.login);
 router.post('/auth/logout', authController.logout);
 router.get('/auth/me', requireLogin, authController.getMe);
-router.patch("/auth/user", requireLogin, authController.updateUser);
+// router.patch("/auth/user", requireLogin, authController.updateUser);
 
 // Cats
 router.get('/api/cats', requireLogin, catController.getPlayerCats);
