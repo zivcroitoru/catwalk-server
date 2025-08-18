@@ -13,20 +13,23 @@ import ticketController from './controllers/ticketsController.js';
 import broadcastController from './controllers/broadcastController.js';
 
 // ───────────── Middleware ─────────────
-import { requireLogin } from './middlewares/authMiddleware.js';
+import { signup, login, logout, getMe, updateUser, requireLogin } from './controllers/authController.js';
+
+// import { requireLogin } from './middlewares/authMiddleware.js';
 // // import { updateUser } from './controllers/authController.js';
 // router.patch("/auth/user", requireLogin, updateUser);
 
 // ───────────── Routes ─────────────
 
 
-import { signup, login, logout, getMe, updateUser } from './controllers/authController.js';
+// import { signup, login, logout, getMe, updateUser } from './controllers/authController.js';
 
 router.post('/auth/signup', signup);
 router.post('/auth/login', login);
 router.post('/auth/logout', logout);
 router.get('/auth/me', requireLogin, getMe);
 router.patch('/auth/user', requireLogin, updateUser);
+
 
 
 // Auth
