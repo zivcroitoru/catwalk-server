@@ -77,3 +77,6 @@ export async function getCatEquipment(req, res) {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 }
+
+
+export default router;

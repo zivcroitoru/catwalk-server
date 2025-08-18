@@ -109,3 +109,5 @@ export function getMe(req, res) {
     user: req.user
   });
 }
+
+export default router;

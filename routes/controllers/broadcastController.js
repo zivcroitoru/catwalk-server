@@ -27,3 +27,6 @@ export const createBroadcast = async (req, res) => {
     res.status(500).json({ error: 'Failed to save broadcast' });
   }
 };
+
+
+export default router;

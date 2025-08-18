@@ -74,3 +74,6 @@ export const buyPlayerItem = async (req, res) => {
     res.status(500).json({ error: 'Server error while purchasing item' });
   }
 };
+
+
+export default router;

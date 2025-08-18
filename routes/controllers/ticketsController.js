@@ -165,3 +165,6 @@ export const testTickets = async (_req, res) => {
     res.status(500).json({ error: 'Failed to count tickets' });
   }
 };
+
+
+export default router;

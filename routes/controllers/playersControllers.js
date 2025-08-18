@@ -140,3 +140,6 @@ export async function getPlayerItems(req, res) {
     res.status(500).json({ error: 'Failed to fetch player items' });
   }
 }
+
+
+export default router;
