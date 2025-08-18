@@ -97,6 +97,12 @@ import {
   updateUser,
   requireLogin
 } from './controllers/authController.js';
+import {
+  loginAdmin,
+  getTickets,
+  getTicketMessages,
+  respondToTicket
+} from '../controllers/adminController.js';
 
 // ───────────── Auth Routes ─────────────
 router.post('/auth/signup', signup);
@@ -162,6 +168,13 @@ router.patch('/api/tickets/:ticketId/close', ticketController.closeTicket);
 // ───────────── Broadcast Routes ─────────────
 router.get('/api/broadcasts', broadcastController.getAllBroadcasts);
 router.post('/api/broadcasts', broadcastController.createBroadcast);
+
+//--------admin routes--------//
+
+router.post('/api/admins/login', loginAdmin);
+router.get('/api/admins/tickets', getTickets);
+router.get('/api/admins/messages/:ticketId', getTicketMessages);
+router.post('/api/admins/messages/:ticketId', respondToTicket);
 
 export default router;
 
