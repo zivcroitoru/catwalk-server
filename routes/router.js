@@ -3,7 +3,7 @@ import express from 'express';
 const router = express.Router();
 
 // ───────────── Controllers ─────────────
-import authController from './controllers/authController.js';
+// import authController from './controllers/authController.js';
 import catController from './controllers/catsController.js';
 import playersController from './controllers/playersControllers.js';
 import shopController from './controllers/shopController.js';
@@ -13,11 +13,21 @@ import ticketController from './controllers/ticketsController.js';
 import broadcastController from './controllers/broadcastController.js';
 
 // ───────────── Middleware ─────────────
-import { requireLogin } from './middlewares/authMiddleware.js';
-import { updateUser } from './controllers/authController.js';
-router.patch("/auth/user", requireLogin, updateUser);
+// import { requireLogin } from './middlewares/authMiddleware.js';
+// // import { updateUser } from './controllers/authController.js';
+// router.patch("/auth/user", requireLogin, updateUser);
 
 // ───────────── Routes ─────────────
+
+
+import { signup, login, logout, getMe, updateUser } from './controllers/authController.js';
+
+router.post('/auth/signup', signup);
+router.post('/auth/login', login);
+router.post('/auth/logout', logout);
+router.get('/auth/me', requireLogin, getMe);
+router.patch('/auth/user', requireLogin, updateUser);
+
 
 // Auth
 router.post('/auth/signup', authController.signup);

@@ -147,10 +147,13 @@ export async function updateUser(req, res) {
   }
 }
 
-export default {
-  signup,
-  login,
-  logout,
-  getMe,
-  updateUser
-};
+// export default {
+//   signup,
+//   login,
+//   logout,
+//   getMe,
+//   updateUser
+// };
+
+
+
