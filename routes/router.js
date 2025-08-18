@@ -1,7 +1,6 @@
 
 import express from 'express';
 const router = express.Router();
-import JWT from 'jsonwebtoken';
 
 
 // ───────────── Routes ─────────────
@@ -21,7 +20,7 @@ import broadcastController from './controllers/broadcastController.js';
 
 //---------middleware--------//
 import authMiddleware from './middlewares/authMiddleware.js';
-router.patch("/user", JWT.requireLogin, authMiddleware.updateUser);
+router.patch("/user", authMiddleware.requireLogin, authMiddleware.updateUser);
 
 
 
