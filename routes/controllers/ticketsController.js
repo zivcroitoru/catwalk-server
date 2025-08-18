@@ -1,4 +1,4 @@
-import DB from '../db.js';
+import DB from '../../db';
 
 // 1️⃣ Get all tickets (with username)
 export const getAllTickets = async (_req, res) => {

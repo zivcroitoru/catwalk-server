@@ -1,4 +1,4 @@
-import DB from '../db.js';
+import DB from '../../db';
 
 const categoryMap = { hat: 'hats', top: 'tops', eyes: 'eyes', accessories: 'accessories' };
 const singularFromDb = { hats: 'hat', tops: 'top', eyes: 'eyes', accessories: 'accessories' };
