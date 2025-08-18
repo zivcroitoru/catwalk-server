@@ -1,6 +1,6 @@
 // routes/cat_items.js
 import express from 'express';
-import DB from '../db.js';
+import DB from '../../db.js';
 
 const router = express.Router();
 
