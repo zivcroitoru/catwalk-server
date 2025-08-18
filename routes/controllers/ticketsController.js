@@ -167,4 +167,16 @@ export const testTickets = async (_req, res) => {
 };
 
 
+const ticketController = {
+  getAllTickets,
+  createTicket,
+  getTicketById,
+  getUserTickets,
+  getUserOpenTicket,
+  getTicketMessages,
+  sendTicketMessage,
+  closeTicket,
+  testTickets
+};
+
 export default ticketController;
