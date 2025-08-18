@@ -44,7 +44,7 @@ import routerPath from './routes/router.js';
 app.use("/", routerPath);
 
 
-// import authRoutes from './routes/auth.js';
+import authRoutes from './routes/auth.js';
 // import messagesRoutes from './routes/messages.js';
 // import catsRoutes from './routes/cats.js';
 // import playersRoutes from './routes/players.js';
@@ -57,7 +57,7 @@ app.use("/", routerPath);
 // import broadcastRoutes from './routes/broadcasts.js';
 
 
-// app.use('/auth', authRoutes);
+app.use('/auth', authRoutes);
 // app.use('/api/cats', catsRoutes);
 // app.use('/api/cat_items', catItemsRoutes);
 // app.use('/api/players', playersRoutes);
