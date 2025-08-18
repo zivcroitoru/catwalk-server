@@ -13,7 +13,7 @@ import ticketController from './controllers/ticketsController.js';
 import broadcastController from './controllers/broadcastController.js';
 
 // ───────────── Middleware ─────────────
-// import { requireLogin } from './middlewares/authMiddleware.js';
+import { requireLogin } from './middlewares/authMiddleware.js';
 // // import { updateUser } from './controllers/authController.js';
 // router.patch("/auth/user", requireLogin, updateUser);
 
