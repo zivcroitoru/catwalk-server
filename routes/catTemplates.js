@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const DB = require('../../db');
+const DB = require('../db');
 
 // GET /api/cat-templates — public game catalog
 router.get('/api/cat-templates', async (_req, res) => {

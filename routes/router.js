@@ -82,13 +82,13 @@ import express from 'express';
 const router = express.Router();
 
 // ───────────── Controllers ─────────────
-import catController from '../controllers/catsController.js';
-import playersController from '../controllers/playersControllers.js';
-import shopController from '../controllers/shopController.js';
-import playerItemController from '../controllers/playeritemController.js';
-import catItemsController from '../controllers/catitemController.js';
-import ticketController from '../controllers/ticketsController.js';
-import broadcastController from '../controllers/broadcastController.js';
+import catController from './controllers/catsController.js';
+import playersController from './controllers/playersControllers.js';
+import shopController from './controllers/shopController.js';
+import playerItemController from './controllers/playeritemController.js';
+import catItemsController from './controllers/catitemController.js';
+import ticketController from './controllers/ticketsController.js';
+import broadcastController from './controllers/broadcastController.js';
 import {
   signup,
   login,
@@ -96,13 +96,13 @@ import {
   getMe,
   updateUser,
   requireLogin
-} from '../controllers/authController.js';
+} from './controllers/authController.js';
 import {
   loginAdmin,
   getTickets,
   getTicketMessages,
   respondToTicket
-} from '../controllers/adminController.js';
+} from './controllers/adminController.js';
 
 // ───────────── Auth Routes ─────────────
 router.post('/auth/signup', signup);
