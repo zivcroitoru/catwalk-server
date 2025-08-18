@@ -8,7 +8,7 @@ import setupSocket from './sockets/socket.js'; // ⬅ import your socket setup
 
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 const httpServer = http.createServer(app);
 
