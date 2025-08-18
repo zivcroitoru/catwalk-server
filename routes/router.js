@@ -102,7 +102,7 @@ import {
   getTickets,
   getTicketMessages,
   respondToTicket
-} from '../controllers/adminController.js';
+} from './controllers/adminController.js';
 
 // ───────────── Auth Routes ─────────────
 router.post('/auth/signup', signup);
