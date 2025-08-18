@@ -19,7 +19,7 @@ import broadcastController from './controllers/broadcastController.js';
 // import adminRoutes from './routes/admins.js';
 
 //---------middleware--------//
-import authMiddleware from './middlewares/authMiddleware.js';
+import { requireLogin } from './middlewares/authMiddleware.js';
 router.patch("/user", requireLogin, authController.updateUser);
 
 
