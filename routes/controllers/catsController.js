@@ -248,4 +248,15 @@ export async function deleteTemplate(req, res) {
 }
 
 
-export default router;
+export default {
+  getPlayerCats,
+  getAllCats,
+  getCatByTemplate,
+  updateCatSprite,
+  createCat,
+  updateCat,
+  deleteCat,
+  getCatsByPlayer,
+  addTemplate,
+  deleteTemplate
+};

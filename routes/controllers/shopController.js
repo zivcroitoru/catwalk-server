@@ -245,4 +245,16 @@ export async function addClothesItem(req, res) {
 }
 
 
-export default router;
+export default {
+  getShopItems,
+  getAllClothes,
+  getShop,
+  createShopItem,
+  updateShopItem,
+  deleteShopItem,
+  deleteShopItemById,
+  patchShopItem,
+  testShop,
+  getShopItemByTemplate,
+  addClothesItem,
+};

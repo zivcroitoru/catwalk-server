@@ -29,4 +29,4 @@ export const createBroadcast = async (req, res) => {
 };
 
 
-export default router;
+export default { getAllBroadcasts, createBroadcast };

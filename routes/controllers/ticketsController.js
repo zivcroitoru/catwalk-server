@@ -167,4 +167,4 @@ export const testTickets = async (_req, res) => {
 };
 
 
-export default router;
+export default ticketController;

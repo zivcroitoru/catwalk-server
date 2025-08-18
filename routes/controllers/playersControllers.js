@@ -142,4 +142,12 @@ export async function getPlayerItems(req, res) {
 }
 
 
-export default router;
+export default {
+  getPlayers,
+  createPlayer,
+  getPlayerById,
+  updatePlayer,
+  deletePlayer,
+  getPlayerCats,
+  getPlayerItems,
+};

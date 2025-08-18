@@ -79,4 +79,4 @@ export async function getCatEquipment(req, res) {
 }
 
 
-export default router;
+export default { patchCatEquipment, getCatEquipment };

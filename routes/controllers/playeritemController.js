@@ -76,4 +76,7 @@ export const buyPlayerItem = async (req, res) => {
 };
 
 
-export default router;
+export default {
+  getPlayerItems,
+  buyPlayerItem,
+};
