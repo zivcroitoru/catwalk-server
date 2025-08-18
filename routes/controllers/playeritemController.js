@@ -75,8 +75,51 @@ export const buyPlayerItem = async (req, res) => {
   }
 };
 
+// ───────────── Update a player item (PATCH) ─────────────
+export const updatePlayerItem = async (req, res) => {
+  const playerId = req.user.id;
+  const { player_item_id, newTemplate } = req.body;
+
+  if (!player_item_id || !newTemplate) {
+    return res.status(400).json({ error: 'Missing player_item_id or newTemplate' });
+  }
+
+  try {
+    // Optional: Check that the new template exists
+    const templateCheck = await DB.query(
+      'SELECT * FROM itemtemplate WHERE template = $1',
+      [newTemplate]
+    );
+
+    if (templateCheck.rows.length === 0) {
+      return res.status(400).json({ error: 'Invalid item template' });
+    }
+
+    // Update the player's item
+    const result = await DB.query(
+      `UPDATE player_items
+       SET template = $1
+       WHERE player_item_id = $2 AND player_id = $3
+       RETURNING *`,
+      [newTemplate, player_item_id, playerId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Item not found or not yours' });
+    }
+
+    res.status(200).json({
+      message: 'Player item updated successfully',
+      item: result.rows[0]
+    });
+  } catch (err) {
+    console.error('updatePlayerItem error:', err.stack || err);
+    res.status(500).json({ error: 'Server error while updating item' });
+  }
+};
 
 export default {
   getPlayerItems,
   buyPlayerItem,
+  updatePlayerItem
 };

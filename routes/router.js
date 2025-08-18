@@ -149,6 +149,8 @@ router.post('/api/shop/clothesadd', shopController.addClothesItem);
 // ───────────── Player Item Routes ─────────────
 router.get('/api/playerItems', requireLogin, playerItemController.getPlayerItems);
 router.post('/api/playerItems', requireLogin, playerItemController.buyPlayerItem);
+router.patch('/api/playerItems', requireLogin, playerItemController.updatePlayerItem);
+
 
 // ───────────── Cat Item Routes ─────────────
 router.patch('/api/cat_items/:catId', requireLogin, catItemsController.patchCatEquipment);
