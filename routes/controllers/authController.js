@@ -110,6 +110,44 @@ export function getMe(req, res) {
   });
 }
 
+
+export async function updateUser(req, res) {
+  try {
+    const userId = req.user.id; // from requireLogin
+    const { username, password } = req.body;
+
+    if (!username && !password) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+
+    let query = 'UPDATE players SET ';
+    const params = [];
+    let index = 1;
+
+    if (username) {
+      query += `username = $${index++} `;
+      params.push(username);
+    }
+
+    if (password) {
+      if (username) query += ', ';
+      const bcrypt = await import('bcrypt');
+      const password_hash = await bcrypt.hash(password, 10);
+      query += `password_hash = $${index++} `;
+      params.push(password_hash);
+    }
+
+    query += `WHERE id = $${index} RETURNING id, username`;
+    params.push(userId);
+
+    const result = await DB.query(query, params);
+    res.status(200).json({ message: 'User updated', user: result.rows[0] });
+  } catch (err) {
+    console.error('Update user error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 export default {
   signup,
   login,
