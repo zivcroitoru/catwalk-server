@@ -39,7 +39,7 @@
 
 ```typescript
 
-const PARTICIPANTS_IN_ROOM = 5;
+const PARTICIPANTS_IN_ROOM = 2;
 const VOTING_TIMER = 60;
 
 type Participant = {
