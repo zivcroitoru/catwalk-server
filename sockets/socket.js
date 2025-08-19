@@ -5,8 +5,9 @@ import DB from "../db.js";
 // ═══════════════════════════════════════════════════════════════
 
 // Fashion Show Constants
-const PARTICIPANTS_IN_ROOM = 5;
-const VOTING_TIMER = 60;
+const PARTICIPANTS_IN_ROOM = 2;
+// const VOTING_TIMER = 5;
+const VOTING_TIMER = 60000;
 
 // Global waiting room
 let waitingRoom = {
