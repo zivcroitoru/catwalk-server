@@ -1,169 +1,135 @@
-socket.on('join', async (message) => {
-  console.log('🎭 Fashion Show - Received join:', message);
+  async finalizeVoting() {
+    if (this.isFinalized) return;
+    this.isFinalized = true;
 
-  // 🔧 ENHANCED: Better validation with specific error messages
-  if (!message || typeof message !== 'object') {
-    console.warn('⚠️ Invalid join message format. Disconnecting.');
-    socket.emit('error', { 
-      message: 'Invalid join request format',
-      type: 'validation_error',
-      severity: 'error'
-    });
-    return socket.disconnect();
-  }
+    console.log("🏁 FINALIZING VOTING - No more changes allowed");
 
-  if (!message.playerId || !message.catId) {
-    console.warn('⚠️ Missing playerId or catId. Disconnecting.');
-    socket.emit('error', { 
-      message: 'Invalid join request - missing player or cat data',
-      type: 'validation_error',
-      severity: 'error'
-    });
-    return socket.disconnect();
-  }
+    // Record finalization time for analytics
+    const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(1);
+    console.log(`⏱️ Voting lasted ${votingDuration} seconds`);
 
-  // 🔧 ENHANCED: Validate data types
-  const playerId = parseInt(message.playerId);
-  const catId = parseInt(message.catId);
-  
-  if (isNaN(playerId) || isNaN(catId) || playerId <= 0 || catId <= 0) {
-    console.warn(`⚠️ Invalid playerId or catId format: playerId=${message.playerId}, catId=${message.catId}`);
-    socket.emit('error', { 
-      message: 'Invalid player or cat ID format',
-      type: 'validation_error',
-      severity: 'error'
-    });
-    return socket.disconnect();
-  }
-
-  try {
-    // Validate cat ownership BEFORE creating participant
-    const catValidation = await DB.query(
-      'SELECT cat_id FROM player_cats WHERE cat_id = $1 AND player_id = $2',
-      [catId, playerId]
-    );
-
-    if (catValidation.rows.length === 0) {
-      console.warn(`❌ Player ${playerId} does not own cat ${catId}. Disconnecting.`);
-      socket.emit('error', { 
-        message: 'You do not own the selected cat',
-        type: 'ownership_error',
-        severity: 'error'
-      });
-      return socket.disconnect();
-    }
-  } catch (err) {
-    console.error('❌ Database error during cat validation:', err);
-    socket.emit('error', { 
-      message: 'Database connection error - please try again',
-      type: 'database_error',
-      severity: 'error'
-    });
-    return socket.disconnect();
-  }
-
-  // 🔧 ENHANCED: Better duplicate checking with detailed logging
-  const existingParticipant = waitingRoom.participants.find(p => 
-    p.playerId === playerId || (p.playerId === playerId && p.catId === catId)
-  );
-
-  if (existingParticipant) {
-    console.warn(`❌ Player ${playerId} already in waiting room. Existing: playerId=${existingParticipant.playerId}, catId=${existingParticipant.catId}`);
-    socket.emit('error', { 
-      message: 'You are already in the waiting room',
-      type: 'duplicate_join',
-      severity: 'warning'
-    });
-    return socket.disconnect();
-  }
-
-  try {
-    // Create participant with enhanced error handling
-    socket.participant = await createParticipant(playerId, catId, socket);
-    currentParticipant = socket.participant;
-    
-    // 🔧 ENHANCED: Validate participant creation with specific checks
-    if (!socket.participant) {
-      throw new Error('Participant creation returned null');
-    }
-    
-    if (!socket.participant.username || socket.participant.username.startsWith('Player_')) {
-      console.warn(`⚠️ Could not load username for player ${playerId}, using fallback`);
-    }
-    
-    if (!socket.participant.catName || socket.participant.catName.startsWith('Cat_')) {
-      console.warn(`⚠️ Could not load cat name for cat ${catId}, using fallback`);
-    }
-    
-    if (!socket.participant.catSpriteUrl) {
-      console.warn(`⚠️ Could not load cat sprite for cat ${catId}`);
+    // Clear timer if still running
+    if (this.votingTimer) {
+      clearTimeout(this.votingTimer);
+      this.votingTimer = null;
+      console.log("⏹️ Voting timer cleared");
     }
 
-    console.log(`✅ Valid participant created for ${socket.participant.playerId}: ${socket.participant.catName}`);
+    // 🔧 ONLY calculate results, NO database updates yet
+    this.calculateResults();
 
-  } catch (err) {
-    console.error(`❌ Failed to create participant for player ${playerId}, cat ${catId}:`, err);
-    socket.emit('error', { 
-      message: 'Failed to load your cat data - please try again',
-      type: 'data_loading_error',
-      severity: 'error'
+    // Show announcement before results
+    console.log('📺 Sending "calculating votes" announcement to participants');
+    this.participants.forEach((participant) => {
+      if (participant.socket?.connected) {
+        participant.socket.emit("calculating_announcement", {
+          type: "calculating_announcement",
+          message: "CALCULATING VOTES, PLEASE WAIT . . .",
+        });
+      }
     });
-    return socket.disconnect();
-  }
 
-  // Continue with existing join logic...
-  if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
-    waitingRoom.participants.push(socket.participant);
-    console.log(`👥 Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`);
-    
-    broadcastWaitingRoomUpdate();
+    // 🔧 CRITICAL CHANGE: Longer delay to allow disconnects to be processed
+    // This gives time for players to disconnect during "calculating votes..." phase
+    // and be marked as dummy BEFORE database updates happen
+    setTimeout(async () => {
+      console.log("💰 CALCULATION PHASE COMPLETE - NOW APPLYING DATABASE UPDATES");
+      console.log("🔒 From this point forward, disconnects will NOT affect coin awards");
 
-    // Launch game room when full
-    if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-      console.log('🚀 Launching game room');
-      
-      // Final validation before game start
-      const uniqueParticipants = waitingRoom.participants.filter((p, index, arr) => 
-        arr.findIndex(other => other.playerId === p.playerId && other.catId === p.catId) === index
-      );
-
-      if (uniqueParticipants.length !== PARTICIPANTS_IN_ROOM) {
-        console.error(`❌ Duplicate participants detected! Expected ${PARTICIPANTS_IN_ROOM}, got ${uniqueParticipants.length} unique`);
-        // Reset waiting room and disconnect all with error message
-        waitingRoom.participants.forEach(p => {
-          if (p.socket?.connected) {
-            p.socket.emit('error', { 
-              message: 'Room setup error - please try joining again',
-              type: 'room_error',
-              severity: 'error'
-            });
-            p.socket.disconnect();
+      try {
+        // 🔧 ENHANCED: Check for dummy participants right before DB updates
+        console.log("🔍 PRE-DATABASE UPDATE DUMMY CHECK:");
+        this.participants.forEach((p, idx) => {
+          console.log(`  ${idx + 1}. ${p.username} (${p.playerId}) - isDummy: ${p.isDummy || false}`);
+          if (p.isDummy) {
+            console.log(`     ⚠️ ${p.username} marked as dummy - will not receive coins`);
           }
         });
-        waitingRoom = { participants: [], isVoting: false };
-        return;
+
+        // Update database with rewards
+        const dbUpdateSummary = await this.updateDatabaseWithRewards();
+
+        console.log("📤 Sending final results to all participants (coins processing complete)");
+
+        // Send results with comprehensive error handling
+        let resultsMessagesSent = 0;
+        let resultsMessagesFailed = 0;
+
+        this.participants.forEach((participant) => {
+          if (participant.socket?.connected) {
+            try {
+              // Validate toast data before sending
+              const toastData = participant.toastData || {
+                success: false,
+                error: "No toast data generated",
+                coinsEarned: 0,
+                votesReceived: participant.votesReceived || 0,
+              };
+
+              // Ensure required fields are present
+              if (!toastData.hasOwnProperty("success")) {
+                console.warn(`⚠️ Missing 'success' field in toast data for ${participant.username}`);
+                toastData.success = false;
+                toastData.error = "incomplete_toast_data";
+              }
+
+              if (!toastData.hasOwnProperty("coinsEarned")) {
+                console.warn(`⚠️ Missing 'coinsEarned' field in toast data for ${participant.username}`);
+                toastData.coinsEarned = 0;
+              }
+
+              if (!toastData.hasOwnProperty("votesReceived")) {
+                console.warn(`⚠️ Missing 'votesReceived' field in toast data for ${participant.username}`);
+                toastData.votesReceived = participant.votesReceived || 0;
+              }
+
+              const resultsMessage = {
+                type: "results",
+                participants: this.getParticipantsForClient(),
+                toastData: toastData,
+              };
+
+              participant.socket.emit("results", resultsMessage);
+              resultsMessagesSent++;
+
+              console.log(`  ✅ Results sent to ${participant.username} with toast data:`, toastData);
+            } catch (err) {
+              console.error(`❌ Failed to send results to ${participant.username}:`, err);
+              resultsMessagesFailed++;
+            }
+          } else {
+            console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
+            resultsMessagesFailed++;
+          }
+        });
+
+        console.log(`📊 Results delivery summary: ${resultsMessagesSent} sent, ${resultsMessagesFailed} failed`);
+        console.log("🎉 GAME ROOM COMPLETE - Results displayed, coins awarded in database");
+      } catch (error) {
+        console.error("❌ CRITICAL ERROR during database updates:", error);
+
+        // Send error results to participants if DB updates fail completely
+        this.participants.forEach((participant) => {
+          if (participant.socket?.connected) {
+            const errorToastData = {
+              success: false,
+              error: "database_update_failed",
+              coinsEarned: 0,
+              votesReceived: participant.votesReceived || 0,
+              details: "Server error during coin processing",
+            };
+
+            const resultsMessage = {
+              type: "results",
+              participants: this.getParticipantsForClient(),
+              toastData: errorToastData,
+            };
+
+            participant.socket.emit("results", resultsMessage);
+            console.log(`  ⚠️ Error results sent to ${participant.username}`);
+          }
+        });
       }
-
-      const gameRoom = new GameRoom([...uniqueParticipants]);
-
-      // 🔧 FIX: Properly assign game room to all participant sockets
-      uniqueParticipants.forEach(p => {
-        if (!p.isDummy && p.socket) {
-          p.socket.currentGameRoom = gameRoom;
-          console.log(`🔗 Assigned game room to ${p.username}'s socket`);
-        }
-      });
-
-      // Reset waiting room
-      waitingRoom = { participants: [], isVoting: false };
-    }
-  } else {
-    console.warn('❌ Waiting room full or voting. Disconnecting.');
-    socket.emit('error', { 
-      message: 'Fashion show room is full - please try again later',
-      type: 'room_full',
-      severity: 'info'
-    });
-    socket.disconnect();
+    }, 5000); // 🔧 INCREASED from 3000 to 5000ms (5 seconds)
+    // This gives more time for disconnects during "calculating votes..." phase
   }
-});

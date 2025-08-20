@@ -548,7 +548,6 @@ class GameRoom {
     this.finalizeVoting();
   }
 
-  // 🔧 MODIFIED: finalizeVoting - calculation only, no DB updates
   async finalizeVoting() {
     if (this.isFinalized) return;
     this.isFinalized = true;
@@ -556,9 +555,7 @@ class GameRoom {
     console.log("🏁 FINALIZING VOTING - No more changes allowed");
 
     // Record finalization time for analytics
-    const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(
-      1,
-    );
+    const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(1);
     console.log(`⏱️ Voting lasted ${votingDuration} seconds`);
 
     // Clear timer if still running
@@ -582,26 +579,36 @@ class GameRoom {
       }
     });
 
-    // 🔧 CRITICAL CHANGE: Database updates happen here, with proper error handling
+    // 🔧 CRITICAL CHANGE: Longer delay to allow disconnects to be processed
+    // This gives time for players to disconnect during "calculating votes..." phase
+    // and be marked as dummy BEFORE database updates happen
     setTimeout(async () => {
-      console.log("💰 RESULTS CALCULATED - NOW APPLYING DATABASE UPDATES");
+      console.log("💰 CALCULATION PHASE COMPLETE - NOW APPLYING DATABASE UPDATES");
+      console.log("🔒 From this point forward, disconnects will NOT affect coin awards");
 
       try {
-        // 🔧 NEW: Update database with rewards ONLY when about to show results
+        // 🔧 ENHANCED: Check for dummy participants right before DB updates
+        console.log("🔍 PRE-DATABASE UPDATE DUMMY CHECK:");
+        this.participants.forEach((p, idx) => {
+          console.log(`  ${idx + 1}. ${p.username} (${p.playerId}) - isDummy: ${p.isDummy || false}`);
+          if (p.isDummy) {
+            console.log(`     ⚠️ ${p.username} marked as dummy - will not receive coins`);
+          }
+        });
+
+        // Update database with rewards
         const dbUpdateSummary = await this.updateDatabaseWithRewards();
 
-        console.log(
-          "📤 Sending final results to all participants (coins processing complete)",
-        );
+        console.log("📤 Sending final results to all participants (coins processing complete)");
 
-        // 🔧 ENHANCED: Send results with comprehensive error handling
+        // Send results with comprehensive error handling
         let resultsMessagesSent = 0;
         let resultsMessagesFailed = 0;
 
         this.participants.forEach((participant) => {
           if (participant.socket?.connected) {
             try {
-              // 🔧 ENHANCED: Validate toast data before sending
+              // Validate toast data before sending
               const toastData = participant.toastData || {
                 success: false,
                 error: "No toast data generated",
@@ -609,26 +616,20 @@ class GameRoom {
                 votesReceived: participant.votesReceived || 0,
               };
 
-              // 🔧 VALIDATION: Ensure required fields are present
+              // Ensure required fields are present
               if (!toastData.hasOwnProperty("success")) {
-                console.warn(
-                  `⚠️ Missing 'success' field in toast data for ${participant.username}`,
-                );
+                console.warn(`⚠️ Missing 'success' field in toast data for ${participant.username}`);
                 toastData.success = false;
                 toastData.error = "incomplete_toast_data";
               }
 
               if (!toastData.hasOwnProperty("coinsEarned")) {
-                console.warn(
-                  `⚠️ Missing 'coinsEarned' field in toast data for ${participant.username}`,
-                );
+                console.warn(`⚠️ Missing 'coinsEarned' field in toast data for ${participant.username}`);
                 toastData.coinsEarned = 0;
               }
 
               if (!toastData.hasOwnProperty("votesReceived")) {
-                console.warn(
-                  `⚠️ Missing 'votesReceived' field in toast data for ${participant.username}`,
-                );
+                console.warn(`⚠️ Missing 'votesReceived' field in toast data for ${participant.username}`);
                 toastData.votesReceived = participant.votesReceived || 0;
               }
 
@@ -641,35 +642,23 @@ class GameRoom {
               participant.socket.emit("results", resultsMessage);
               resultsMessagesSent++;
 
-              console.log(
-                `  ✅ Results sent to ${participant.username} with toast data:`,
-                toastData,
-              );
+              console.log(`  ✅ Results sent to ${participant.username} with toast data:`, toastData);
             } catch (err) {
-              console.error(
-                `❌ Failed to send results to ${participant.username}:`,
-                err,
-              );
+              console.error(`❌ Failed to send results to ${participant.username}:`, err);
               resultsMessagesFailed++;
             }
           } else {
-            console.log(
-              `  ⚠️ Could not send results to ${participant.username} - socket disconnected`,
-            );
+            console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
             resultsMessagesFailed++;
           }
         });
 
-        console.log(
-          `📊 Results delivery summary: ${resultsMessagesSent} sent, ${resultsMessagesFailed} failed`,
-        );
-        console.log(
-          "🎉 GAME ROOM COMPLETE - Results displayed, coins awarded in database",
-        );
+        console.log(`📊 Results delivery summary: ${resultsMessagesSent} sent, ${resultsMessagesFailed} failed`);
+        console.log("🎉 GAME ROOM COMPLETE - Results displayed, coins awarded in database");
       } catch (error) {
         console.error("❌ CRITICAL ERROR during database updates:", error);
 
-        // 🔧 NEW: Send error results to participants if DB updates fail completely
+        // Send error results to participants if DB updates fail completely
         this.participants.forEach((participant) => {
           if (participant.socket?.connected) {
             const errorToastData = {
@@ -871,10 +860,22 @@ class GameRoom {
     console.log("=".repeat(50));
   }
 
-  // 🔧 NEW: Separate function to handle database updates during results display
+  // 🔧 FIXED: Separate function to handle database updates during results display
   async updateDatabaseWithRewards() {
     console.log("💳 APPLYING COIN REWARDS TO DATABASE (RESULTS DISPLAY PHASE)");
     console.log("─".repeat(60));
+
+    // 🔧 DEBUG: Log all participant states before database updates
+    console.log("🔍 PARTICIPANT STATES BEFORE DATABASE UPDATES:");
+    this.participants.forEach((p, index) => {
+      console.log(`  ${index + 1}. ${p.username} (playerId: ${p.playerId})`);
+      console.log(`     catId: ${p.catId}`);
+      console.log(`     isDummy: ${p.isDummy || false}`);
+      console.log(`     votesReceived: ${p.votesReceived || 0}`);
+      console.log(`     coinsEarned: ${p.coinsEarned || 0}`);
+      console.log(`     socket connected: ${p.socket?.connected || false}`);
+    });
+    console.log("─".repeat(30));
 
     const dbUpdateResults = [];
     let successfulUpdates = 0;
@@ -883,14 +884,54 @@ class GameRoom {
 
     // Update each participant's coins individually with error handling
     for (const participant of this.participants) {
+      console.log(`\n🔄 Processing participant: ${participant.username} (${participant.playerId})`);
+
       try {
+        // 🔧 CRITICAL FIX: Check isDummy status RIGHT BEFORE database update
+        if (participant.isDummy) {
+          console.log(
+            `🤖 SKIPPING DATABASE UPDATE: ${participant.username} (${participant.playerId}) is marked as dummy (disconnected during game)`
+          );
+          
+          participant.toastData = {
+            success: true,
+            skipped: true,
+            reason: "dummy_participant_disconnected",
+            coinsEarned: 0,
+            votesReceived: participant.votesReceived || 0,
+          };
+          
+          skippedUpdates++;
+          
+          dbUpdateResults.push({
+            playerId: participant.playerId,
+            username: participant.username,
+            coinsEarned: 0, // Force to 0 for disconnected players
+            votesReceived: participant.votesReceived || 0,
+            updateResult: {
+              success: true,
+              skipped: true,
+              reason: "dummy_participant_disconnected"
+            }
+          });
+          
+          console.log(`✅ ${participant.username} marked as skipped (dummy participant)`);
+          continue; // Skip this participant entirely
+        }
+
+        // 🔧 DEBUG: Log participant details before validation
+        console.log(`📊 ${participant.username} validation:`);
+        console.log(`   playerId: ${participant.playerId} (type: ${typeof participant.playerId})`);
+        console.log(`   coinsEarned: ${participant.coinsEarned} (type: ${typeof participant.coinsEarned})`);
+        console.log(`   isDummy: ${participant.isDummy} (should be false or undefined)`);
+
         // 🔧 FIX: Validate participant data before DB update
         if (
           !participant.playerId ||
           !Number.isInteger(participant.coinsEarned)
         ) {
           console.error(
-            `❌ Invalid participant data: ${participant.username} - playerId: ${participant.playerId}, coinsEarned: ${participant.coinsEarned}`,
+            `❌ Invalid participant data: ${participant.username} - playerId: ${participant.playerId}, coinsEarned: ${participant.coinsEarned}`
           );
           participant.toastData = {
             success: false,
@@ -902,10 +943,14 @@ class GameRoom {
           continue;
         }
 
+        console.log(`🎯 ${participant.username} passed validation - proceeding with database update`);
+
         const updateResult = await this.updatePlayerCoins(
           participant,
           participant.coinsEarned,
         );
+
+        console.log(`📝 ${participant.username} update result:`, updateResult);
 
         dbUpdateResults.push({
           playerId: participant.playerId,
@@ -927,6 +972,8 @@ class GameRoom {
               coinsEarned: participant.coinsEarned,
               votesReceived: participant.votesReceived || 0,
             };
+
+            console.log(`⏭️ ${participant.username} update skipped: ${updateResult.reason}`);
           } else {
             successfulUpdates++;
 
@@ -939,6 +986,8 @@ class GameRoom {
               newTotal: updateResult.newTotal,
               previousTotal: updateResult.previousTotal,
             };
+
+            console.log(`✅ ${participant.username} coins updated successfully`);
           }
         } else {
           failedUpdates++;
@@ -952,20 +1001,22 @@ class GameRoom {
             details: updateResult.details || "No additional details",
           };
 
+          console.log(`❌ ${participant.username} update failed: ${updateResult.error}`);
+
           // Enhanced detailed logging for validation failures
           if (
             updateResult.error &&
             updateResult.error.includes("invalid_coin_amount")
           ) {
             console.error(
-              `🚨 COIN VALIDATION FAILURE: ${participant.username} attempted to receive ${updateResult.invalidAmount} coins`,
+              `🚨 COIN VALIDATION FAILURE: ${participant.username} attempted to receive ${updateResult.invalidAmount} coins`
             );
             console.error(`   Votes received: ${participant.votesReceived}`);
             console.error(
-              `   Calculation: ${participant.votesReceived} × 25 = ${participant.coinsEarned}`,
+              `   Calculation: ${participant.votesReceived} × 25 = ${participant.coinsEarned}`
             );
             console.error(
-              `   This indicates a vote counting or calculation bug!`,
+              `   This indicates a vote counting or calculation bug!`
             );
           }
         }
@@ -988,7 +1039,7 @@ class GameRoom {
     }
 
     // Log comprehensive update summary
-    console.log("💳 DATABASE UPDATE SUMMARY:");
+    console.log("\n💳 DATABASE UPDATE SUMMARY:");
     console.log(`   ✅ Successful updates: ${successfulUpdates}`);
     console.log(`   ⏭️ Skipped updates: ${skippedUpdates}`);
     console.log(`   ❌ Failed updates: ${failedUpdates}`);
@@ -999,15 +1050,15 @@ class GameRoom {
 
       if (updateResult.success && !updateResult.skipped) {
         console.log(
-          `   💰 ${username} (${playerId}): +${coinsEarned} coins (${updateResult.previousTotal} → ${updateResult.newTotal})`,
+          `   💰 ${username} (${playerId}): +${coinsEarned} coins (${updateResult.previousTotal} → ${updateResult.newTotal})`
         );
       } else if (updateResult.skipped) {
         console.log(
-          `   ⏭️ ${username} (${playerId}): skipped (${updateResult.reason})`,
+          `   ⏭️ ${username} (${playerId}): skipped (${updateResult.reason})`
         );
       } else {
         console.log(
-          `   ❌ ${username} (${playerId}): FAILED - ${updateResult.error}`,
+          `   ❌ ${username} (${playerId}): FAILED - ${updateResult.error}`
         );
         if (updateResult.invalidAmount !== undefined) {
           console.log(`      Invalid amount: ${updateResult.invalidAmount}`);
@@ -1088,16 +1139,20 @@ class GameRoom {
   }
 
   handleParticipantDisconnect(p) {
-    if (this.isFinalized) return;
+    if (this.isFinalized) {
+      console.log(`🏁 Game already finalized - disconnect for ${p.username} (${p.playerId}) noted but no action taken`);
+      return;
+    }
 
-    // Mark participant as dummy when they disconnect
+    // 🔧 CRITICAL FIX: Mark participant as dummy when they disconnect
+    console.log(`🔧 DISCONNECT HANDLER: Marking ${p.username} (${p.playerId}) as dummy (no coin rewards)`);
     p.isDummy = true;
-    console.log(
-      `👤 ${p.username} (${p.playerId}) disconnected - marked as dummy (no coin rewards)`,
-    );
 
-    // Assign random vote if they haven't voted
-    if (!p.votedCatId) {
+    // 🔧 ADDITIONAL LOGGING: Confirm the flag was set
+    console.log(`✅ isDummy flag set for ${p.username}: ${p.isDummy}`);
+
+    // Assign random vote if they haven't voted and voting is still active
+    if (!p.votedCatId && this.isVoting) {
       const options = this.participants
         .filter((x) => x.catId !== p.catId)
         .map((x) => x.catId);
@@ -1105,17 +1160,30 @@ class GameRoom {
         const vote = options[Math.floor(Math.random() * options.length)];
         p.votedCatId = vote;
         console.log(
-          `⚠️ ${p.playerId} disconnected - voting randomly for ${vote}`,
+          `🤖 ${p.playerId} disconnected - voting randomly for ${vote}`,
         );
 
-        const allVoted = this.participants.every((p) => p.votedCatId);
+        // Check if all have voted now
+        const allVoted = this.participants.every((participant) => participant.votedCatId);
         if (allVoted) {
+          console.log(`🚀 All voted after ${p.username} disconnect - finalizing voting`);
           this.finalizeVoting();
         } else {
           this.broadcastVotingUpdate();
         }
       }
+    } else {
+      console.log(`ℹ️ ${p.username} disconnected but had already voted (${p.votedCatId}) or voting not active`);
     }
+    
+    // 🔧 ENHANCED LOGGING: Show current participant state after disconnect
+    console.log(`📊 Final state for disconnected participant ${p.username}:`);
+    console.log(`   playerId: ${p.playerId}`);
+    console.log(`   catId: ${p.catId}`);
+    console.log(`   isDummy: ${p.isDummy}`);
+    console.log(`   votedCatId: ${p.votedCatId}`);
+    console.log(`   votesReceived: ${p.votesReceived || 0}`);
+    console.log(`   coinsEarned: ${p.coinsEarned || 0}`);
   }
 }
 
@@ -1611,13 +1679,15 @@ export default function setupSocket(io) {
     socket.on("disconnect", () => {
       console.log("User disconnected:", socket.id);
 
-      // 🔥 NEW: Clean up heartbeat interval
+      // Clean up heartbeat interval
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
       }
 
       // Handle fashion show disconnect
       if (currentParticipant) {
+          console.log(`🔍 Disconnect processing for participant: ${currentParticipant.playerId} (${currentParticipant.username})`);
+
         // Check if they're in waiting room
         const waitingRoomIdx = waitingRoom.participants.findIndex(
           (p) =>
@@ -1629,14 +1699,45 @@ export default function setupSocket(io) {
           waitingRoom.participants.splice(waitingRoomIdx, 1);
           broadcastWaitingRoomUpdate();
           console.log(`👤 ${currentParticipant.playerId} left waiting room`);
-        } else if (socket.currentGameRoom instanceof GameRoom) {
-          socket.currentGameRoom.handleParticipantDisconnect(
-            currentParticipant,
-          );
-          console.log(
-            `👤 ${currentParticipant.playerId} disconnected during game`,
-          );
+        } else {
+          // CRITICAL FIX: Find the participant in any active game room
+          console.log(`🔍 Looking for participant ${currentParticipant.playerId} in active game rooms...`);
+          
+          let foundInGameRoom = false;
+          
+          if (socket.currentGameRoom instanceof GameRoom) {
+            console.log(`🎮 Found participant in socket's game room`);
+            
+            // Find the actual participant object in the game room
+            const gameRoomParticipant = socket.currentGameRoom.participants.find(p => 
+              p.playerId === currentParticipant.playerId && p.catId === currentParticipant.catId
+            );
+            
+            if (gameRoomParticipant) {
+              console.log(`🔧 MARKING PARTICIPANT AS DUMMY: ${gameRoomParticipant.username} (${gameRoomParticipant.playerId})`);
+              
+              // CRITICAL: Mark as dummy in the actual game room participant object
+              gameRoomParticipant.isDummy = true;
+              
+              // Also call the game room's disconnect handler
+              socket.currentGameRoom.handleParticipantDisconnect(gameRoomParticipant);
+              
+              foundInGameRoom = true;
+              console.log(`✅ ${currentParticipant.playerId} marked as dummy and disconnect handled`);
+            } else {
+              console.warn(`⚠️ Participant ${currentParticipant.playerId} not found in game room participants`);
+            }
+          } else {
+            console.warn(`⚠️ No valid game room found for participant ${currentParticipant.playerId}`);
+          }
+          
+          if (!foundInGameRoom) {
+            console.error(`❌ Could not find participant ${currentParticipant.playerId} in any game room!`);
+            console.error(`❌ This participant may still receive coins despite disconnecting!`);
+          }
         }
+      } else {
+        console.log(`ℹ️ Disconnect without currentParticipant (likely not in fashion show)`);
       }
 
       // Cleanup admin and player sockets
