@@ -1,135 +1,17 @@
-  async finalizeVoting() {
-    if (this.isFinalized) return;
-    this.isFinalized = true;
+Formatted files: 
+- In server:
+  - index.js
+  - socket.js
+- In client:
+  - toast.js
+  - storage.js
+  - dataLoader.js
+  - main.js
+  - album.html
+  - fashion-show.js
+  - fashion-show.css
+  - fashion-show.html
+git commit -m "Formatted files: index.js, socket.js"
 
-    console.log("🏁 FINALIZING VOTING - No more changes allowed");
+git commit -m "Formatted files: toast.js, storage.js, dataLoader.js, main.js, album.html, fashion-show.js, fashion-show.css, fashion-show.html"
 
-    // Record finalization time for analytics
-    const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(1);
-    console.log(`⏱️ Voting lasted ${votingDuration} seconds`);
-
-    // Clear timer if still running
-    if (this.votingTimer) {
-      clearTimeout(this.votingTimer);
-      this.votingTimer = null;
-      console.log("⏹️ Voting timer cleared");
-    }
-
-    // 🔧 ONLY calculate results, NO database updates yet
-    this.calculateResults();
-
-    // Show announcement before results
-    console.log('📺 Sending "calculating votes" announcement to participants');
-    this.participants.forEach((participant) => {
-      if (participant.socket?.connected) {
-        participant.socket.emit("calculating_announcement", {
-          type: "calculating_announcement",
-          message: "CALCULATING VOTES, PLEASE WAIT . . .",
-        });
-      }
-    });
-
-    // 🔧 CRITICAL CHANGE: Longer delay to allow disconnects to be processed
-    // This gives time for players to disconnect during "calculating votes..." phase
-    // and be marked as dummy BEFORE database updates happen
-    setTimeout(async () => {
-      console.log("💰 CALCULATION PHASE COMPLETE - NOW APPLYING DATABASE UPDATES");
-      console.log("🔒 From this point forward, disconnects will NOT affect coin awards");
-
-      try {
-        // 🔧 ENHANCED: Check for dummy participants right before DB updates
-        console.log("🔍 PRE-DATABASE UPDATE DUMMY CHECK:");
-        this.participants.forEach((p, idx) => {
-          console.log(`  ${idx + 1}. ${p.username} (${p.playerId}) - isDummy: ${p.isDummy || false}`);
-          if (p.isDummy) {
-            console.log(`     ⚠️ ${p.username} marked as dummy - will not receive coins`);
-          }
-        });
-
-        // Update database with rewards
-        const dbUpdateSummary = await this.updateDatabaseWithRewards();
-
-        console.log("📤 Sending final results to all participants (coins processing complete)");
-
-        // Send results with comprehensive error handling
-        let resultsMessagesSent = 0;
-        let resultsMessagesFailed = 0;
-
-        this.participants.forEach((participant) => {
-          if (participant.socket?.connected) {
-            try {
-              // Validate toast data before sending
-              const toastData = participant.toastData || {
-                success: false,
-                error: "No toast data generated",
-                coinsEarned: 0,
-                votesReceived: participant.votesReceived || 0,
-              };
-
-              // Ensure required fields are present
-              if (!toastData.hasOwnProperty("success")) {
-                console.warn(`⚠️ Missing 'success' field in toast data for ${participant.username}`);
-                toastData.success = false;
-                toastData.error = "incomplete_toast_data";
-              }
-
-              if (!toastData.hasOwnProperty("coinsEarned")) {
-                console.warn(`⚠️ Missing 'coinsEarned' field in toast data for ${participant.username}`);
-                toastData.coinsEarned = 0;
-              }
-
-              if (!toastData.hasOwnProperty("votesReceived")) {
-                console.warn(`⚠️ Missing 'votesReceived' field in toast data for ${participant.username}`);
-                toastData.votesReceived = participant.votesReceived || 0;
-              }
-
-              const resultsMessage = {
-                type: "results",
-                participants: this.getParticipantsForClient(),
-                toastData: toastData,
-              };
-
-              participant.socket.emit("results", resultsMessage);
-              resultsMessagesSent++;
-
-              console.log(`  ✅ Results sent to ${participant.username} with toast data:`, toastData);
-            } catch (err) {
-              console.error(`❌ Failed to send results to ${participant.username}:`, err);
-              resultsMessagesFailed++;
-            }
-          } else {
-            console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
-            resultsMessagesFailed++;
-          }
-        });
-
-        console.log(`📊 Results delivery summary: ${resultsMessagesSent} sent, ${resultsMessagesFailed} failed`);
-        console.log("🎉 GAME ROOM COMPLETE - Results displayed, coins awarded in database");
-      } catch (error) {
-        console.error("❌ CRITICAL ERROR during database updates:", error);
-
-        // Send error results to participants if DB updates fail completely
-        this.participants.forEach((participant) => {
-          if (participant.socket?.connected) {
-            const errorToastData = {
-              success: false,
-              error: "database_update_failed",
-              coinsEarned: 0,
-              votesReceived: participant.votesReceived || 0,
-              details: "Server error during coin processing",
-            };
-
-            const resultsMessage = {
-              type: "results",
-              participants: this.getParticipantsForClient(),
-              toastData: errorToastData,
-            };
-
-            participant.socket.emit("results", resultsMessage);
-            console.log(`  ⚠️ Error results sent to ${participant.username}`);
-          }
-        });
-      }
-    }, 5000); // 🔧 INCREASED from 3000 to 5000ms (5 seconds)
-    // This gives more time for disconnects during "calculating votes..." phase
-  }

@@ -1,36 +1,45 @@
 import DB from "../db.js";
 
 // ═══════════════════════════════════════════════════════════════
-// FASHION SHOW LOGIC (NEW)
+// FASHION SHOW GAME LOGIC
 // ═══════════════════════════════════════════════════════════════
 
-// Fashion Show Constants
+// Configuration constants for game mechanics
 const PARTICIPANTS_IN_ROOM = 5;
-const VOTING_TIMER = 60;
+const VOTING_TIMER = 60; // seconds
 
-// Global waiting room
+// Global waiting room state - holds participants until room is full
 let waitingRoom = {
   participants: [],
   isVoting: false,
 };
 
-// ─────────────── Enhanced participant creation with database queries ───────────────
-async function createParticipant(playerId, catId, socket) {
-  console.log(`🔍 Fetching complete data for player ${playerId}, cat ${catId}`);
+// ─────────────── Participant Creation with Database Integration ───────────────
 
+/**
+ * Creates a participant object with complete database-fetched information
+ * @param {number} playerId - The player's unique ID
+ * @param {number} catId - The cat's unique ID  
+ * @param {Object} socket - The socket.io connection object
+ * @returns {Object} Complete participant object with fetched data
+ */
+async function createParticipant(playerId, catId, socket) {
+  console.log(`Creating participant: player ${playerId}, cat ${catId}`);
+
+  // Initialize participant with fallback values
   const participant = {
     playerId,
     catId,
     socket,
     isDummy: false,
-    username: `Player_${playerId}`, // fallback
-    catName: `Cat_${catId}`, // fallback
+    username: `Player_${playerId}`, // fallback if DB lookup fails
+    catName: `Cat_${catId}`, // fallback if DB lookup fails
     catSpriteUrl: null,
     wornItems: [],
   };
 
   try {
-    // Fetch player data
+    // Fetch player username from database
     const playerResult = await DB.query(
       "SELECT id, username FROM players WHERE id = $1",
       [playerId],
@@ -48,7 +57,7 @@ async function createParticipant(playerId, catId, socket) {
       console.log(`⚠️ No player found with id ${playerId}, using fallback`);
     }
 
-    // Fetch cat data with sprite URL
+    // Fetch cat data including template sprite
     const catResult = await DB.query(
       `
       SELECT 
@@ -66,7 +75,6 @@ async function createParticipant(playerId, catId, socket) {
 
     if (catResult.rows.length > 0) {
       const catRow = catResult.rows[0];
-
       if (catRow.name) {
         participant.catName = catRow.name;
         console.log(`✅ Found cat name: ${participant.catName}`);
@@ -96,7 +104,7 @@ async function createParticipant(playerId, catId, socket) {
       );
     }
 
-    // Fetch worn items
+    // Fetch equipped items for this cat
     const itemsResult = await DB.query(
       `
       SELECT 
@@ -116,29 +124,22 @@ async function createParticipant(playerId, catId, socket) {
         category: item.category,
         spriteUrl: item.item_sprite_url,
       }));
-      console.log(`✅ Found ${participant.wornItems.length} worn items`);
     }
   } catch (err) {
-    console.error(
-      `❌ Failed to fetch data for player ${playerId}, cat ${catId}:`,
-      err.message,
-    );
-    // Keep using fallback values
+    console.error(`Failed to fetch data for participant (player: ${playerId}, cat: ${catId}):`, err.message);
+    // Continue with fallback values
   }
 
-  console.log(`✅ Participant created:`, {
-    playerId: participant.playerId,
-    catId: participant.catId,
-    username: participant.username,
-    catName: participant.catName,
-    hasSprite: !!participant.catSpriteUrl,
-    wornItemsCount: participant.wornItems.length,
-  });
-
+  console.log(`Participant created successfully: ${participant.username} with ${participant.wornItems.length} items`);
   return participant;
 }
 
-// ─────────────── Game Room Class ───────────────
+// ─────────────── Game Room Class - Manages Active Fashion Show ───────────────
+
+/**
+ * Manages a single fashion show game session with 5 participants
+ * Handles voting phase, results calculation, and coin distribution
+ */
 class GameRoom {
   constructor(participants) {
     this.participants = participants;
@@ -147,17 +148,17 @@ class GameRoom {
     this.isFinalized = false;
     this.votingTimer = null;
 
-    console.log(
-      "🗳️ GameRoom created with participants:",
-      this.participants.map((p) => p.playerId),
-    );
+    console.log(`Game room created with ${participants.length} participants`);
     this.startVotingPhase();
   }
 
+  /**
+   * Initiates the voting phase and sets up the countdown timer
+   */
   startVotingPhase() {
-    console.log("⏳ Voting phase started");
+    console.log(`Voting phase started with ${VOTING_TIMER}s timer`);
 
-    // Send voting phase message to all participants
+    // Notify all participants that voting has begun
     this.participants.forEach((participant) => {
       if (participant.socket?.connected) {
         participant.socket.emit("voting_phase", {
@@ -165,57 +166,57 @@ class GameRoom {
           participants: this.getParticipantsForClient(),
           timerSeconds: VOTING_TIMER,
         });
-        console.log(`📤 Sent voting_phase to ${participant.playerId}`);
       }
     });
 
-    // Make dummy votes immediately
+    // Auto-vote for any dummy participants (disconnected players)
     this.participants.forEach((participant) => {
       if (participant.isDummy) {
         this.makeDummyVote(participant);
       }
     });
 
-    // Set voting timeout
+    // Set voting timeout - will auto-finalize if time runs out
     this.votingTimer = setTimeout(() => {
-      console.log("⏰ Voting timeout reached");
+      console.log(`Voting timeout reached after ${VOTING_TIMER}s`);
       this.handleVotingTimeout();
     }, VOTING_TIMER * 1000);
   }
 
+  /**
+   * Generates a random vote for dummy participants (disconnected players)
+   */
   makeDummyVote(dummy) {
     const availableCats = this.participants
       .filter((p) => p.catId !== dummy.catId)
       .map((p) => p.catId);
-    if (availableCats.length > 0) {
-      const choice =
-        availableCats[Math.floor(Math.random() * availableCats.length)];
-      console.log(`🤖 Dummy ${dummy.playerId} voting for ${choice}`);
+
+      if (availableCats.length > 0) {
+      const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
       this.handleVote(dummy, choice);
     }
   }
 
-  // 🔧 ENHANCED: updatePlayerCoins with additional validation and logging
+  /**
+   * Updates player coin balance in database with comprehensive validation
+   * @param {Object} participant - The participant receiving coins
+   * @param {number} coinsToAdd - Amount of coins to add (must be multiple of 25)
+   * @returns {Object} Update result with success status and details
+   */
   async updatePlayerCoins(participant, coinsToAdd) {
+    // Skip dummy participants (disconnected players)
     if (participant.isDummy) {
-      console.log(
-        `🤖 Skipping coin update for dummy participant ${participant.playerId}`,
-      );
       return { success: true, skipped: true, reason: "dummy_participant" };
     }
 
+    // Skip zero-coin updates to avoid unnecessary DB calls
     if (coinsToAdd === 0) {
-      console.log(
-        `💰 Player ${participant.username} (${participant.playerId}) earned 0 coins - skipping DB update`,
-      );
       return { success: true, skipped: true, reason: "zero_coins" };
     }
 
-    // 🔧 CRITICAL FIX: Validate coinsToAdd is a valid multiple of 25
+    // Validate coin amount is valid integer multiple of 25
     if (!Number.isInteger(coinsToAdd)) {
-      console.error(
-        `❌ INVALID COINS: ${participant.username} (${participant.playerId}) - coinsToAdd is not integer: ${coinsToAdd} (type: ${typeof coinsToAdd})`,
-      );
+      console.error(`Invalid coin amount for ${participant.username}: ${coinsToAdd} (not integer)`);
       return {
         success: false,
         error: "invalid_coin_amount_not_integer",
@@ -225,9 +226,7 @@ class GameRoom {
     }
 
     if (coinsToAdd % 25 !== 0) {
-      console.error(
-        `❌ INVALID COINS: ${participant.username} (${participant.playerId}) - coinsToAdd is not multiple of 25: ${coinsToAdd}`,
-      );
+      console.error(`Invalid coin amount for ${participant.username}: ${coinsToAdd} (not multiple of 25)`);
       return {
         success: false,
         error: "invalid_coin_amount_not_multiple_of_25",
@@ -236,10 +235,9 @@ class GameRoom {
       };
     }
 
+    // Validate coin amount is within expected range (0-100 for fashion show)
     if (coinsToAdd < 0 || coinsToAdd > 100) {
-      console.error(
-        `❌ INVALID COINS: ${participant.username} (${participant.playerId}) - coinsToAdd out of valid range: ${coinsToAdd}`,
-      );
+      console.error(`Coin amount out of range for ${participant.username}: ${coinsToAdd}`);
       return {
         success: false,
         error: "invalid_coin_amount_out_of_range",
@@ -249,20 +247,14 @@ class GameRoom {
     }
 
     try {
-      console.log(
-        `💰 Updating coins for ${participant.username} (${participant.playerId}): +${coinsToAdd} coins`,
-      );
-
-      // 🔧 FIX: Get current coin amount first for validation
+      // Get current balance for validation
       const currentResult = await DB.query(
         "SELECT coins FROM players WHERE id = $1",
         [participant.playerId],
       );
 
       if (currentResult.rows.length === 0) {
-        console.error(
-          `❌ Player ${participant.playerId} not found in database`,
-        );
+        console.error(`Player ${participant.playerId} not found in database`);
         return {
           success: false,
           error: "player_not_found",
@@ -271,32 +263,19 @@ class GameRoom {
       }
 
       const currentCoins = currentResult.rows[0].coins;
-      console.log(
-        `📊 ${participant.username} current coins: ${currentCoins}, adding: ${coinsToAdd}, expected total: ${currentCoins + coinsToAdd}`,
-      );
+      const expectedTotal = currentCoins + coinsToAdd;
 
-      // Execute the SQL UPDATE query
+      // Execute the coin update
       const result = await DB.query(
         "UPDATE players SET coins = coins + $1 WHERE id = $2 RETURNING id, coins",
         [coinsToAdd, participant.playerId],
       );
 
-      const updatedPlayer = result.rows[0];
-      const actualTotal = updatedPlayer.coins;
-      const expectedTotal = currentCoins + coinsToAdd;
+      const actualTotal = result.rows[0].coins;
 
-      // 🔧 CRITICAL: Validate the database update was correct
+      // Verify the update was correct
       if (actualTotal !== expectedTotal) {
-        console.error(
-          `❌ DATABASE INCONSISTENCY: ${participant.username} (${participant.playerId})`,
-        );
-        console.error(
-          `   Expected total: ${expectedTotal}, Actual total: ${actualTotal}`,
-        );
-        console.error(
-          `   Current: ${currentCoins}, Added: ${coinsToAdd}, Difference: ${actualTotal - expectedTotal}`,
-        );
-
+        console.error(`Database inconsistency for ${participant.username}: expected ${expectedTotal}, got ${actualTotal}`);
         return {
           success: false,
           error: "database_inconsistency",
@@ -307,9 +286,7 @@ class GameRoom {
         };
       }
 
-      console.log(
-        `✅ Successfully updated ${participant.username}: +${coinsToAdd} coins (${currentCoins} → ${actualTotal})`,
-      );
+      console.log(`Coins updated: ${participant.username} +${coinsToAdd} (${currentCoins} → ${actualTotal})`);
 
       return {
         success: true,
@@ -321,10 +298,7 @@ class GameRoom {
         newTotal: actualTotal,
       };
     } catch (error) {
-      console.error(
-        `❌ Database error updating coins for player ${participant.playerId}:`,
-        error.message,
-      );
+      console.error(`Database error updating coins for ${participant.playerId}:`, error.message);
       return {
         success: false,
         error: "database_error",
@@ -334,242 +308,153 @@ class GameRoom {
     }
   }
 
-  // 🔧 FIXED handleVote method for GameRoom class
+  /**
+   * Processes a vote from a participant with comprehensive validation
+   * @param {Object} voter - The participant casting the vote
+   * @param {number} votedCatId - The cat ID being voted for
+   */
   handleVote(voter, votedCatId) {
+    // Prevent votes after game is finalized
     if (this.isFinalized) {
-      console.log(
-        `🚫 Voting already finalized - ignoring vote from ${voter.playerId}`,
-      );
+      console.warn(`Vote rejected from ${voter.playerId}: game already finalized`);
       return;
     }
 
-    // 🔧 FIX 1: Validate voter is actually in this game room
+    // Validate voter is actually in this game room
     const voterInRoom = this.participants.find(
       (p) => p.playerId === voter.playerId && p.catId === voter.catId,
     );
 
     if (!voterInRoom) {
-      console.log(
-        `🚫 ${voter.playerId} not found in game room participants - ignoring vote`,
-      );
+      console.warn(`Vote rejected: ${voter.playerId} not found in game room`);
       return;
     }
 
-    // 🔧 FIX 2: Ensure consistent data types for catId comparison
+    // Normalize and validate cat IDs
     const normalizedVotedCatId = parseInt(votedCatId);
     const normalizedVoterCatId = parseInt(voter.catId);
 
     if (isNaN(normalizedVotedCatId) || isNaN(normalizedVoterCatId)) {
-      console.log(
-        `🚫 Invalid catId format - voter: ${voter.catId}, voted: ${votedCatId}`,
-      );
+      console.warn(`Vote rejected: invalid catId format (voter: ${voter.catId}, voted: ${votedCatId})`);
       return;
     }
 
-    // 🔧 FIX 3: Find target participant with better logging
-    console.log(
-      `🔍 Looking for target participant with catId: ${normalizedVotedCatId}`,
-    );
-    console.log(
-      `🔍 Available participants:`,
-      this.participants.map((p) => ({
-        playerId: p.playerId,
-        catId: p.catId,
-        catName: p.catName,
-        catIdParsed: parseInt(p.catId),
-      })),
-    );
-
+    // Find the target participant being voted for
     const targetParticipant = this.participants.find((p) => {
       const participantCatId = parseInt(p.catId);
       return participantCatId === normalizedVotedCatId;
     });
 
     if (!targetParticipant) {
-      console.log(
-        `🚫 ${voter.playerId} voted for non-existent cat ${normalizedVotedCatId}`,
-      );
-      console.log(
-        `🚫 Available catIds: ${this.participants.map((p) => parseInt(p.catId)).join(", ")}`,
-      );
+      console.warn(`Vote rejected: cat ${normalizedVotedCatId} not found in game room`);
       return;
     }
 
-    // 🔧 FIX 4: Prevent self-voting (server-side validation)
+    // Prevent self-voting
     if (normalizedVotedCatId === normalizedVoterCatId) {
-      console.log(
-        `🚫 ${voter.playerId} attempted to vote for own cat ${normalizedVoterCatId}`,
-      );
+      console.warn(`Vote rejected: ${voter.playerId} attempted self-vote`);
       return;
     }
 
-    const previousVote = voterInRoom.votedCatId; // Use the participant from the room, not the parameter
-
-    // 🔧 FIX 5: Store vote on the actual room participant, not the parameter
+    // Record the vote (allow vote changes)
+    const previousVote = voterInRoom.votedCatId;
     voterInRoom.votedCatId = normalizedVotedCatId;
 
     if (previousVote) {
-      console.log(
-        `🔄 ${voterInRoom.playerId} (${voterInRoom.username}) changed vote from ${previousVote} to ${normalizedVotedCatId} (${targetParticipant.catName})`,
-      );
+      console.log(`Vote changed: ${voterInRoom.username} from ${previousVote} to ${normalizedVotedCatId}`);
     } else {
-      console.log(
-        `🗳️ ${voterInRoom.playerId} (${voterInRoom.username}) voted for ${normalizedVotedCatId} (${targetParticipant.catName})`,
-      );
+      console.log(`Vote cast: ${voterInRoom.username} → ${targetParticipant.catName} (${normalizedVotedCatId})`);
     }
 
-    // 🔧 FIX 6: Verify the vote was stored correctly
-    console.log(
-      `📊 Vote confirmation: ${voterInRoom.username} now has votedCatId = ${voterInRoom.votedCatId} (type: ${typeof voterInRoom.votedCatId})`,
-    );
-
+    // Update all clients with current voting state
     this.broadcastVotingUpdate();
 
-    // Check if all voted for early end
+    // Check if all participants have voted (early game end)
     const allVoted = this.participants.every(
       (p) => p.votedCatId !== null && p.votedCatId !== undefined,
     );
+    
     const votedCount = this.participants.filter(
       (p) => p.votedCatId !== null && p.votedCatId !== undefined,
     ).length;
-    const totalCount = this.participants.length;
-
-    console.log(
-      `📊 Voting progress: ${votedCount}/${totalCount} participants have voted`,
-    );
-
-    // 🔧 FIX 7: Enhanced vote state logging
-    console.log("🗳️ Current vote state after vote:");
-    this.participants.forEach((p, idx) => {
-      const votedForParticipant = this.participants.find(
-        (target) => parseInt(target.catId) === parseInt(p.votedCatId),
-      );
-      const voteDisplay = p.votedCatId
-        ? `${p.votedCatId} (${votedForParticipant?.catName || "unknown"})`
-        : "NO VOTE";
-      const uniqueId = `${p.playerId}-${p.catId}`;
-      console.log(
-        `  ${idx + 1}. ${p.username} [${uniqueId}] voted for: ${voteDisplay}`,
-      );
-    });
 
     if (allVoted) {
-      console.log("🚀 ALL PARTICIPANTS VOTED - Ending voting early!");
-      console.log("⏰ Early voting end triggered - canceling timer");
-
-      // Clear the voting timer since we're ending early
+      console.log(`All ${this.participants.length} participants voted - ending early`);
+      
+      // Cancel the voting timer since we're ending early
       if (this.votingTimer) {
         clearTimeout(this.votingTimer);
         this.votingTimer = null;
-        console.log("⏹️ Voting timer canceled due to early completion");
       }
 
-      // Add small delay for better UX
+      // Small delay for better UX before showing results
       setTimeout(() => {
-        console.log("✅ Finalizing voting after early completion");
         this.finalizeVoting();
       }, 1500);
+    } else {
+      console.log(`Voting progress: ${votedCount}/${this.participants.length} participants`);
     }
   }
 
+  /**
+   * Handles voting timeout by assigning random votes to non-voters
+   */
   handleVotingTimeout() {
     if (this.isFinalized) return;
 
-    console.log(
-      "⏰ VOTING TIMEOUT REACHED (60 seconds) - Beginning vote calculation process",
-    );
-    console.log(`📊 Room status at timeout:`, {
-      participantCount: this.participants.length,
-      votingStartTime: new Date(this.votingStartTime).toISOString(),
-      timeElapsed:
-        ((Date.now() - this.votingStartTime) / 1000).toFixed(1) + "s",
-    });
+    const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(1);
+    console.log(`Voting timeout after ${votingDuration}s - assigning random votes`);
 
-    // 🔧 DEBUG: Log voting state BEFORE timeout processing
-    console.log("🗳️ Vote state BEFORE timeout processing:");
-    this.participants.forEach((participant, index) => {
-      console.log(
-        `  ${index + 1}. ${participant.username} (${participant.playerId}) - Cat: ${participant.catName} (${participant.catId})`,
-      );
-      console.log(
-        `     Current vote: ${participant.votedCatId || "NO VOTE"} (type: ${typeof participant.votedCatId})`,
-      );
-      console.log(`     Is dummy: ${participant.isDummy || false}`);
-    });
-
-    // Assign random votes to non-voters
-    console.log("🎲 Checking for participants who need random votes:");
+    // Assign random votes to participants who haven't voted
     let autoVotesAssigned = 0;
-
     this.participants.forEach((participant) => {
-      // 🔧 FIX: Be more explicit about vote checking
-      const hasVoted =
-        participant.votedCatId !== null &&
-        participant.votedCatId !== undefined &&
-        !isNaN(participant.votedCatId);
+      const hasVoted = participant.votedCatId !== null && 
+                     participant.votedCatId !== undefined && 
+                     !isNaN(participant.votedCatId);
 
       if (!hasVoted) {
+        // Get available cats (excluding self)
         const availableCats = this.participants
           .filter((p) => parseInt(p.catId) !== parseInt(participant.catId))
           .map((p) => parseInt(p.catId));
 
         if (availableCats.length > 0) {
-          const choice =
-            availableCats[Math.floor(Math.random() * availableCats.length)];
+          const choice = availableCats[Math.floor(Math.random() * availableCats.length)];
           participant.votedCatId = choice;
           autoVotesAssigned++;
 
           const votedForParticipant = this.participants.find(
             (p) => parseInt(p.catId) === choice,
           );
-          console.log(
-            `  ⚡ Auto-vote: ${participant.username} → ${votedForParticipant?.catName || choice}`,
-          );
+          console.log(`Auto-vote assigned: ${participant.username} → ${votedForParticipant?.catName}`);
         }
-      } else {
-        console.log(
-          `  ✅ ${participant.username} already voted for ${participant.votedCatId}`,
-        );
       }
     });
 
-    console.log(
-      `✅ Assigned ${autoVotesAssigned} automatic votes due to timeout`,
-    );
-
-    // 🔧 DEBUG: Log voting state AFTER timeout processing
-    console.log("🗳️ Vote state AFTER timeout processing:");
-    this.participants.forEach((participant, index) => {
-      console.log(
-        `  ${index + 1}. ${participant.username} → voted for ${participant.votedCatId}`,
-      );
-    });
-
+    console.log(`Assigned ${autoVotesAssigned} automatic votes due to timeout`);
     this.finalizeVoting();
   }
 
+  /**
+   * Finalizes voting and initiates results calculation and display
+   */
   async finalizeVoting() {
     if (this.isFinalized) return;
     this.isFinalized = true;
 
-    console.log("🏁 FINALIZING VOTING - No more changes allowed");
-
-    // Record finalization time for analytics
     const votingDuration = ((Date.now() - this.votingStartTime) / 1000).toFixed(1);
-    console.log(`⏱️ Voting lasted ${votingDuration} seconds`);
+    console.log(`Finalizing voting after ${votingDuration}s`);
 
-    // Clear timer if still running
+    // Clear any remaining timer
     if (this.votingTimer) {
       clearTimeout(this.votingTimer);
       this.votingTimer = null;
-      console.log("⏹️ Voting timer cleared");
     }
 
-    // 🔧 CHANGED: Only calculate results, no database updates yet
+    // Calculate results (vote counting and coin calculations)
     this.calculateResults();
 
-    // Show announcement before results
-    console.log('📺 Sending "calculating votes" announcement to participants');
+    // Show "calculating votes" message to all participants
     this.participants.forEach((participant) => {
       if (participant.socket?.connected) {
         participant.socket.emit("calculating_announcement", {
@@ -579,36 +464,22 @@ class GameRoom {
       }
     });
 
-    // 🔧 CRITICAL CHANGE: Longer delay to allow disconnects to be processed
-    // This gives time for players to disconnect during "calculating votes..." phase
-    // and be marked as dummy BEFORE database updates happen
+    // Delay before applying database updates - allows disconnects to be processed
     setTimeout(async () => {
-      console.log("💰 CALCULATION PHASE COMPLETE - NOW APPLYING DATABASE UPDATES");
-      console.log("🔒 From this point forward, disconnects will NOT affect coin awards");
+      console.log("Applying coin rewards to database");
 
       try {
-        // 🔧 ENHANCED: Check for dummy participants right before DB updates
-        console.log("🔍 PRE-DATABASE UPDATE DUMMY CHECK:");
-        this.participants.forEach((p, idx) => {
-          console.log(`  ${idx + 1}. ${p.username} (${p.playerId}) - isDummy: ${p.isDummy || false}`);
-          if (p.isDummy) {
-            console.log(`     ⚠️ ${p.username} marked as dummy - will not receive coins`);
-          }
-        });
-
-        // Update database with rewards
+        // Update database with coin rewards
         const dbUpdateSummary = await this.updateDatabaseWithRewards();
 
-        console.log("📤 Sending final results to all participants (coins processing complete)");
-
-        // Send results with comprehensive error handling
+        // Send final results to all participants
         let resultsMessagesSent = 0;
         let resultsMessagesFailed = 0;
 
         this.participants.forEach((participant) => {
           if (participant.socket?.connected) {
             try {
-              // Validate toast data before sending
+              // Ensure toast data exists with required fields
               const toastData = participant.toastData || {
                 success: false,
                 error: "No toast data generated",
@@ -616,20 +487,15 @@ class GameRoom {
                 votesReceived: participant.votesReceived || 0,
               };
 
-              // Ensure required fields are present
+              // Validate required toast data fields
               if (!toastData.hasOwnProperty("success")) {
-                console.warn(`⚠️ Missing 'success' field in toast data for ${participant.username}`);
                 toastData.success = false;
                 toastData.error = "incomplete_toast_data";
               }
-
               if (!toastData.hasOwnProperty("coinsEarned")) {
-                console.warn(`⚠️ Missing 'coinsEarned' field in toast data for ${participant.username}`);
                 toastData.coinsEarned = 0;
               }
-
               if (!toastData.hasOwnProperty("votesReceived")) {
-                console.warn(`⚠️ Missing 'votesReceived' field in toast data for ${participant.username}`);
                 toastData.votesReceived = participant.votesReceived || 0;
               }
 
@@ -642,23 +508,22 @@ class GameRoom {
               participant.socket.emit("results", resultsMessage);
               resultsMessagesSent++;
 
-              console.log(`  ✅ Results sent to ${participant.username} with toast data:`, toastData);
             } catch (err) {
-              console.error(`❌ Failed to send results to ${participant.username}:`, err);
+              console.error(`Failed to send results to ${participant.username}:`, err);
               resultsMessagesFailed++;
             }
           } else {
-            console.log(`  ⚠️ Could not send results to ${participant.username} - socket disconnected`);
             resultsMessagesFailed++;
           }
         });
 
-        console.log(`📊 Results delivery summary: ${resultsMessagesSent} sent, ${resultsMessagesFailed} failed`);
-        console.log("🎉 GAME ROOM COMPLETE - Results displayed, coins awarded in database");
+        console.log(`Results sent to ${resultsMessagesSent}/${this.participants.length} participants`);
+        console.log("Game completed successfully");
+        
       } catch (error) {
-        console.error("❌ CRITICAL ERROR during database updates:", error);
+        console.error("Critical error during database updates:", error);
 
-        // Send error results to participants if DB updates fail completely
+        // Send error results if database updates fail
         this.participants.forEach((participant) => {
           if (participant.socket?.connected) {
             const errorToastData = {
@@ -669,230 +534,103 @@ class GameRoom {
               details: "Server error during coin processing",
             };
 
-            const resultsMessage = {
+            participant.socket.emit("results", {
               type: "results",
               participants: this.getParticipantsForClient(),
               toastData: errorToastData,
-            };
-
-            participant.socket.emit("results", resultsMessage);
-            console.log(`  ⚠️ Error results sent to ${participant.username}`);
+            });
           }
         });
       }
-    }, 3000);
+    }, 3000); // 3 second delay for disconnect processing
   }
 
-  // 🔧 FIXED: calculateResults - CALCULATION ONLY, NO DATABASE UPDATES
+  /**
+   * Calculates vote results and coin rewards (no database updates)
+   */
   async calculateResults() {
-    console.log("🧮 CALCULATING VOTE RESULTS (NO DB UPDATES YET)");
-    console.log("=".repeat(50));
+    console.log("Calculating vote results and coin rewards");
 
-    // 🔧 ENHANCED: Log participant data integrity
-    console.log("🔍 PARTICIPANT DATA INTEGRITY CHECK:");
+    // Validate participant data integrity
     this.participants.forEach((p, idx) => {
-      const catIdType = typeof p.catId;
-      const catIdParsed = parseInt(p.catId);
-      const isValidCatId = !isNaN(catIdParsed) && catIdParsed > 0;
-
-      console.log(`  ${idx + 1}. ${p.username} (playerId: ${p.playerId})`);
-      console.log(
-        `     catId: ${p.catId} (type: ${catIdType}, parsed: ${catIdParsed}, valid: ${isValidCatId})`,
-      );
-      console.log(`     isDummy: ${p.isDummy || false}`);
-
-      if (!isValidCatId) {
-        console.error(`     ❌ INVALID CATID DETECTED for ${p.username}!`);
+      const catId = parseInt(p.catId);
+      if (isNaN(catId) || catId <= 0) {
+        console.error(`Invalid catId for participant ${idx}: ${p.catId}`);
       }
     });
 
-    // 🔧 DEBUG: Log all participants and their votes before counting
-    console.log("📊 VOTING STATE BEFORE COUNTING:");
-    this.participants.forEach((p, idx) => {
-      const hasVote = p.votedCatId !== null && p.votedCatId !== undefined;
-      const voteType = typeof p.votedCatId;
-      const voteParsed = hasVote ? parseInt(p.votedCatId) : "N/A";
-
-      console.log(
-        `  ${idx + 1}. ${p.username} voted for: ${hasVote ? p.votedCatId : "NO VOTE"}`,
-      );
-      console.log(`     Vote type: ${voteType}, parsed: ${voteParsed}`);
-    });
-
-    // Count votes with explicit type handling and validation
+    // Count votes with explicit validation
     const votes = {};
-    console.log("📊 DETAILED VOTE COUNTING:");
-
     this.participants.forEach((voter) => {
-      if (
-        voter.votedCatId !== null &&
-        voter.votedCatId !== undefined &&
-        !isNaN(voter.votedCatId)
-      ) {
+      if (voter.votedCatId !== null && 
+          voter.votedCatId !== undefined && 
+          !isNaN(voter.votedCatId)) {
+        
         const votedCatId = parseInt(voter.votedCatId);
         const voteKey = votedCatId.toString();
 
-        // 🔧 ENHANCED: Validate the vote target exists
+        // Validate vote target exists
         const targetParticipant = this.participants.find(
           (p) => parseInt(p.catId) === votedCatId,
         );
 
         if (!targetParticipant) {
-          console.error(
-            `  ❌ PHANTOM VOTE: ${voter.username} voted for non-existent cat ${votedCatId}`,
-          );
+          console.error(`Invalid vote: ${voter.username} voted for non-existent cat ${votedCatId}`);
           return; // Skip this vote
         }
 
         votes[voteKey] = (votes[voteKey] || 0) + 1;
-
-        console.log(
-          `  ✅ ${voter.username} → ${targetParticipant.catName} (catId: ${votedCatId}, key: '${voteKey}', count: ${votes[voteKey]})`,
-        );
-      } else {
-        console.log(
-          `  ⚠️ ${voter.username} has invalid vote: ${voter.votedCatId} (type: ${typeof voter.votedCatId})`,
-        );
       }
     });
 
-    console.log("📈 FINAL VOTE TALLIES:");
-    Object.entries(votes).forEach(([catIdStr, voteCount]) => {
-      const catId = parseInt(catIdStr);
-      const participant = this.participants.find(
-        (p) => parseInt(p.catId) === catId,
-      );
-
-      // 🔧 VALIDATION: Ensure vote count is integer
-      if (!Number.isInteger(voteCount)) {
-        console.error(
-          `  ❌ NON-INTEGER VOTE COUNT: catId ${catIdStr} has ${voteCount} votes (type: ${typeof voteCount})`,
-        );
-      }
-
-      console.log(
-        `  catId ${catIdStr}: ${voteCount} votes → ${participant?.catName || "Unknown"}`,
-      );
-    });
-
-    // Calculate rewards with enhanced validation
-    console.log("💰 DETAILED REWARD CALCULATION:");
+    // Calculate rewards based on votes received
     let totalCoinsDistributed = 0;
-
     this.participants.forEach((p) => {
       const catId = parseInt(p.catId);
       const catIdKey = catId.toString();
 
-      // 🔧 VALIDATION: Check catId parsing
       if (isNaN(catId)) {
-        console.error(
-          `  ❌ INVALID CATID: ${p.username} has unparseable catId: ${p.catId}`,
-        );
+        console.error(`Cannot calculate rewards for participant with invalid catId: ${p.catId}`);
         p.votesReceived = 0;
         p.coinsEarned = 0;
         return;
       }
 
       p.votesReceived = votes[catIdKey] || 0;
-      p.coinsEarned = p.votesReceived * 25;
-
-      // 🔧 CRITICAL VALIDATION: Verify calculation
-      const expectedCoins = p.votesReceived * 25;
-      if (p.coinsEarned !== expectedCoins) {
-        console.error(
-          `  ❌ CALCULATION ERROR: ${p.username} - ${p.votesReceived} votes should be ${expectedCoins} coins, got ${p.coinsEarned}`,
-        );
-      }
-
-      if (!Number.isInteger(p.votesReceived)) {
-        console.error(
-          `  ❌ NON-INTEGER VOTES: ${p.username} has ${p.votesReceived} votes (type: ${typeof p.votesReceived})`,
-        );
-      }
-
-      if (!Number.isInteger(p.coinsEarned) || p.coinsEarned % 25 !== 0) {
-        console.error(
-          `  ❌ INVALID COIN AMOUNT: ${p.username} - ${p.coinsEarned} coins is not valid multiple of 25`,
-        );
-      }
-
+      p.coinsEarned = p.votesReceived * 25; // 25 coins per vote
       totalCoinsDistributed += p.coinsEarned;
 
-      console.log(
-        `  💎 ${p.catName} (${p.username}): ${p.votesReceived} votes × 25 = ${p.coinsEarned} coins`,
-      );
-      console.log(
-        `     Key lookup: catId ${catId} → key '${catIdKey}' → votes[key] = ${votes[catIdKey] || 0}`,
-      );
+      // Validate calculation
+      if (!Number.isInteger(p.coinsEarned) || p.coinsEarned % 25 !== 0) {
+        console.error(`Invalid coin calculation for ${p.username}: ${p.coinsEarned} coins`);
+      }
     });
 
-    console.log(`🏆 CALCULATION SUMMARY:`);
-    console.log(
-      `   Total votes cast: ${Object.values(votes).reduce((a, b) => a + b, 0)}`,
-    );
-    console.log(`   Total coins to distribute: ${totalCoinsDistributed}`);
-    console.log(
-      `   Expected range: 0-500 coins (5 players × 0-4 votes × 25 coins)`,
-    );
+    // Log final results summary
+    const totalVotes = Object.values(votes).reduce((a, b) => a + b, 0);
+    console.log(`Results calculated: ${totalVotes} votes cast, ${totalCoinsDistributed} coins to distribute`);
 
     if (totalCoinsDistributed % 25 !== 0) {
-      console.error(
-        `   ❌ CRITICAL: Total coins ${totalCoinsDistributed} is not multiple of 25!`,
-      );
+      console.error(`Total coins ${totalCoinsDistributed} is not multiple of 25 - calculation error!`);
     }
-
-    // Sort by votes for ranking display
-    const sortedParticipants = [...this.participants].sort(
-      (a, b) => b.votesReceived - a.votesReceived,
-    );
-    console.log(`🥇 Final rankings:`);
-    sortedParticipants.forEach((p, index) => {
-      const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉";
-      console.log(
-        `   ${medal} ${index + 1}. ${p.catName} - ${p.votesReceived} votes = ${p.coinsEarned} coins`,
-      );
-    });
-
-    // 🔧 CRITICAL CHANGE: NO DATABASE UPDATES HERE
-    console.log(
-      "💡 CALCULATION COMPLETE - DATABASE UPDATES DEFERRED TO RESULTS DISPLAY",
-    );
-    console.log("=".repeat(50));
   }
 
-  // 🔧 FIXED: Separate function to handle database updates during results display
+  /**
+   * Applies calculated coin rewards to database during results display phase
+   */
   async updateDatabaseWithRewards() {
-    console.log("💳 APPLYING COIN REWARDS TO DATABASE (RESULTS DISPLAY PHASE)");
-    console.log("─".repeat(60));
-
-    // 🔧 DEBUG: Log all participant states before database updates
-    console.log("🔍 PARTICIPANT STATES BEFORE DATABASE UPDATES:");
-    this.participants.forEach((p, index) => {
-      console.log(`  ${index + 1}. ${p.username} (playerId: ${p.playerId})`);
-      console.log(`     catId: ${p.catId}`);
-      console.log(`     isDummy: ${p.isDummy || false}`);
-      console.log(`     votesReceived: ${p.votesReceived || 0}`);
-      console.log(`     coinsEarned: ${p.coinsEarned || 0}`);
-      console.log(`     socket connected: ${p.socket?.connected || false}`);
-    });
-    console.log("─".repeat(30));
+    console.log("Applying coin rewards to database");
 
     const dbUpdateResults = [];
     let successfulUpdates = 0;
     let failedUpdates = 0;
     let skippedUpdates = 0;
 
-    // Update each participant's coins individually with error handling
+    // Process each participant's coin update
     for (const participant of this.participants) {
-      console.log(`\n🔄 Processing participant: ${participant.username} (${participant.playerId})`);
-
       try {
-        // 🔧 CRITICAL FIX: Check isDummy status RIGHT BEFORE database update
+        // Skip dummy participants (disconnected players)
         if (participant.isDummy) {
-          console.log(
-            `🤖 SKIPPING DATABASE UPDATE: ${participant.username} (${participant.playerId}) is marked as dummy (disconnected during game)`
-          );
-          
           participant.toastData = {
             success: true,
             skipped: true,
@@ -902,37 +640,20 @@ class GameRoom {
           };
           
           skippedUpdates++;
-          
           dbUpdateResults.push({
             playerId: participant.playerId,
             username: participant.username,
-            coinsEarned: 0, // Force to 0 for disconnected players
+            coinsEarned: 0,
             votesReceived: participant.votesReceived || 0,
-            updateResult: {
-              success: true,
-              skipped: true,
-              reason: "dummy_participant_disconnected"
-            }
+            updateResult: { success: true, skipped: true, reason: "dummy_participant_disconnected" }
           });
           
-          console.log(`✅ ${participant.username} marked as skipped (dummy participant)`);
-          continue; // Skip this participant entirely
+          continue;
         }
 
-        // 🔧 DEBUG: Log participant details before validation
-        console.log(`📊 ${participant.username} validation:`);
-        console.log(`   playerId: ${participant.playerId} (type: ${typeof participant.playerId})`);
-        console.log(`   coinsEarned: ${participant.coinsEarned} (type: ${typeof participant.coinsEarned})`);
-        console.log(`   isDummy: ${participant.isDummy} (should be false or undefined)`);
-
-        // 🔧 FIX: Validate participant data before DB update
-        if (
-          !participant.playerId ||
-          !Number.isInteger(participant.coinsEarned)
-        ) {
-          console.error(
-            `❌ Invalid participant data: ${participant.username} - playerId: ${participant.playerId}, coinsEarned: ${participant.coinsEarned}`
-          );
+        // Validate participant data before database update
+        if (!participant.playerId || !Number.isInteger(participant.coinsEarned)) {
+          console.error(`Invalid participant data: ${participant.username}`);
           participant.toastData = {
             success: false,
             error: "invalid_participant_data",
@@ -943,28 +664,24 @@ class GameRoom {
           continue;
         }
 
-        console.log(`🎯 ${participant.username} passed validation - proceeding with database update`);
-
+        // Update player coins in database
         const updateResult = await this.updatePlayerCoins(
           participant,
           participant.coinsEarned,
         );
 
-        console.log(`📝 ${participant.username} update result:`, updateResult);
-
         dbUpdateResults.push({
           playerId: participant.playerId,
           username: participant.username,
           coinsEarned: participant.coinsEarned,
-          votesReceived: participant.votesReceived || 0, // 🔧 ENSURE votesReceived is always present
+          votesReceived: participant.votesReceived || 0,
           updateResult,
         });
 
+        // Store appropriate toast data based on update result
         if (updateResult.success) {
           if (updateResult.skipped) {
             skippedUpdates++;
-
-            // 🔧 ENHANCED: Store complete toast data for skipped updates
             participant.toastData = {
               success: true,
               skipped: true,
@@ -972,12 +689,8 @@ class GameRoom {
               coinsEarned: participant.coinsEarned,
               votesReceived: participant.votesReceived || 0,
             };
-
-            console.log(`⏭️ ${participant.username} update skipped: ${updateResult.reason}`);
           } else {
             successfulUpdates++;
-
-            // 🔧 ENHANCED: Store complete toast data for successful updates
             participant.toastData = {
               success: true,
               skipped: false,
@@ -986,13 +699,9 @@ class GameRoom {
               newTotal: updateResult.newTotal,
               previousTotal: updateResult.previousTotal,
             };
-
-            console.log(`✅ ${participant.username} coins updated successfully`);
           }
         } else {
           failedUpdates++;
-
-          // 🔧 ENHANCED: Store detailed error toast data for failed updates
           participant.toastData = {
             success: false,
             error: updateResult.error || "unknown_error",
@@ -1001,33 +710,15 @@ class GameRoom {
             details: updateResult.details || "No additional details",
           };
 
-          console.log(`❌ ${participant.username} update failed: ${updateResult.error}`);
-
-          // Enhanced detailed logging for validation failures
-          if (
-            updateResult.error &&
-            updateResult.error.includes("invalid_coin_amount")
-          ) {
-            console.error(
-              `🚨 COIN VALIDATION FAILURE: ${participant.username} attempted to receive ${updateResult.invalidAmount} coins`
-            );
-            console.error(`   Votes received: ${participant.votesReceived}`);
-            console.error(
-              `   Calculation: ${participant.votesReceived} × 25 = ${participant.coinsEarned}`
-            );
-            console.error(
-              `   This indicates a vote counting or calculation bug!`
-            );
+          // Enhanced logging for validation failures
+          if (updateResult.error && updateResult.error.includes("invalid_coin_amount")) {
+            console.error(`Coin validation failure: ${participant.username} attempted ${updateResult.invalidAmount} coins`);
+            console.error(`Vote calculation: ${participant.votesReceived} votes × 25 = ${participant.coinsEarned} coins`);
           }
         }
       } catch (error) {
-        // 🔧 NEW: Catch any unexpected errors during DB update process
-        console.error(
-          `❌ Unexpected error updating ${participant.username}:`,
-          error,
-        );
+        console.error(`Unexpected error updating ${participant.username}:`, error);
         failedUpdates++;
-
         participant.toastData = {
           success: false,
           error: "unexpected_database_error",
@@ -1038,51 +729,18 @@ class GameRoom {
       }
     }
 
-    // Log comprehensive update summary
-    console.log("\n💳 DATABASE UPDATE SUMMARY:");
-    console.log(`   ✅ Successful updates: ${successfulUpdates}`);
-    console.log(`   ⏭️ Skipped updates: ${skippedUpdates}`);
-    console.log(`   ❌ Failed updates: ${failedUpdates}`);
-
-    // Enhanced detailed logging
-    dbUpdateResults.forEach((result) => {
-      const { playerId, username, coinsEarned, updateResult } = result;
-
-      if (updateResult.success && !updateResult.skipped) {
-        console.log(
-          `   💰 ${username} (${playerId}): +${coinsEarned} coins (${updateResult.previousTotal} → ${updateResult.newTotal})`
-        );
-      } else if (updateResult.skipped) {
-        console.log(
-          `   ⏭️ ${username} (${playerId}): skipped (${updateResult.reason})`
-        );
-      } else {
-        console.log(
-          `   ❌ ${username} (${playerId}): FAILED - ${updateResult.error}`
-        );
-        if (updateResult.invalidAmount !== undefined) {
-          console.log(`      Invalid amount: ${updateResult.invalidAmount}`);
-        }
-      }
-    });
+    console.log(`Database updates complete: ${successfulUpdates} successful, ${skippedUpdates} skipped, ${failedUpdates} failed`);
 
     if (failedUpdates > 0) {
-      console.warn(`⚠️ WARNING: ${failedUpdates} database updates failed!`);
+      console.warn(`Warning: ${failedUpdates} database updates failed - some players may not have received coins`);
     }
 
-    console.log(
-      "✅ DATABASE UPDATES COMPLETE - COINS AWARDED AT RESULTS DISPLAY",
-    );
-    console.log("─".repeat(60));
-
-    return {
-      successfulUpdates,
-      failedUpdates,
-      skippedUpdates,
-      dbUpdateResults,
-    };
+    return { successfulUpdates, failedUpdates, skippedUpdates, dbUpdateResults };
   }
 
+  /**
+   * Broadcasts current voting state to all participants
+   */
   broadcastVotingUpdate() {
     this.participants.forEach((p) => {
       if (p.socket?.connected) {
@@ -1094,10 +752,13 @@ class GameRoom {
     });
   }
 
-  // 🔥 NEW: Enhanced getParticipantsForClient function - ADD toast data
+  /**
+   * Formats participant data for client consumption
+   * @returns {Array} Sanitized participant data for frontend
+   */
   getParticipantsForClient() {
     return this.participants.map((p) => {
-      // 🔧 VALIDATION: Ensure all required fields are present and valid
+      // Ensure all required fields are present and valid
       const participantData = {
         playerId: p.playerId,
         catId: p.catId,
@@ -1110,89 +771,60 @@ class GameRoom {
         coinsEarned: Number.isInteger(p.coinsEarned) ? p.coinsEarned : 0,
       };
 
-      // 🔧 VALIDATION: Log any data issues
-      if (!p.username || p.username.startsWith("Player_")) {
-        console.warn(
-          `⚠️ Participant ${p.playerId} has fallback username: ${participantData.username}`,
-        );
-      }
-
-      if (!p.catName || p.catName.startsWith("Cat_")) {
-        console.warn(
-          `⚠️ Participant ${p.playerId} has fallback cat name: ${participantData.catName}`,
-        );
-      }
-
-      if (!p.catSpriteUrl) {
-        console.warn(`⚠️ Participant ${p.playerId} has no cat sprite URL`);
-      }
-
-      // 🔧 VALIDATION: Ensure vote counts are consistent
+      // Validate vote/coin consistency
       if (p.votesReceived && p.coinsEarned !== p.votesReceived * 25) {
-        console.error(
-          `❌ INCONSISTENT DATA: ${p.username} - ${p.votesReceived} votes but ${p.coinsEarned} coins (expected ${p.votesReceived * 25})`,
-        );
+        console.error(`Data inconsistency: ${p.username} has ${p.votesReceived} votes but ${p.coinsEarned} coins`);
       }
 
       return participantData;
     });
   }
 
+  /**
+   * Handles participant disconnect during active game
+   * @param {Object} p - The disconnecting participant
+   */
   handleParticipantDisconnect(p) {
+    // Don't process disconnects after game is finalized
     if (this.isFinalized) {
-      console.log(`🏁 Game already finalized - disconnect for ${p.username} (${p.playerId}) noted but no action taken`);
+      console.log(`Disconnect noted for ${p.username} but game already finalized`);
       return;
     }
 
-    // 🔧 CRITICAL FIX: Mark participant as dummy when they disconnect
-    console.log(`🔧 DISCONNECT HANDLER: Marking ${p.username} (${p.playerId}) as dummy (no coin rewards)`);
+    // Mark participant as dummy to prevent coin rewards
+    console.log(`Marking disconnected participant ${p.username} as dummy (no rewards)`);
     p.isDummy = true;
-
-    // 🔧 ADDITIONAL LOGGING: Confirm the flag was set
-    console.log(`✅ isDummy flag set for ${p.username}: ${p.isDummy}`);
 
     // Assign random vote if they haven't voted and voting is still active
     if (!p.votedCatId && this.isVoting) {
       const options = this.participants
         .filter((x) => x.catId !== p.catId)
         .map((x) => x.catId);
+      
       if (options.length > 0) {
         const vote = options[Math.floor(Math.random() * options.length)];
         p.votedCatId = vote;
-        console.log(
-          `🤖 ${p.playerId} disconnected - voting randomly for ${vote}`,
-        );
+        console.log(`Auto-vote assigned for disconnected player: ${p.username} → cat ${vote}`);
 
-        // Check if all have voted now
+        // Check if all participants have now voted
         const allVoted = this.participants.every((participant) => participant.votedCatId);
         if (allVoted) {
-          console.log(`🚀 All voted after ${p.username} disconnect - finalizing voting`);
+          console.log("All participants voted after disconnect - finalizing game");
           this.finalizeVoting();
         } else {
           this.broadcastVotingUpdate();
         }
       }
-    } else {
-      console.log(`ℹ️ ${p.username} disconnected but had already voted (${p.votedCatId}) or voting not active`);
     }
-    
-    // 🔧 ENHANCED LOGGING: Show current participant state after disconnect
-    console.log(`📊 Final state for disconnected participant ${p.username}:`);
-    console.log(`   playerId: ${p.playerId}`);
-    console.log(`   catId: ${p.catId}`);
-    console.log(`   isDummy: ${p.isDummy}`);
-    console.log(`   votedCatId: ${p.votedCatId}`);
-    console.log(`   votesReceived: ${p.votesReceived || 0}`);
-    console.log(`   coinsEarned: ${p.coinsEarned || 0}`);
   }
 }
 
-// ─────────────── Broadcast waiting room updates ───────────────
-function broadcastWaitingRoomUpdate() {
-  console.log(
-    `📤 Broadcasting waiting room update to ${waitingRoom.participants.length} participants`,
-  );
+// ─────────────── Broadcast Waiting Room Management ───────────────
 
+/**
+ * Broadcasts current waiting room state to all waiting participants
+ */
+function broadcastWaitingRoomUpdate() {
   const participantsForClient = waitingRoom.participants.map((p) => ({
     playerId: p.playerId,
     catId: p.catId,
@@ -1211,31 +843,43 @@ function broadcastWaitingRoomUpdate() {
       });
     }
   });
+  
+  console.log(`Waiting room update sent to ${waitingRoom.participants.length} participants`);
 }
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN SOCKET SETUP FUNCTION
 // ═══════════════════════════════════════════════════════════════
 
-// 🔧 FIXED: Socket setup with proper room assignment and enhanced error handling
+/**
+ * Sets up all socket.io event handlers for both fashion show and ticket system
+ * @param {Object} io - The socket.io server instance
+ */
 export default function setupSocket(io) {
-  const playerSockets = new Map();
-  const adminSockets = new Set();
+  // Connection tracking for both fashion show and ticket system
+  const playerSockets = new Map(); // playerId -> socketId mapping
+  const adminSockets = new Set();  // Set of admin socket IDs
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log(`New connection established: ${socket.id}`);
 
-    // 🔧 FIX: Use a more reliable room tracking system
-    let currentParticipant = null;
-    let currentGameRoom = null;
+    // Local state for this specific socket connection
+    let currentParticipant = null;  // Fashion show participant data
+    let currentGameRoom = null;     // Active game room reference
 
-    // 🔥 NEW: Enhanced join handler with toast error messages
+    // ═══════════════════════════════════════════════════════════════
+    // FASHION SHOW EVENT HANDLERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Handles player joining the fashion show waiting room
+     */
     socket.on("join", async (message) => {
-      console.log("🎭 Fashion Show - Received join:", message);
+      console.log(`Join request received from ${socket.id}:`, { playerId: message?.playerId, catId: message?.catId });
 
-      // 🔧 ENHANCED: Better validation with specific error messages
+      // Validate join message structure
       if (!message || typeof message !== "object") {
-        console.warn("⚠️ Invalid join message format. Disconnecting.");
+        console.warn(`Invalid join message format from ${socket.id}`);
         socket.emit("error", {
           message: "Invalid join request format",
           type: "validation_error",
@@ -1245,7 +889,7 @@ export default function setupSocket(io) {
       }
 
       if (!message.playerId || !message.catId) {
-        console.warn("⚠️ Missing playerId or catId. Disconnecting.");
+        console.warn(`Missing required fields from ${socket.id}: playerId=${message.playerId}, catId=${message.catId}`);
         socket.emit("error", {
           message: "Invalid join request - missing player or cat data",
           type: "validation_error",
@@ -1254,14 +898,12 @@ export default function setupSocket(io) {
         return socket.disconnect();
       }
 
-      // 🔧 ENHANCED: Validate data types
+      // Parse and validate ID formats
       const playerId = parseInt(message.playerId);
       const catId = parseInt(message.catId);
 
       if (isNaN(playerId) || isNaN(catId) || playerId <= 0 || catId <= 0) {
-        console.warn(
-          `⚠️ Invalid playerId or catId format: playerId=${message.playerId}, catId=${message.catId}`,
-        );
+        console.warn(`Invalid ID format from ${socket.id}: playerId=${message.playerId}, catId=${message.catId}`);
         socket.emit("error", {
           message: "Invalid player or cat ID format",
           type: "validation_error",
@@ -1271,16 +913,14 @@ export default function setupSocket(io) {
       }
 
       try {
-        // Validate cat ownership BEFORE creating participant
+        // Verify cat ownership before allowing join
         const catValidation = await DB.query(
           "SELECT cat_id FROM player_cats WHERE cat_id = $1 AND player_id = $2",
           [catId, playerId],
         );
 
         if (catValidation.rows.length === 0) {
-          console.warn(
-            `❌ Player ${playerId} does not own cat ${catId}. Disconnecting.`,
-          );
+          console.warn(`Ownership violation: Player ${playerId} does not own cat ${catId}`);
           socket.emit("error", {
             message: "You do not own the selected cat",
             type: "ownership_error",
@@ -1289,7 +929,7 @@ export default function setupSocket(io) {
           return socket.disconnect();
         }
       } catch (err) {
-        console.error("❌ Database error during cat validation:", err);
+        console.error(`Database error during cat validation for ${socket.id}:`, err);
         socket.emit("error", {
           message: "Database connection error - please try again",
           type: "database_error",
@@ -1298,17 +938,13 @@ export default function setupSocket(io) {
         return socket.disconnect();
       }
 
-      // 🔧 ENHANCED: Better duplicate checking with detailed logging
+      // Check for duplicate participants in waiting room
       const existingParticipant = waitingRoom.participants.find(
-        (p) =>
-          p.playerId === playerId ||
-          (p.playerId === playerId && p.catId === catId),
+        (p) => p.playerId === playerId || (p.playerId === playerId && p.catId === catId),
       );
 
       if (existingParticipant) {
-        console.warn(
-          `❌ Player ${playerId} already in waiting room. Existing: playerId=${existingParticipant.playerId}, catId=${existingParticipant.catId}`,
-        );
+        console.warn(`Duplicate join attempt: Player ${playerId} already in waiting room`);
         socket.emit("error", {
           message: "You are already in the waiting room",
           type: "duplicate_join",
@@ -1318,45 +954,21 @@ export default function setupSocket(io) {
       }
 
       try {
-        // Create participant with enhanced error handling
+        // Create participant with full database lookup
         socket.participant = await createParticipant(playerId, catId, socket);
         currentParticipant = socket.participant;
 
-        // 🔧 ENHANCED: Validate participant creation with specific checks
         if (!socket.participant) {
           throw new Error("Participant creation returned null");
         }
 
-        if (
-          !socket.participant.username ||
-          socket.participant.username.startsWith("Player_")
-        ) {
-          console.warn(
-            `⚠️ Could not load username for player ${playerId}, using fallback`,
-          );
-        }
-
-        if (
-          !socket.participant.catName ||
-          socket.participant.catName.startsWith("Cat_")
-        ) {
-          console.warn(
-            `⚠️ Could not load cat name for cat ${catId}, using fallback`,
-          );
-        }
-
         if (!socket.participant.catSpriteUrl) {
-          console.warn(`⚠️ Could not load cat sprite for cat ${catId}`);
+          console.warn(`Missing sprite URL for cat ${catId} - client may show placeholder`);
         }
 
-        console.log(
-          `✅ Valid participant created for ${socket.participant.playerId}: ${socket.participant.catName}`,
-        );
+        console.log(`Participant created successfully: ${socket.participant.username} with cat ${socket.participant.catName}`);
       } catch (err) {
-        console.error(
-          `❌ Failed to create participant for player ${playerId}, cat ${catId}:`,
-          err,
-        );
+        console.error(`Failed to create participant for ${socket.id}:`, err);
         socket.emit("error", {
           message: "Failed to load your cat data - please try again",
           type: "data_loading_error",
@@ -1365,36 +977,26 @@ export default function setupSocket(io) {
         return socket.disconnect();
       }
 
-      // Continue with existing join logic...
-      if (
-        waitingRoom.participants.length < PARTICIPANTS_IN_ROOM &&
-        !waitingRoom.isVoting
-      ) {
+      // Add to waiting room if space available and not currently voting
+      if (waitingRoom.participants.length < PARTICIPANTS_IN_ROOM && !waitingRoom.isVoting) {
         waitingRoom.participants.push(socket.participant);
-        console.log(
-          `👥 Waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}`,
-        );
+        console.log(`Added to waiting room: ${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM} participants`);
 
         broadcastWaitingRoomUpdate();
 
-        // Launch game room when full
+        // Launch game when room is full
         if (waitingRoom.participants.length === PARTICIPANTS_IN_ROOM) {
-          console.log("🚀 Launching game room");
+          console.log("Waiting room full - launching game");
 
-          // Final validation before game start
+          // Final validation to prevent duplicate participants
           const uniqueParticipants = waitingRoom.participants.filter(
             (p, index, arr) =>
-              arr.findIndex(
-                (other) =>
-                  other.playerId === p.playerId && other.catId === p.catId,
-              ) === index,
+              arr.findIndex(other => other.playerId === p.playerId && other.catId === p.catId) === index,
           );
 
           if (uniqueParticipants.length !== PARTICIPANTS_IN_ROOM) {
-            console.error(
-              `❌ Duplicate participants detected! Expected ${PARTICIPANTS_IN_ROOM}, got ${uniqueParticipants.length} unique`,
-            );
-            // Reset waiting room and disconnect all with error message
+            console.error(`Duplicate participants detected! Expected ${PARTICIPANTS_IN_ROOM}, got ${uniqueParticipants.length} unique`);
+            // Reset waiting room and disconnect all participants
             waitingRoom.participants.forEach((p) => {
               if (p.socket?.connected) {
                 p.socket.emit("error", {
@@ -1409,21 +1011,19 @@ export default function setupSocket(io) {
             return;
           }
 
+          // Create game room and assign to participant sockets
           const gameRoom = new GameRoom([...uniqueParticipants]);
-
-          // 🔧 FIX: Properly assign game room to all participant sockets
           uniqueParticipants.forEach((p) => {
             if (!p.isDummy && p.socket) {
               p.socket.currentGameRoom = gameRoom;
-              console.log(`🔗 Assigned game room to ${p.username}'s socket`);
             }
           });
 
-          // Reset waiting room
+          // Reset waiting room for next game
           waitingRoom = { participants: [], isVoting: false };
         }
       } else {
-        console.warn("❌ Waiting room full or voting. Disconnecting.");
+        console.warn(`Cannot join: room full (${waitingRoom.participants.length}/${PARTICIPANTS_IN_ROOM}) or voting in progress`);
         socket.emit("error", {
           message: "Fashion show room is full - please try again later",
           type: "room_full",
@@ -1433,14 +1033,13 @@ export default function setupSocket(io) {
       }
     });
 
-    // 🔧 FIXED: Vote handling with proper room validation and enhanced error messages
+    /**
+     * Handles vote submission from participants
+     */
     socket.on("vote", (message) => {
-      console.log("🗳️ Received vote:", message);
-
-      // Validate we have a participant and game room
+      // Validate vote context
       if (!currentParticipant) {
-        console.warn("⚠️ Vote received but no participant on socket");
-        // 🔥 NEW: Invalid vote state error
+        console.warn(`Vote rejected from ${socket.id}: no participant context`);
         socket.emit("error", {
           message: "Invalid voting state - please refresh",
           type: "vote_error",
@@ -1450,8 +1049,7 @@ export default function setupSocket(io) {
       }
 
       if (!socket.currentGameRoom) {
-        console.warn("⚠️ Vote received but no game room assigned to socket");
-        // 🔥 NEW: No game room error
+        console.warn(`Vote rejected from ${socket.id}: no game room assigned`);
         socket.emit("error", {
           message: "Not connected to game room - please refresh",
           type: "vote_error",
@@ -1461,10 +1059,7 @@ export default function setupSocket(io) {
       }
 
       if (!(socket.currentGameRoom instanceof GameRoom)) {
-        console.warn(
-          "⚠️ Vote received but currentGameRoom is not a GameRoom instance",
-        );
-        // 🔥 NEW: Invalid game room error
+        console.warn(`Vote rejected from ${socket.id}: invalid game room instance`);
         socket.emit("error", {
           message: "Invalid game room state - please refresh",
           type: "vote_error",
@@ -1474,8 +1069,7 @@ export default function setupSocket(io) {
       }
 
       if (socket.currentGameRoom.isFinalized) {
-        console.warn("⚠️ Vote received but game room is already finalized");
-        // 🔥 NEW: Voting ended error
+        console.warn(`Vote rejected from ${socket.id}: game already finalized`);
         socket.emit("error", {
           message: "Voting has already ended",
           type: "vote_too_late",
@@ -1484,44 +1078,41 @@ export default function setupSocket(io) {
         return;
       }
 
-      console.log(
-        `🗳️ Valid vote from ${currentParticipant.username} (${currentParticipant.playerId}) for cat ${message.votedCatId}`,
-      );
+      console.log(`Processing vote: ${currentParticipant.username} → cat ${message.votedCatId}`);
 
-      // 🔥 NEW: Send vote confirmation to client
+      // Send vote confirmation to client
       socket.emit("vote_confirmed", {
         type: "vote_confirmed",
         votedCatId: message.votedCatId,
         voterName: currentParticipant.username,
       });
 
+      // Process the vote through game room
       socket.currentGameRoom.handleVote(currentParticipant, message.votedCatId);
     });
 
-    // 🔥 NEW: Add heartbeat system to detect connection issues
+    /**
+     * Connection health monitoring via heartbeat system
+     */
     const heartbeatInterval = setInterval(() => {
-      // Send heartbeat to this connected socket if it has a participant
       if (currentParticipant && socket.connected) {
         socket.emit("heartbeat", { timestamp: Date.now() });
       }
     }, 30000); // Every 30 seconds
 
-    // 🔥 NEW: Handle heartbeat responses for connection monitoring
     socket.on("heartbeat_response", (data) => {
-      // Update last seen timestamp for connection monitoring
       if (currentParticipant) {
         currentParticipant.lastSeen = Date.now();
       }
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // EXISTING TICKET SYSTEM HANDLERS (UNCHANGED)
+    // TICKET SYSTEM EVENT HANDLERS (Legacy Support)
     // ═══════════════════════════════════════════════════════════════
 
-    //broadcast/////////////
-
-    // Admin sends a broadcast
-    // Admin sends a broadcast
+    /**
+     * Admin broadcast message to all players
+     */
     socket.on("adminBroadcast", async ({ message }) => {
       try {
         const insertResult = await DB.query(
@@ -1530,7 +1121,7 @@ export default function setupSocket(io) {
         );
         const broadcast = insertResult.rows[0];
 
-        // Emit to all players
+        // Send broadcast to all registered players
         const playersResult = await DB.query("SELECT id FROM players");
         playersResult.rows.forEach((row) => {
           io.to(`user_${row.id}`).emit("adminBroadcast", {
@@ -1538,26 +1129,32 @@ export default function setupSocket(io) {
             date: broadcast.sent_at,
           });
         });
+        
+        console.log(`Admin broadcast sent to ${playersResult.rows.length} players`);
       } catch (err) {
-        console.error("Error sending broadcast:", err);
+        console.error("Error sending admin broadcast:", err);
       }
     });
 
-    // Admin registers
+    /**
+     * Admin registration for ticket system
+     */
     socket.on("registerAdmin", () => {
       adminSockets.add(socket.id);
       socket.join("admins");
-      console.log(`Admin registered and joined admins room: ${socket.id}`);
+      console.log(`Admin registered: ${socket.id}`);
     });
 
-    // Player registers and joins all their open ticket rooms
+    /**
+     * Player registration for ticket system
+     */
     socket.on("registerPlayer", async (userId) => {
       socket.join(`user_${userId}`);
-
       playerSockets.set(userId, socket.id);
-      console.log(`Registered player ${userId} with socket ${socket.id}`);
+      console.log(`Player registered: ${userId} (${socket.id})`);
 
       try {
+        // Auto-join all open ticket rooms for this player
         const result = await DB.query(
           `SELECT ticket_id FROM tickets_table WHERE user_id = $1 AND status = 'open'`,
           [userId],
@@ -1565,189 +1162,187 @@ export default function setupSocket(io) {
         result.rows.forEach((row) => {
           const ticketRoom = `ticket_${row.ticket_id}`;
           socket.join(ticketRoom);
-          console.log(`Player socket joined ticket room: ${ticketRoom}`);
         });
+        
+        if (result.rows.length > 0) {
+          console.log(`Player ${userId} joined ${result.rows.length} ticket rooms`);
+        }
       } catch (err) {
-        console.error("Failed to get player tickets:", err);
+        console.error(`Failed to load ticket rooms for player ${userId}:`, err);
       }
     });
 
-    // Admin joins a ticket room
+    /**
+     * Admin joins specific ticket room
+     */
     socket.on("joinTicketRoom", ({ ticketId }) => {
       const roomName = `ticket_${ticketId}`;
       socket.join(roomName);
-      console.log(`Admin socket ${socket.id} joined ticket room: ${roomName}`);
+      console.log(`Admin joined ticket room: ${roomName}`);
     });
 
-    // Player sends message
+    /**
+     * Player sends message in ticket
+     */
     socket.on("playerMessage", async ({ ticketId, userId, text }) => {
       const roomName = `ticket_${ticketId}`;
-      console.log(
-        `Player ${userId} sent message for ticket ${ticketId}: ${text}`,
-      );
 
       try {
         await DB.query(
           `INSERT INTO messages_table (ticket_id, sender, content, timestamp) VALUES ($1, 'user', $2, NOW())`,
           [ticketId, text],
         );
-      } catch (err) {
-        console.error("Error saving message:", err);
-      }
 
-      io.to(roomName).emit("newMessage", {
-        sender: "user",
-        content: text,
-        ticketId,
-        userId,
-      });
+        io.to(roomName).emit("newMessage", {
+          sender: "user",
+          content: text,
+          ticketId,
+          userId,
+        });
+        
+        console.log(`Player message sent in ticket ${ticketId}`);
+      } catch (err) {
+        console.error(`Error saving player message for ticket ${ticketId}:`, err);
+      }
     });
 
-    // Player opens ticket
+    /**
+     * Player opens or retrieves existing ticket
+     */
     socket.on("openTicketRequest", async ({ userId }, callback) => {
       try {
+        // Check for existing open ticket
         const result = await DB.query(
           `SELECT * FROM tickets_table WHERE user_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 1`,
           [userId],
         );
 
         if (result.rows.length > 0) {
+          console.log(`Returning existing ticket for player ${userId}`);
           callback({ ticket: result.rows[0] });
         } else {
+          // Create new ticket
           const insertResult = await DB.query(
             `INSERT INTO tickets_table (user_id, status) VALUES ($1, 'open') RETURNING *`,
             [userId],
           );
 
           const newTicket = insertResult.rows[0];
+          console.log(`New ticket created for player ${userId}: ticket ${newTicket.ticket_id}`);
 
-          // To notify all admins of new ticket
+          // Notify all admins of new ticket
           io.to("admins").emit("newTicketCreated", newTicket);
-
           callback({ ticket: newTicket });
         }
       } catch (err) {
-        console.error("Error in openTicketRequest:", err);
+        console.error(`Error in openTicketRequest for player ${userId}:`, err);
         callback({ error: "Failed to open or create ticket" });
       }
     });
 
-    // Admin sends message
+    /**
+     * Admin sends message in ticket
+     */
     socket.on("adminMessage", async ({ ticketId, text }) => {
       const roomName = `ticket_${ticketId}`;
-      console.log(`Admin sent message to ticket ${ticketId}: ${text}`);
 
       try {
         await DB.query(
           `INSERT INTO messages_table (ticket_id, sender, content, timestamp) VALUES ($1, 'admin', $2, NOW())`,
           [ticketId, text],
         );
-      } catch (err) {
-        console.error("Error saving message:", err);
-      }
 
-      io.to(roomName).emit("newMessage", {
-        sender: "admin",
-        content: text,
-        ticketId,
-      });
+        io.to(roomName).emit("newMessage", {
+          sender: "admin",
+          content: text,
+          ticketId,
+        });
+        
+        console.log(`Admin message sent in ticket ${ticketId}`);
+      } catch (err) {
+        console.error(`Error saving admin message for ticket ${ticketId}:`, err);
+      }
     });
 
-    // Admin closes ticket via socket
+    /**
+     * Admin closes ticket
+     */
     socket.on("closeTicket", async ({ ticketId }) => {
       try {
-        // Update DB
         await DB.query(
           `UPDATE tickets_table SET status = 'closed' WHERE ticket_id = $1`,
           [ticketId],
         );
 
-        console.log(`Ticket ${ticketId} closed by admin.`);
-
-        // Broadcast to all in that ticket room
+        // Notify all participants in ticket room
         io.to(`ticket_${ticketId}`).emit("ticketClosed", { ticketId });
+        console.log(`Ticket ${ticketId} closed by admin`);
       } catch (err) {
-        console.error("Error closing ticket:", err);
+        console.error(`Error closing ticket ${ticketId}:`, err);
         socket.emit("errorMessage", { message: "Failed to close ticket." });
       }
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // DISCONNECT HANDLER (UPDATED TO HANDLE BOTH SYSTEMS)
+    // DISCONNECT HANDLER
     // ═══════════════════════════════════════════════════════════════
 
     socket.on("disconnect", () => {
-      console.log("User disconnected:", socket.id);
+      console.log(`Connection terminated: ${socket.id}`);
 
-      // Clean up heartbeat interval
+      // Clean up heartbeat monitoring
       if (heartbeatInterval) {
         clearInterval(heartbeatInterval);
       }
 
-      // Handle fashion show disconnect
+      // Handle fashion show participant disconnect
       if (currentParticipant) {
-          console.log(`🔍 Disconnect processing for participant: ${currentParticipant.playerId} (${currentParticipant.username})`);
+        console.log(`Processing fashion show disconnect for ${currentParticipant.username} (${currentParticipant.playerId})`);
 
-        // Check if they're in waiting room
+        // Check if participant is in waiting room
         const waitingRoomIdx = waitingRoom.participants.findIndex(
-          (p) =>
-            p.playerId === currentParticipant.playerId &&
-            p.catId === currentParticipant.catId,
+          (p) => p.playerId === currentParticipant.playerId && p.catId === currentParticipant.catId,
         );
 
         if (waitingRoomIdx > -1) {
           waitingRoom.participants.splice(waitingRoomIdx, 1);
           broadcastWaitingRoomUpdate();
-          console.log(`👤 ${currentParticipant.playerId} left waiting room`);
+          console.log(`Removed ${currentParticipant.username} from waiting room`);
         } else {
-          // CRITICAL FIX: Find the participant in any active game room
-          console.log(`🔍 Looking for participant ${currentParticipant.playerId} in active game rooms...`);
-          
+          // Handle disconnect during active game
           let foundInGameRoom = false;
           
           if (socket.currentGameRoom instanceof GameRoom) {
-            console.log(`🎮 Found participant in socket's game room`);
-            
-            // Find the actual participant object in the game room
+            // Find participant in game room and mark as dummy
             const gameRoomParticipant = socket.currentGameRoom.participants.find(p => 
               p.playerId === currentParticipant.playerId && p.catId === currentParticipant.catId
             );
             
             if (gameRoomParticipant) {
-              console.log(`🔧 MARKING PARTICIPANT AS DUMMY: ${gameRoomParticipant.username} (${gameRoomParticipant.playerId})`);
-              
-              // CRITICAL: Mark as dummy in the actual game room participant object
+              console.log(`Marking ${gameRoomParticipant.username} as dummy due to disconnect`);
               gameRoomParticipant.isDummy = true;
-              
-              // Also call the game room's disconnect handler
               socket.currentGameRoom.handleParticipantDisconnect(gameRoomParticipant);
-              
               foundInGameRoom = true;
-              console.log(`✅ ${currentParticipant.playerId} marked as dummy and disconnect handled`);
-            } else {
-              console.warn(`⚠️ Participant ${currentParticipant.playerId} not found in game room participants`);
             }
-          } else {
-            console.warn(`⚠️ No valid game room found for participant ${currentParticipant.playerId}`);
           }
           
           if (!foundInGameRoom) {
-            console.error(`❌ Could not find participant ${currentParticipant.playerId} in any game room!`);
-            console.error(`❌ This participant may still receive coins despite disconnecting!`);
+            console.error(`Could not locate ${currentParticipant.username} in any active game room`);
           }
         }
-      } else {
-        console.log(`ℹ️ Disconnect without currentParticipant (likely not in fashion show)`);
       }
 
-      // Cleanup admin and player sockets
+      // Clean up ticket system connections
       adminSockets.delete(socket.id);
       for (const [userId, socketId] of playerSockets.entries()) {
         if (socketId === socket.id) {
           playerSockets.delete(userId);
+          console.log(`Removed player ${userId} socket mapping`);
           break;
         }
       }
     });
   });
+  
+  console.log("Socket.IO server initialized with fashion show and ticket system handlers");
 }
