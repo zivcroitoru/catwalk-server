@@ -78,7 +78,7 @@ router.patch('/api/playerItems', requireLogin, playerItemController.addPlayerIte
 router.patch('/api/cat_items/:catId', requireLogin, catItemsController.patchCatEquipment);
 router.get('/api/cat_items/:catId', requireLogin, catItemsController.getCatEquipment);
 
-// -------------------------- Ticket Routes --------------------------
+// -------------------------- Ticket Routes -------------------------- //
 router.get('/api/tickets', ticketController.getAllTickets);
 router.post('/api/tickets', ticketController.createTicket);
 router.get('/api/tickets/test', ticketController.testTickets);
@@ -95,9 +95,9 @@ router.post('/api/broadcasts', broadcastController.createBroadcast);
 
 //------------------------ admin routes ----------------------------
 router.post('/api/admins/login', loginAdmin);
-router.get('/api/admins/tickets', getTickets);
-router.get('/api/admins/messages/:ticketId', getTicketMessages);
-router.post('/api/admins/messages/:ticketId', respondToTicket);
+// router.get('/api/admins/tickets', getTickets);
+// router.get('/api/admins/messages/:ticketId', getTicketMessages);
+// router.post('/api/admins/messages/:ticketId', respondToTicket);
 
 export default router;
 
