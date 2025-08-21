@@ -9,8 +9,8 @@ import setupSocket from './sockets/socket.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-console.log('🚀 Initializing Catwalk Server...');
-console.log(`📍 Server will run on port: ${PORT}`);
+console.log('Initializing Catwalk Server...');
+console.log(` Server will run on port: ${PORT}`);
 
 // Create HTTP server for both Express and Socket.IO
 const httpServer = http.createServer(app);
@@ -24,18 +24,18 @@ const allowedOrigins = [
   process.env.FRONTEND_URL
 ];
 
-console.log('🔒 Allowed CORS origins:', allowedOrigins);
+console.log('Allowed CORS origins:', allowedOrigins);
 
 // Configure CORS middleware
 app.use(cors({
   origin: (origin, callback) => {
-    console.log("🔎 Incoming origin:", origin || 'undefined');
+    console.log("Incoming origin:", origin || 'undefined');
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn("❌ Blocked by CORS:", origin);
+      console.warn("Blocked by CORS:", origin);
       callback(null, false);
     }
   },
@@ -54,18 +54,18 @@ app.use(express.json());
 // Import and mount main router
 import routerPath from './routes/router.js';
 app.use("/", routerPath);
-console.log('📋 Main routes loaded from ./routes/router.js');
+console.log(' Main routes loaded from ./routes/router.js');
 
 
 // Database health check endpoint
 app.get('/api/test-db', async (req, res) => {
-  console.log('🔍 Database health check requested');
+  console.log('Database health check requested');
   try {
     const result = await DB.query('SELECT NOW()');
-    console.log('✅ Database connection successful');
+    console.log(' Database connection successful');
     res.json({ now: result.rows[0] });
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error(' Database connection failed:', error.message);
     res.status(500).send('DB error');
   }
 });
@@ -82,11 +82,11 @@ const io = new SocketIOServer(httpServer, {
   }
 });
 
-console.log('🔌 Socket.IO server initialized');
+console.log('Socket.IO server initialized');
 
 // Setup socket event handlers
 setupSocket(io);
-console.log('📡 Socket event handlers configured');
+console.log('Socket event handlers configured');
 
 // ═══════════════════════════════════════════════════════════════
 // SERVER STARTUP
@@ -94,8 +94,8 @@ console.log('📡 Socket event handlers configured');
 
 // Start the HTTP server
 httpServer.listen(PORT, () => {
-  console.log('🎉 Catwalk Server successfully started!');
-  console.log(`🌐 Server running on: http://localhost:${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('🔒 CORS origins configured:', allowedOrigins.length, 'origins');
+  console.log(' Catwalk Server successfully started!');
+  console.log(`Server running on: http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('CORS origins configured:', allowedOrigins.length, 'origins');
 });
