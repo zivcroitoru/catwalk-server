@@ -22,9 +22,9 @@ import {
 
 import {
     loginAdmin,
-    getTickets,
-    getTicketMessages,
-    respondToTicket
+    // getTickets,
+    // getTicketMessages,
+    // respondToTicket
 } from './controllers/adminController.js';
 
 // -------------------------- Auth Routes -------------------------- //
