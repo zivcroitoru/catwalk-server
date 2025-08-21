@@ -1,6 +1,5 @@
 import DB from '../../db.js';
 
-// GET all shop items (client view)
 export async function getShopItems(_req, res) {
   try {
     const { rows } = await DB.query(`
@@ -20,7 +19,6 @@ export async function getShopItems(_req, res) {
   }
 }
 
-// GET all clothes (admin panel)
 export async function getAllClothes(req, res) {
   try {
     const result = await DB.query('SELECT * FROM itemtemplate');
@@ -31,7 +29,6 @@ export async function getAllClothes(req, res) {
   }
 }
 
-// GET shop items (admin panel)
 export async function getShop(req, res) {
   try {
     const result = await DB.query('SELECT * FROM itemtemplate');
@@ -42,7 +39,6 @@ export async function getShop(req, res) {
   }
 }
 
-// POST new shop item
 export async function createShopItem(req, res) {
   const { item_name, description, price, type } = req.body;
 
@@ -65,7 +61,6 @@ export async function createShopItem(req, res) {
   }
 }
 
-// PUT update shop item
 export async function updateShopItem(req, res) {
   const { id } = req.params;
   const { item_name, description, price, type } = req.body;
@@ -94,7 +89,6 @@ export async function updateShopItem(req, res) {
   }
 }
 
-// DELETE shop item by name
 export async function deleteShopItem(req, res) {
   const { id } = req.params;
 
@@ -115,7 +109,6 @@ export async function deleteShopItem(req, res) {
   }
 }
 
-// DELETE shop item by ID (cascade references)
 export async function deleteShopItemById(req, res) {
   const { itemId } = req.params;
 
@@ -147,7 +140,6 @@ export async function deleteShopItemById(req, res) {
   }
 }
 
-// PATCH shop item sprite
 export async function patchShopItem(req, res) {
   const { id } = req.params;
   const { sprite_url_preview } = req.body;
@@ -177,7 +169,6 @@ export async function patchShopItem(req, res) {
   }
 }
 
-// GET shop item count (test)
 export async function testShop(req, res) {
   try {
     const result = await DB.query('SELECT COUNT(*) FROM itemtemplate');
@@ -188,7 +179,6 @@ export async function testShop(req, res) {
   }
 }
 
-// GET shop item by template
 export async function getShopItemByTemplate(req, res) {
   const { template } = req.params;
 
@@ -209,7 +199,6 @@ export async function getShopItemByTemplate(req, res) {
   }
 }
 
-// POST new clothes item
 export async function addClothesItem(req, res) {
   const {
     template,

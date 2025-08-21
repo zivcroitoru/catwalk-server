@@ -140,11 +140,10 @@ export const closeTicket = async (req, res, io) => {
 
     closedTicket = result.rows[0];
   } catch (err) {
-    console.error('❌ DB error when closing ticket:', err);
+    console.error('DB error when closing ticket:', err);
     return res.status(500).json({ error: 'Database error closing ticket' });
   }
 
-  // Socket emit in its own try
   try {
     if (io) {
       io.emit('ticketClosed', { 
@@ -153,8 +152,7 @@ export const closeTicket = async (req, res, io) => {
       });
     }
   } catch (emitErr) {
-    console.warn('⚠️ Failed to emit ticketClosed event:', emitErr);
-    // Don't break API response if only the socket emit fails
+    console.warn(' Failed to emit ticketClosed event:', emitErr);
   }
 
   return res.status(200).json({ message: 'Ticket closed successfully' });

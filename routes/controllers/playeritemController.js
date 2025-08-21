@@ -1,7 +1,5 @@
-// controllers/playeritemController.js
 import DB from '../../db.js';
 
-// ───────────── Get all items for the logged-in player ─────────────
 export const getPlayerItems = async (req, res) => {
   const playerId = req.user.id;
 
@@ -23,7 +21,6 @@ export const getPlayerItems = async (req, res) => {
 
 
 
-// ───────────── Buy or Add a Player Item ─────────────
 export const addPlayerItem = async (req, res) => {
   const playerId = req.user.id;
   const { template } = req.body;
@@ -33,7 +30,6 @@ export const addPlayerItem = async (req, res) => {
   }
 
   try {
-    // 1️⃣ Check item price
     const itemResult = await DB.query(
       'SELECT price FROM itemtemplate WHERE template = $1',
       [template]
@@ -45,7 +41,6 @@ export const addPlayerItem = async (req, res) => {
 
     const price = itemResult.rows[0].price;
 
-    // 2️⃣ Deduct coins if enough balance
     const updateResult = await DB.query(
       `UPDATE players
        SET coins = coins - $1
@@ -58,7 +53,6 @@ export const addPlayerItem = async (req, res) => {
       return res.status(400).json({ error: 'Not enough coins' });
     }
 
-    // 3️⃣ Add item to player_items
     const insertResult = await DB.query(
       `INSERT INTO player_items (player_id, template)
        VALUES ($1, $2)

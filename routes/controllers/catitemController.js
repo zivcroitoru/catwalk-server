@@ -8,7 +8,6 @@ function normalizeSingle(value) {
   return value ?? null;
 }
 
-// PATCH: Update Cat Equipment
 export async function patchCatEquipment(req, res) {
   const catId = parseInt(req.params.catId, 10);
   const { equipment } = req.body;
@@ -54,7 +53,6 @@ export async function patchCatEquipment(req, res) {
   }
 }
 
-// GET: Fetch singular-slot equipment
 export async function getCatEquipment(req, res) {
   const catId = parseInt(req.params.catId, 10);
 

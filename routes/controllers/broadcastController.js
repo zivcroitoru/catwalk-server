@@ -1,6 +1,5 @@
 import DB from '../../db.js';
 
-// GET all broadcasts
 export const getAllBroadcasts = async (_req, res) => {
   try {
     const result = await DB.query('SELECT * FROM broadcasts ORDER BY sent_at DESC');
@@ -11,7 +10,6 @@ export const getAllBroadcasts = async (_req, res) => {
   }
 };
 
-// POST a broadcast
 export const createBroadcast = async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: 'Message is required' });

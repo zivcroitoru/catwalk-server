@@ -1,8 +1,8 @@
 import DB from "../db.js";
 
-// ═══════════════════════════════════════════════════════════════
-// FASHION SHOW GAME LOGIC
-// ═══════════════════════════════════════════════════════════════
+
+//-------------------- FASHION SHOW GAME LOGIC-------------------------//
+
 
 // Configuration constants for game mechanics
 const PARTICIPANTS_IN_ROOM = 5;
@@ -14,7 +14,7 @@ let waitingRoom = {
   isVoting: false,
 };
 
-// ─────────────── Participant Creation with Database Integration ───────────────
+// ------------------------------ Participant Creation with Database Integration---------------------------//
 
 /**
  * Creates a participant object with complete database-fetched information
@@ -49,12 +49,12 @@ async function createParticipant(playerId, catId, socket) {
       const playerRow = playerResult.rows[0];
       if (playerRow.username) {
         participant.username = playerRow.username;
-        console.log(`✅ Found username: ${participant.username}`);
+        console.log(`Found username: ${participant.username}`);
       } else {
-        console.log(`⚠️ Player ${playerId} has null username, using fallback`);
+        console.log(`Player ${playerId} has null username, using fallback`);
       }
     } else {
-      console.log(`⚠️ No player found with id ${playerId}, using fallback`);
+      console.log(`No player found with id ${playerId}, using fallback`);
     }
 
     // Fetch cat data including template sprite
@@ -77,20 +77,20 @@ async function createParticipant(playerId, catId, socket) {
       const catRow = catResult.rows[0];
       if (catRow.name) {
         participant.catName = catRow.name;
-        console.log(`✅ Found cat name: ${participant.catName}`);
+        console.log(`Found cat name: ${participant.catName}`);
       } else {
-        console.log(`⚠️ Cat ${catId} has null name, using fallback`);
+        console.log(`Cat ${catId} has null name, using fallback`);
       }
 
       if (catRow.sprite_url) {
         participant.catSpriteUrl = catRow.sprite_url;
-        console.log(`✅ Found cat sprite URL`);
+        console.log(`Found cat sprite URL`);
       } else {
-        console.log(`⚠️ No sprite URL found for cat ${catId}`);
+        console.log(`No sprite URL found for cat ${catId}`);
       }
     } else {
       console.log(
-        `⚠️ No cat found with cat_id=${catId} and player_id=${playerId}`,
+        `No cat found with cat_id=${catId} and player_id=${playerId}`,
       );
 
       // Debug: Check what cats this player has
@@ -99,7 +99,7 @@ async function createParticipant(playerId, catId, socket) {
         [playerId],
       );
       console.log(
-        `🔍 Player ${playerId} has ${debugResult.rows.length} cats:`,
+        `Player ${playerId} has ${debugResult.rows.length} cats:`,
         debugResult.rows,
       );
     }
@@ -134,7 +134,7 @@ async function createParticipant(playerId, catId, socket) {
   return participant;
 }
 
-// ─────────────── Game Room Class - Manages Active Fashion Show ───────────────
+// ---------------Game Room Class - Manages Active Fashion Show ---------------//
 
 /**
  * Manages a single fashion show game session with 5 participants
@@ -819,7 +819,7 @@ class GameRoom {
   }
 }
 
-// ─────────────── Broadcast Waiting Room Management ───────────────
+//---------------Broadcast Waiting Room Management---------------//
 
 /**
  * Broadcasts current waiting room state to all waiting participants
@@ -847,9 +847,7 @@ function broadcastWaitingRoomUpdate() {
   console.log(`Waiting room update sent to ${waitingRoom.participants.length} participants`);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// MAIN SOCKET SETUP FUNCTION
-// ═══════════════════════════════════════════════════════════════
+//---------------MAIN SOCKET SETUP FUNCTION---------------//
 
 /**
  * Sets up all socket.io event handlers for both fashion show and ticket system
@@ -867,9 +865,9 @@ export default function setupSocket(io) {
     let currentParticipant = null;  // Fashion show participant data
     let currentGameRoom = null;     // Active game room reference
 
-    // ═══════════════════════════════════════════════════════════════
-    // FASHION SHOW EVENT HANDLERS
-    // ═══════════════════════════════════════════════════════════════
+
+    // ---------------FASHION SHOW EVENT HANDLERS---------------//
+
 
     /**
      * Handles player joining the fashion show waiting room
@@ -1106,9 +1104,9 @@ export default function setupSocket(io) {
       }
     });
 
-    // ═══════════════════════════════════════════════════════════════
-    // TICKET SYSTEM EVENT HANDLERS (Legacy Support)
-    // ═══════════════════════════════════════════════════════════════
+
+    //----------------TICKET SYSTEM EVENT HANDLERS (Legacy Support)---------------//
+
 
     /**
      * Admin broadcast message to all players
@@ -1283,9 +1281,7 @@ export default function setupSocket(io) {
       }
     });
 
-    // ═══════════════════════════════════════════════════════════════
-    // DISCONNECT HANDLER
-    // ═══════════════════════════════════════════════════════════════
+    //--------------DISCONNECT HANDLER---------------//
 
     socket.on("disconnect", () => {
       console.log(`Connection terminated: ${socket.id}`);

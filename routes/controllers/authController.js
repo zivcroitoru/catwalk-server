@@ -1,18 +1,16 @@
-// /controllers/authController.js
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import DB from '../../db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// ───────────── Middleware ─────────────
 export function requireLogin(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: 'No token provided' });
   }
 
-  const token = authHeader.split(' ')[1]; // Bearer <token>
+  const token = authHeader.split(' ')[1]; 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
@@ -22,9 +20,8 @@ export function requireLogin(req, res, next) {
   }
 }
 
-// ───────────── Controllers ─────────────
+// controllers
 
-// SIGNUP
 export async function signup(req, res) {
   const { username, password } = req.body;
   try {
@@ -60,7 +57,6 @@ export async function signup(req, res) {
   }
 }
 
-// LOGIN
 export async function login(req, res) {
   const { username, password } = req.body;
   try {
@@ -90,17 +86,14 @@ export async function login(req, res) {
   }
 }
 
-// LOGOUT
 export function logout(_req, res) {
   res.status(200).json({ message: 'Logout successful' });
 }
 
-// AUTH CHECK
 export function getMe(req, res) {
   res.status(200).json({ message: 'You are logged in!', user: req.user });
 }
 
-// UPDATE USER
 export async function updateUser(req, res) {
   try {
     const userId = req.user.id;

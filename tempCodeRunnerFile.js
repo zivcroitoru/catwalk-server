@@ -19,40 +19,11 @@ const server = http.createServer(app);
 
 const PORT = 3000;
 
-// const devAllowedOrigins = [
-//   'http://127.0.0.1:5500',
-//   'http://localhost:5500'
-// ];
-
-// app.use(cors({
-//   origin: process.env.NODE_ENV === 'production'
-//     ? process.env.FRONTEND_URL
-//     : devAllowedOrigins,
-//   credentials: true,
-// }));
-
-
-// Fixed app.use(cors({- 
-// app.use(cors({
-//   origin: '*',      // Allow all origins
-//   credentials: true, // Note: credentials cannot be used with '*', see below
-// }));
-// To:
 app.use(cors({
   origin: ['http://127.0.0.1:5500', 'http://localhost:5500'],
   credentials: true
 }));
 
-// Socket.io is used in the fashion-show - so we disable it here.
-// const io = new Server(server);
-// io.on('connection', (socket) => {
-//   console.log('A user connected:', socket.id);
-//   // Send welcome message to the newly connected user
-//   socket.emit('welcome', 'Welcome to the CatWalk socket server!');
-//   socket.on('disconnect', () => {
-//     console.log('User disconnected:', socket.id);
-//   });
-// });
 
 app.use(express.json());
 

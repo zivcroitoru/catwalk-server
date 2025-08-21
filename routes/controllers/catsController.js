@@ -1,6 +1,5 @@
 import DB from '../../db.js';
 
-// ───────────── GET: Player's Cats ─────────────
 export async function getPlayerCats(req, res) {
   try {
     const result = await DB.query(
@@ -14,7 +13,6 @@ export async function getPlayerCats(req, res) {
   }
 }
 
-// ───────────── GET: All Cat Templates (Public) ─────────────
 export async function getAllCats(_req, res) {
   try {
     const result = await DB.query('SELECT * FROM cat_templates');
@@ -25,7 +23,6 @@ export async function getAllCats(_req, res) {
   }
 }
 
-// ───────────── GET: Cat by Template (Public) ─────────────
 export async function getCatByTemplate(req, res) {
   const { template } = req.params;
   try {
@@ -43,7 +40,6 @@ export async function getCatByTemplate(req, res) {
   }
 }
 
-// ───────────── PATCH: Update Sprite URL (Admin) ─────────────
 export async function updateCatSprite(req, res) {
   const catId = req.params.id;
   const { sprite_url } = req.body;
@@ -69,7 +65,6 @@ export async function updateCatSprite(req, res) {
   }
 }
 
-// ───────────── POST: Create New Cat (Auth) ─────────────
 export async function createCat(req, res) {
   const { template, name, description, uploaded_photo_url, birthdate } = req.body;
   const player_id = req.user.id;
@@ -102,7 +97,6 @@ export async function createCat(req, res) {
   }
 }
 
-// ───────────── PATCH: Update Cat (Auth) ─────────────
 export async function updateCat(req, res) {
   const { id } = req.params;
   const updates = req.body;
@@ -151,7 +145,6 @@ export async function updateCat(req, res) {
   }
 }
 
-// ───────────── DELETE: Remove Cat (Auth) ─────────────
 export async function deleteCat(req, res) {
   const { id } = req.params;
 
@@ -172,7 +165,6 @@ export async function deleteCat(req, res) {
   }
 }
 
-// ───────────── GET: Player Cats by ID (Public) ─────────────
 export async function getCatsByPlayer(req, res) {
   const { playerId } = req.params;
 
@@ -192,7 +184,6 @@ export async function getCatsByPlayer(req, res) {
   }
 }
 
-// ───────────── POST: Add Template ─────────────
 export async function addTemplate(req, res) {
   const { template, breed, variant, palette, description, sprite_url } = req.body;
 
@@ -215,7 +206,6 @@ export async function addTemplate(req, res) {
   }
 }
 
-// ───────────── DELETE: Remove Cat Template ─────────────
 export async function deleteTemplate(req, res) {
   const { catId } = req.params;
 

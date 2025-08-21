@@ -3,7 +3,7 @@
 import express from 'express';
 const router = express.Router();
 
-// -------------------------- Controllers --------------------------
+// -------------------------- Controllers -------------------------- //
 import catController from './controllers/catsController.js';
 import playersController from './controllers/playersControllers.js';
 import shopController from './controllers/shopController.js';
@@ -21,10 +21,7 @@ import {
 } from './controllers/authController.js';
 
 import {
-    loginAdmin,
-    // getTickets,
-    // getTicketMessages,
-    // respondToTicket
+    loginAdmin
 } from './controllers/adminController.js';
 
 // -------------------------- Auth Routes -------------------------- //
@@ -89,15 +86,13 @@ router.get('/api/tickets/:ticketId/messages', ticketController.getTicketMessages
 router.post('/api/tickets/:ticketId/messages', ticketController.sendTicketMessage);
 router.patch('/api/tickets/:ticketId/close', ticketController.closeTicket);
 
-// -------------------------- Broadcast Routes --------------------------
+// -------------------------- Broadcast Routes -------------------------- //
 router.get('/api/broadcasts', broadcastController.getAllBroadcasts);
 router.post('/api/broadcasts', broadcastController.createBroadcast);
 
-//------------------------ admin routes ----------------------------
+//------------------------ admin routes ---------------------------- //
 router.post('/api/admins/login', loginAdmin);
-// router.get('/api/admins/tickets', getTickets);
-// router.get('/api/admins/messages/:ticketId', getTicketMessages);
-// router.post('/api/admins/messages/:ticketId', respondToTicket);
+
 
 export default router;
 

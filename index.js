@@ -47,10 +47,6 @@ app.use(cors({
 // Parse JSON payloads
 app.use(express.json());
 
-// ═══════════════════════════════════════════════════════════════
-// ROUTES CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
-
 // Import and mount main router
 import routerPath from './routes/router.js';
 app.use("/", routerPath);
@@ -70,9 +66,6 @@ app.get('/api/test-db', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// SOCKET.IO CONFIGURATION
-// ═══════════════════════════════════════════════════════════════
 
 // Initialize Socket.IO server with CORS configuration
 const io = new SocketIOServer(httpServer, {
@@ -88,9 +81,6 @@ console.log('Socket.IO server initialized');
 setupSocket(io);
 console.log('Socket event handlers configured');
 
-// ═══════════════════════════════════════════════════════════════
-// SERVER STARTUP
-// ═══════════════════════════════════════════════════════════════
 
 // Start the HTTP server
 httpServer.listen(PORT, () => {

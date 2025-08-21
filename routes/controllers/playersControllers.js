@@ -1,6 +1,5 @@
 import DB from '../../db.js';
 
-// GET all players
 export async function getPlayers(req, res) {
   try {
     const result = await DB.query('SELECT * FROM players');
@@ -11,7 +10,6 @@ export async function getPlayers(req, res) {
   }
 }
 
-// POST create player
 export async function createPlayer(req, res) {
   const { username } = req.body;
   if (!username) {
@@ -30,7 +28,6 @@ export async function createPlayer(req, res) {
   }
 }
 
-// GET player by ID
 export async function getPlayerById(req, res) {
   const { id } = req.params;
   try {
@@ -45,7 +42,6 @@ export async function getPlayerById(req, res) {
   }
 }
 
-// PUT update player
 export async function updatePlayer(req, res) {
   const { id } = req.params;
   const { username, coins } = req.body;
@@ -87,7 +83,6 @@ export async function updatePlayer(req, res) {
   }
 }
 
-// DELETE player
 export async function deletePlayer(req, res) {
   const { id } = req.params;
   try {
@@ -105,7 +100,6 @@ export async function deletePlayer(req, res) {
   }
 }
 
-// GET cats belonging to a player
 export async function getPlayerCats(req, res) {
   const { id: playerId } = req.params;
   try {
@@ -123,7 +117,6 @@ export async function getPlayerCats(req, res) {
   }
 }
 
-// GET items belonging to a player
 export async function getPlayerItems(req, res) {
   const { id: playerId } = req.params;
   try {
