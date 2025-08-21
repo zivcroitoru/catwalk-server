@@ -27,14 +27,14 @@ import {
     respondToTicket
 } from './controllers/adminController.js';
 
-// -------------------------- Auth Routes --------------------------
+// -------------------------- Auth Routes -------------------------- //
 router.post('/auth/signup', signup);
 router.post('/auth/login', login);
 router.post('/auth/logout', logout);
 router.get('/auth/me', requireLogin, getMe);
 router.patch('/auth/user', requireLogin, updateUser);
 
-// -------------------------- Cat Routes --------------------------
+// -------------------------- Cat Routes -------------------------- //
 router.get('/api/cats', requireLogin, catController.getPlayerCats);
 router.post('/api/cats', requireLogin, catController.createCat);
 router.patch('/api/cats/:id', requireLogin, catController.updateCat);
@@ -47,7 +47,7 @@ router.post('/api/cats/catadd', catController.addTemplate);
 router.patch('/api/cats/allcats/:id', catController.updateCatSprite);
 router.delete('/api/cats/delete/:catId', catController.deleteTemplate);
 
-// -------------------------- Player Routes --------------------------
+// -------------------------- Player Routes ------------------------ //
 router.get('/api/players', playersController.getPlayers);
 router.post('/api/players', playersController.createPlayer);
 router.get('/api/players/:id', playersController.getPlayerById);
@@ -56,7 +56,7 @@ router.delete('/api/players/:id', playersController.deletePlayer);
 router.get('/api/players/:id/cats', playersController.getPlayerCats);
 router.get('/api/players/:id/items', playersController.getPlayerItems);
 
-// -------------------------- Shop Routes --------------------------
+// -------------------------- Shop Routes -------------------------- //
 router.get('/api/shop/shop-items', shopController.getShopItems);
 router.get('/api/shop/allclothes', shopController.getAllClothes);
 router.get('/api/shop', shopController.getShop);
@@ -69,12 +69,12 @@ router.get('/api/shop/test', shopController.testShop);
 router.get('/api/shop/:template', shopController.getShopItemByTemplate);
 router.post('/api/shop/clothesadd', shopController.addClothesItem);
 
-// -------------------------- Player Item Routes ------------------------
+// -------------------------- Player Item Routes ------------------------ //
 router.get('/api/playerItems', requireLogin, playerItemController.getPlayerItems);
 router.patch('/api/playerItems', requireLogin, playerItemController.addPlayerItem);
 
 
-// -------------------------- Cat Item Routes --------------------------
+// -------------------------- Cat Item Routes -------------------------- //
 router.patch('/api/cat_items/:catId', requireLogin, catItemsController.patchCatEquipment);
 router.get('/api/cat_items/:catId', requireLogin, catItemsController.getCatEquipment);
 
