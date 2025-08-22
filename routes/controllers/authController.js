@@ -75,6 +75,10 @@ export async function login(req, res) {
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid username or password' });
     }
+    await DB.query(
+      'UPDATE players SET last_logged_in = NOW() WHERE id = $1',
+      [user.id]
+    );
 
     const userData = { id: user.id, username: user.username };
     const token = jwt.sign(userData, JWT_SECRET, { expiresIn: '7d' });
@@ -85,6 +89,7 @@ export async function login(req, res) {
     res.status(500).json({ error: 'Server error' });
   }
 }
+
 
 export function logout(_req, res) {
   res.status(200).json({ message: 'Logout successful' });
